@@ -38,6 +38,7 @@ type ModelsResponse struct {
 	TextModels  []TextModel  `json:"text_models"`
 	ImageModels []MediaModel `json:"image_models,omitempty"`
 	VideoModels []MediaModel `json:"video_models,omitempty"`
+	AudioModels []MediaModel `json:"audio_models,omitempty"`
 }
 
 // ImageRequest is the body for POST /v1/generate/image.
@@ -54,6 +55,8 @@ type ImageRequest struct {
 	NumImages      int           `json:"num_images"`
 	SourceImageURL string        `json:"sourceImageUrl"`
 	ImageURL       string        `json:"image_url"`
+	ImageBase64    string        `json:"imageBase64"`
+	ImageMimeType  string        `json:"imageMimeType"`
 	Messages       []ChatMessage `json:"messages"`
 }
 
@@ -67,18 +70,52 @@ type ImageResponse struct {
 
 // VideoRequest is the body for POST /v1/generate/video.
 type VideoRequest struct {
-	Prompt      string        `json:"prompt"`
-	Text        string        `json:"text"`
-	Model       string        `json:"model"`
-	AspectRatio string        `json:"aspect_ratio"`
-	Duration    int           `json:"duration"`
-	Quality     string        `json:"quality"`
-	Messages    []ChatMessage `json:"messages"`
+	Prompt         string        `json:"prompt"`
+	Text           string        `json:"text"`
+	Model          string        `json:"model"`
+	AspectRatio    string        `json:"aspect_ratio"`
+	Duration       int           `json:"duration"`
+	Resolution     string        `json:"resolution"`
+	Quality        string        `json:"quality"`
+	SourceImageURL string        `json:"sourceImageUrl"`
+	SourceVideoURL string        `json:"sourceVideoUrl"`
+	ImageURL       string        `json:"image_url"`
+	VideoURL       string        `json:"video_url"`
+	LastImageURL    string        `json:"last_image"`
+	ReferenceImages []string      `json:"reference_images"`
+	GenerateAudio   *bool         `json:"generate_audio"`
+	CameraFixed     *bool         `json:"camera_fixed"`
+	TurboMode       *bool         `json:"turbo_mode"`
+	Seed            int           `json:"seed"`
+	Messages        []ChatMessage `json:"messages"`
 }
 
 // VideoResponse is returned by POST /v1/generate/video.
 type VideoResponse struct {
 	VideoURL string `json:"video_url"`
+	Model    string `json:"model"`
+}
+
+// AudioRequest is the body for POST /v1/generate/audio.
+type AudioRequest struct {
+	Prompt           string        `json:"prompt"`
+	Text             string        `json:"text"`
+	Model            string        `json:"model"`
+	Language         string        `json:"language"`
+	Voice            string        `json:"voice"`
+	StyleInstruction string        `json:"style_instruction"`
+	ReferenceText    string        `json:"reference_text"`
+	Mode             string        `json:"mode"` // tts | clone
+	SourceAudioURL   string        `json:"sourceAudioUrl"`
+	AudioURL         string        `json:"audio_url"`
+	AudioBase64      string        `json:"audioBase64"`
+	AudioMimeType    string        `json:"audioMimeType"`
+	Messages         []ChatMessage `json:"messages"`
+}
+
+// AudioResponse is returned by POST /v1/generate/audio.
+type AudioResponse struct {
+	AudioURL string `json:"audio_url"`
 	Model    string `json:"model"`
 }
 
@@ -96,6 +133,7 @@ func (s *Service) ListModels() ModelsResponse {
 		TextModels:  ListTextModels(),
 		ImageModels: ListImageModels(),
 		VideoModels: ListVideoModels(),
+		AudioModels: ListAudioModels(),
 	}
 }
 
@@ -234,6 +272,37 @@ func (s *Service) GenerateVideo(ctx context.Context, req VideoRequest) (VideoRes
 	}
 
 	return generateWavespeedVideo(ctx, s.cfg, prompt, req, def)
+}
+
+func (s *Service) GenerateAudio(ctx context.Context, req AudioRequest) (AudioResponse, error) {
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
+		prompt = strings.TrimSpace(req.Text)
+	}
+	if prompt == "" {
+		return AudioResponse{}, ErrPromptEmpty
+	}
+
+	if !s.cfg.WavespeedImageEnabled() {
+		return AudioResponse{}, &ProviderError{
+			Provider: "wavespeed",
+			Message:  "WAVESPEED_API_KEY is not configured",
+		}
+	}
+
+	def, ok := resolveWavespeedAudioModel(req.Model)
+	if !ok {
+		def, ok = resolveWavespeedAudioModel("qwen3-tts")
+	}
+	if !ok {
+		return AudioResponse{}, &ProviderError{Provider: "wavespeed", Message: "unknown audio model: " + req.Model}
+	}
+
+	if hasQwen3TTSSourceAudio(req) && strings.TrimSpace(req.SourceAudioURL) == "" && strings.TrimSpace(req.AudioURL) == "" && strings.TrimSpace(req.AudioBase64) == "" {
+		return AudioResponse{}, &ProviderError{Provider: "wavespeed", Message: "reference audio is required for voice clone"}
+	}
+
+	return generateWavespeedAudio(ctx, s.cfg, prompt, req, def)
 }
 
 func normalizeTextInput(req TextRequest) (prompt string, messages []ChatMessage, err error) {

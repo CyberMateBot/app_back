@@ -62,10 +62,60 @@ func TestResolveWavespeedVideoModel(t *testing.T) {
 	if !ok || def.TextSlug != "kwaivgi/kling-v3.0-pro/text-to-video" {
 		t.Fatalf("kling-v3-pro: %+v ok=%v", def, ok)
 	}
+
+	def, ok = resolveWavespeedVideoModel("seedance-v1.5-t2v-fast")
+	if !ok || def.TextSlug != "bytedance/seedance-v1.5-pro/text-to-video-fast" {
+		t.Fatalf("seedance-v1.5-t2v-fast: %+v", def)
+	}
+
+	def, ok = resolveWavespeedVideoModel("seedance-v2-video-edit")
+	if !ok || !def.RequiresVideo {
+		t.Fatalf("seedance-v2-video-edit: %+v", def)
+	}
+}
+
+func TestResolveWavespeedVideoSlug(t *testing.T) {
+	i2v, _ := resolveWavespeedVideoModel("seedance-v1-pro-i2v")
+	_, err := resolveWavespeedVideoSlug(i2v, VideoRequest{Prompt: "sunset"})
+	if err == nil {
+		t.Fatal("expected error without source image")
+	}
+
+	slug, err := resolveWavespeedVideoSlug(i2v, VideoRequest{
+		Prompt:         "sunset",
+		SourceImageURL: "https://cdn.example.com/a.jpg",
+	})
+	if err != nil || slug != "bytedance/seedance-v1-pro-i2v-720p" {
+		t.Fatalf("i2v slug=%q err=%v", slug, err)
+	}
+
+	edit, _ := resolveWavespeedVideoModel("seedance-v2-video-edit")
+	slug, err = resolveWavespeedVideoSlug(edit, VideoRequest{
+		Prompt:         "cyberpunk night",
+		SourceVideoURL: "https://cdn.example.com/v.mp4",
+		Resolution:     "480p",
+	})
+	if err != nil || slug != "bytedance/seedance-2.0/video-edit" {
+		t.Fatalf("edit 480p slug=%q err=%v", slug, err)
+	}
+
+	slug, err = resolveWavespeedVideoSlug(edit, VideoRequest{
+		Prompt:         "cyberpunk night",
+		SourceVideoURL: "https://cdn.example.com/v.mp4",
+		Resolution:     "1080p",
+	})
+	if err != nil || slug != "bytedance/seedance-2.0/video-edit-turbo" {
+		t.Fatalf("edit 1080p slug=%q err=%v", slug, err)
+	}
 }
 
 func TestListMediaModels(t *testing.T) {
 	images := ListImageModels()
+	videos := ListVideoModels()
+	if len(videos) < 8 {
+		t.Fatalf("expected at least 8 video models, got %d", len(videos))
+	}
+
 	if len(images) < 7 {
 		t.Fatalf("expected at least 7 image models, got %d", len(images))
 	}

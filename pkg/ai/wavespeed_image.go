@@ -8,6 +8,10 @@ import (
 )
 
 func generateWavespeedImage(ctx context.Context, cfg config.ConfigAI, prompt string, req ImageRequest, def mediaModelDef) (ImageResponse, error) {
+	if err := prepareWavespeedImageSource(ctx, cfg, &req); err != nil {
+		return ImageResponse{}, err
+	}
+
 	slug, err := resolveWavespeedImageSlug(def, req)
 	if err != nil {
 		return ImageResponse{}, err
@@ -47,7 +51,9 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 		if sourceURL == "" {
 			sourceURL = strings.TrimSpace(req.ImageURL)
 		}
-		input["image"] = sourceURL
+		if sourceURL != "" {
+			input["images"] = []string{sourceURL}
+		}
 		input["prompt"] = prompt
 	} else {
 		input["prompt"] = prompt
@@ -60,7 +66,7 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 	if outputFmt == "" {
 		outputFmt = "png"
 	}
-	input["output_format"] = outputFmt
+	input["output_format"] = normalizeImageOutputFormat(def.ID, outputFmt)
 
 	if ar := strings.TrimSpace(req.AspectRatio); ar != "" {
 		input["aspect_ratio"] = ar
@@ -72,8 +78,10 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 	if resolution == "" && def.ID != "nano-banana" {
 		resolution = cfg.NanoBananaResolution
 	}
-	if resolution != "" && !isEdit {
-		input["resolution"] = resolution
+	if resolution != "" && modelSupportsResolution(def.ID) {
+		if norm := normalizeImageResolution(def.ID, resolution); norm != "" {
+			input["resolution"] = norm
+		}
 	}
 
 	if q := strings.TrimSpace(req.Quality); q != "" {

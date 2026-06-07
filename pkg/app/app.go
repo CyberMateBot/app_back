@@ -147,6 +147,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
+	fmt.Printf("HTTP API listening on http://127.0.0.1:%d\n", a.httpPort)
 	if err := a.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("failed to serve HTTP: %w", err)
 	}

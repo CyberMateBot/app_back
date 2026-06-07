@@ -17,6 +17,7 @@ const (
 	pathGenerateText   = "/v1/generate/text"
 	pathGenerateImage  = "/v1/generate/image"
 	pathGenerateVideo  = "/v1/generate/video"
+	pathGenerateAudio  = "/v1/generate/audio"
 )
 
 // Wrap adds POST /v1/generate/text and POST /v1/generate/image.
@@ -37,6 +38,9 @@ func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateVideo:
 			handleVideo(w, r, svc)
+			return
+		case r.Method == http.MethodPost && r.URL.Path == pathGenerateAudio:
+			handleAudio(w, r, svc)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -105,8 +109,8 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 
 func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 	var req ai.ImageRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if err := decodeImageJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
 
@@ -121,8 +125,8 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 
 func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 	var req ai.VideoRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if err := decodeVideoJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
 
@@ -135,16 +139,62 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
+	var req ai.AudioRequest
+	if err := decodeAudioJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, formatDecodeError(err))
+		return
+	}
+
+	out, err := svc.GenerateAudio(r.Context(), req)
+	if err != nil {
+		writeServiceError(w, r, "generate audio", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, out)
+}
+
+const (
+	maxJSONBodyDefault = 1 << 20       // 1 MiB — text / small payloads
+	maxJSONBodyImage   = 12 << 20      // 12 MiB — imageBase64 (до ~8 MiB binary)
+	maxJSONBodyVideo   = 2 << 20       // 2 MiB — video metadata
+	maxJSONBodyAudio   = 12 << 20      // 12 MiB — audioBase64 for voice clone
+)
+
 func decodeJSON(r *http.Request, dst any) error {
+	return decodeJSONWithLimit(r, dst, maxJSONBodyDefault)
+}
+
+func decodeImageJSON(r *http.Request, dst any) error {
+	return decodeJSONWithLimit(r, dst, maxJSONBodyImage)
+}
+
+func decodeVideoJSON(r *http.Request, dst any) error {
+	return decodeJSONWithLimit(r, dst, maxJSONBodyVideo)
+}
+
+func decodeAudioJSON(r *http.Request, dst any) error {
+	return decodeJSONWithLimit(r, dst, maxJSONBodyAudio)
+}
+
+func decodeJSONWithLimit(r *http.Request, dst any, maxBytes int64) error {
 	if r.Body == nil {
 		return errors.New("request body is required")
 	}
 	defer r.Body.Close()
-	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	dec := json.NewDecoder(io.LimitReader(r.Body, maxBytes))
 	if err := dec.Decode(dst); err != nil {
 		return err
 	}
 	return nil
+}
+
+func formatDecodeError(err error) string {
+	if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "unexpected EOF") {
+		return "request body too large or truncated (max image payload ~12 MiB)"
+	}
+	return err.Error()
 }
 
 func writeServiceError(w http.ResponseWriter, r *http.Request, op string, err error) {

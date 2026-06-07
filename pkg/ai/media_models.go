@@ -9,22 +9,26 @@ type MediaModel struct {
 	Group         string        `json:"group"`
 	Description   string        `json:"description,omitempty"`
 	Provider      string        `json:"provider"` // wavespeed | yandex
-	Kind          string        `json:"kind"`     // image | video
-	SupportsEdit  bool          `json:"supports_edit,omitempty"`
-	SupportsMulti bool          `json:"supports_multi,omitempty"`
-	Options       []MediaOption `json:"options,omitempty"`
+	Kind          string        `json:"kind"`     // image | video | audio
+	SupportsEdit   bool          `json:"supports_edit,omitempty"`
+	SupportsMulti  bool          `json:"supports_multi,omitempty"`
+	RequiresImage  bool          `json:"requires_image,omitempty"`
+	RequiresVideo  bool          `json:"requires_video,omitempty"`
+	Options        []MediaOption `json:"options,omitempty"`
 }
 
 type mediaModelDef struct {
-	ID          string
-	Label       string
-	Group       string
-	Description string
-	TextSlug    string
-	EditSlug    string
-	MultiSlug   string
-	Provider    string
-	Kind        string
+	ID            string
+	Label         string
+	Group         string
+	Description   string
+	TextSlug      string
+	EditSlug      string
+	MultiSlug     string
+	Provider      string
+	Kind          string
+	RequiresImage bool
+	RequiresVideo bool
 }
 
 var wavespeedImageModelCatalog = []mediaModelDef{
@@ -85,6 +89,53 @@ var wavespeedVideoModelCatalog = []mediaModelDef{
 		TextSlug: "kwaivgi/kling-v3.0-pro/text-to-video",
 		Provider: "wavespeed", Kind: "video",
 	},
+	{
+		ID: "seedance-v1-pro-i2v", Label: "Seedance 1.0 I2V", Group: "Seedance",
+		Description: "Image-to-video 720p от ByteDance",
+		TextSlug: "bytedance/seedance-v1-pro-i2v-720p",
+		Provider: "wavespeed", Kind: "video", RequiresImage: true,
+	},
+	{
+		ID: "seedance-v1.5-i2v-fast", Label: "Seedance 1.5 I2V Fast", Group: "Seedance",
+		Description: "Быстрый image-to-video с аудио",
+		TextSlug: "bytedance/seedance-v1.5-pro/image-to-video-fast",
+		Provider: "wavespeed", Kind: "video", RequiresImage: true,
+	},
+	{
+		ID: "seedance-v1.5-t2v-fast", Label: "Seedance 1.5 T2V Fast", Group: "Seedance",
+		Description: "Быстрый text-to-video с аудио",
+		TextSlug: "bytedance/seedance-v1.5-pro/text-to-video-fast",
+		Provider: "wavespeed", Kind: "video",
+	},
+	{
+		ID: "seedance-v1.5-i2v-spicy", Label: "Seedance 1.5 I2V Spicy", Group: "Seedance",
+		Description: "Выразительный image-to-video с динамикой",
+		TextSlug: "bytedance/seedance-v1.5-pro/image-to-video-spicy",
+		Provider: "wavespeed", Kind: "video", RequiresImage: true,
+	},
+	{
+		ID: "seedance-v2-video-edit", Label: "Seedance 2.0 Edit", Group: "Seedance",
+		Description: "Редактирование видео: 480p — стандарт, 720p/1080p — Turbo",
+		TextSlug: seedanceVideoEditSlug,
+		EditSlug: seedanceVideoEditTurboSlug,
+		Provider: "wavespeed", Kind: "video", RequiresVideo: true,
+	},
+	{
+		ID: "seedance-v2-video-extend", Label: "Seedance 2.0 Extend", Group: "Seedance",
+		Description: "Продление видео новым сегментом",
+		TextSlug: "bytedance/seedance-2.0/video-extend",
+		Provider: "wavespeed", Kind: "video", RequiresVideo: true,
+	},
+}
+
+var wavespeedAudioModelCatalog = []mediaModelDef{
+	{
+		ID: "qwen3-tts", Label: "Qwen3 TTS", Group: "Qwen3 TTS",
+		Description: "Озвучка текста и клонирование голоса",
+		TextSlug: qwen3TTSTextSlug,
+		EditSlug: qwen3TTSCloneSlug,
+		Provider: "wavespeed", Kind: "audio",
+	},
 }
 
 var mediaModelAliases = map[string]string{
@@ -109,6 +160,23 @@ var mediaModelAliases = map[string]string{
 	"kwaivgi/kling-v3.0-std/text-to-video": "kling-v3-std",
 	"kling-v3-pro": "kling-v3-pro",
 	"kwaivgi/kling-v3.0-pro/text-to-video": "kling-v3-pro",
+	"seedance-v1-pro-i2v": "seedance-v1-pro-i2v",
+	"bytedance/seedance-v1-pro-i2v-720p": "seedance-v1-pro-i2v",
+	"seedance-v1.5-i2v-fast": "seedance-v1.5-i2v-fast",
+	"bytedance/seedance-v1.5-pro/image-to-video-fast": "seedance-v1.5-i2v-fast",
+	"seedance-v1.5-t2v-fast": "seedance-v1.5-t2v-fast",
+	"bytedance/seedance-v1.5-pro/text-to-video-fast": "seedance-v1.5-t2v-fast",
+	"seedance-v1.5-i2v-spicy": "seedance-v1.5-i2v-spicy",
+	"bytedance/seedance-v1.5-pro/image-to-video-spicy": "seedance-v1.5-i2v-spicy",
+	"seedance-v2-video-edit": "seedance-v2-video-edit",
+	"bytedance/seedance-2.0/video-edit": "seedance-v2-video-edit",
+	"seedance-v2-video-edit-turbo": "seedance-v2-video-edit",
+	"bytedance/seedance-2.0/video-edit-turbo": "seedance-v2-video-edit",
+	"seedance-v2-video-extend": "seedance-v2-video-extend",
+	"bytedance/seedance-2.0/video-extend": "seedance-v2-video-extend",
+	"qwen3-tts": "qwen3-tts",
+	"wavespeed-ai/qwen3-tts/text-to-speech": "qwen3-tts",
+	"wavespeed-ai/qwen3-tts/voice-clone":  "qwen3-tts",
 }
 
 func ListImageModels() []MediaModel {
@@ -132,18 +200,59 @@ func ListVideoModels() []MediaModel {
 	return out
 }
 
+func ListAudioModels() []MediaModel {
+	out := make([]MediaModel, 0, len(wavespeedAudioModelCatalog))
+	for _, m := range wavespeedAudioModelCatalog {
+		out = append(out, toMediaModel(m))
+	}
+	return out
+}
+
 func toMediaModel(m mediaModelDef) MediaModel {
 	opts := imageModelOptions(m.ID)
-	if m.Kind == "video" {
+	switch m.Kind {
+	case "video":
 		opts = videoModelOptions(m.ID)
+	case "audio":
+		opts = audioModelOptions(m.ID)
 	}
 	return MediaModel{
 		ID: m.ID, Label: m.Label, Group: m.Group,
 		Description: m.Description, Provider: m.Provider, Kind: m.Kind,
-		SupportsEdit: m.EditSlug != "",
+		SupportsEdit: m.EditSlug != "" || m.RequiresVideo,
 		SupportsMulti: m.MultiSlug != "",
+		RequiresImage: m.RequiresImage,
+		RequiresVideo: m.RequiresVideo,
 		Options: opts,
 	}
+}
+
+func resolveWavespeedVideoSlug(def mediaModelDef, req VideoRequest) (string, error) {
+	if def.TextSlug == "" {
+		return "", &ProviderError{Provider: "wavespeed", Message: "unknown video model slug"}
+	}
+
+	sourceVideo := strings.TrimSpace(req.SourceVideoURL)
+	if sourceVideo == "" {
+		sourceVideo = strings.TrimSpace(req.VideoURL)
+	}
+	sourceImage := strings.TrimSpace(req.SourceImageURL)
+	if sourceImage == "" {
+		sourceImage = strings.TrimSpace(req.ImageURL)
+	}
+
+	if def.RequiresVideo && sourceVideo == "" {
+		return "", &ProviderError{Provider: "wavespeed", Message: "source video is required for this model"}
+	}
+	if def.RequiresImage && sourceImage == "" {
+		return "", &ProviderError{Provider: "wavespeed", Message: "source image is required for this model"}
+	}
+
+	if isUnifiedSeedanceVideoEdit(def) {
+		return selectSeedanceVideoEditSlug(req), nil
+	}
+
+	return def.TextSlug, nil
 }
 
 func resolveWavespeedImageModel(requested string) (mediaModelDef, bool) {
@@ -152,6 +261,10 @@ func resolveWavespeedImageModel(requested string) (mediaModelDef, bool) {
 
 func resolveWavespeedVideoModel(requested string) (mediaModelDef, bool) {
 	return resolveMediaModel(wavespeedVideoModelCatalog, requested)
+}
+
+func resolveWavespeedAudioModel(requested string) (mediaModelDef, bool) {
+	return resolveMediaModel(wavespeedAudioModelCatalog, requested)
 }
 
 func resolveMediaModel(catalog []mediaModelDef, requested string) (mediaModelDef, bool) {

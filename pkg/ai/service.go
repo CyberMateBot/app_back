@@ -42,27 +42,38 @@ type ModelsResponse struct {
 
 // ImageRequest is the body for POST /v1/generate/image.
 type ImageRequest struct {
-	Prompt      string `json:"prompt"`
-	Text        string `json:"text"`
-	Model       string `json:"model"`
-	Size        string `json:"size"`
-	AspectRatio string `json:"aspect_ratio"`
+	Prompt         string        `json:"prompt"`
+	Text           string        `json:"text"`
+	Model          string        `json:"model"`
+	Size           string        `json:"size"`
+	AspectRatio    string        `json:"aspect_ratio"`
+	Resolution     string        `json:"resolution"`
+	Quality        string        `json:"quality"`
+	OutputFormat   string        `json:"output_format"`
+	Mode           string        `json:"mode"` // generate | edit | multi
+	NumImages      int           `json:"num_images"`
+	SourceImageURL string        `json:"sourceImageUrl"`
+	ImageURL       string        `json:"image_url"`
+	Messages       []ChatMessage `json:"messages"`
 }
 
 // ImageResponse is returned by POST /v1/generate/image.
 type ImageResponse struct {
-	ImageURL    string `json:"image_url,omitempty"`
-	ImageBase64 string `json:"image_base64,omitempty"`
-	Model       string `json:"model"`
+	ImageURL    string   `json:"image_url,omitempty"`
+	ImageURLs   []string `json:"image_urls,omitempty"`
+	ImageBase64 string   `json:"image_base64,omitempty"`
+	Model       string   `json:"model"`
 }
 
 // VideoRequest is the body for POST /v1/generate/video.
 type VideoRequest struct {
-	Prompt      string `json:"prompt"`
-	Text        string `json:"text"`
-	Model       string `json:"model"`
-	AspectRatio string `json:"aspect_ratio"`
-	Duration    int    `json:"duration"`
+	Prompt      string        `json:"prompt"`
+	Text        string        `json:"text"`
+	Model       string        `json:"model"`
+	AspectRatio string        `json:"aspect_ratio"`
+	Duration    int           `json:"duration"`
+	Quality     string        `json:"quality"`
+	Messages    []ChatMessage `json:"messages"`
 }
 
 // VideoResponse is returned by POST /v1/generate/video.

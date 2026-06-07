@@ -8,8 +8,9 @@ import (
 )
 
 func generateWavespeedVideo(ctx context.Context, cfg config.ConfigAI, prompt string, req VideoRequest, def mediaModelDef) (VideoResponse, error) {
-	input := buildWavespeedVideoInput(prompt, req)
-	urls, err := runWavespeedModel(ctx, cfg, def.Slug, input)
+	enrichedPrompt := enrichMediaPrompt(prompt, req.Messages)
+	input := buildWavespeedVideoInput(enrichedPrompt, req)
+	urls, err := runWavespeedModel(ctx, cfg, def.TextSlug, input)
 	if err != nil {
 		return VideoResponse{}, err
 	}

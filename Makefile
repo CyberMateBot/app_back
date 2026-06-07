@@ -4,6 +4,20 @@ else
 CUR_DIR=$(shell pwd)
 endif
 
+.PHONY: run migrate
+
+# Локальный запуск без Docker (нужен PostgreSQL и файл .env).
+run:
+	go run ./cmd/service
+
+# Миграции в локальный PostgreSQL (Windows: powershell -File scripts/migrate.ps1).
+migrate:
+ifeq ($(OS),Windows_NT)
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate.ps1
+else
+	@bash scripts/migrate.sh
+endif
+
 # Генерация pkg/api и api/service.swagger.json (protoc + локальные third_party; без buf.build).
 # Требуются Docker и сеть при первом запуске (git clone googleapis / grpc-gateway).
 proto.gen:

@@ -25,21 +25,31 @@
 ### Требования
 
 - Go 1.24+
-- Docker и Docker Compose
+- PostgreSQL 15+ (локальная установка **или** Docker только для БД)
 - Make (опционально)
 
-### Запуск через Docker Compose
+### Запуск локально без Docker (рекомендуется)
 
 ```bash
-# Клонировать репозиторий
-git clone https://github.com/twelvepills-936/tgapp-.git
-cd tgapp-
+cd app_back
 
-# Запустить сервис и PostgreSQL
-docker compose up -d
+# 1. Скопировать и настроить окружение
+cp deployment/.env.example .env
+# Укажите PG_HOST, PG_PORT (обычно 5432), PG_PASSWORD — пароль вашего PostgreSQL
 
-# Проверить логи
-docker compose logs -f service
+# 2. Создать БД (один раз, в psql или pgAdmin)
+# CREATE DATABASE myapp_db;
+
+# 3. Применить миграции
+# Windows:
+powershell -File scripts/migrate.ps1
+# Linux/macOS или make:
+make migrate
+
+# 4. Запустить бэкенд
+go run ./cmd/service
+# или: make run
+# или Windows: powershell -File scripts/run.ps1
 ```
 
 Сервис будет доступен:
@@ -47,17 +57,18 @@ docker compose logs -f service
 - 📡 gRPC API: localhost:8091
 - 📖 Swagger UI: http://localhost:8090/swagger
 
-### Запуск локально
+Файл `.env` подхватывается автоматически из корня `app_back` (даже если команда запускается из родительской папки).
+
+### Запуск через Docker Compose (опционально)
 
 ```bash
-# Установить зависимости
-go mod download
+cd app_back
+docker compose up -d postgres   # только БД
+go run ./cmd/service            # сервис локально через Go
 
-# Настроить PostgreSQL (или использовать docker compose для БД)
-docker compose up -d postgres
-
-# Запустить сервис
-go run cmd/service/main.go
+# или весь стек в контейнерах:
+docker compose up -d
+docker compose logs -f service
 ```
 
 ## 📁 Структура проекта
@@ -184,11 +195,13 @@ SQL миграции находятся в `internal/migrations/`:
 -- Основные таблицы: profiles, wallets, referrals
 ```
 
-**Локально** (после `docker compose up -d postgres`):
+**Локально** (PostgreSQL без Docker):
 
 ```powershell
 .\scripts\migrate.ps1
 ```
+
+С Docker-контейнером БД: `.\scripts\migrate.ps1 -UseDocker`
 
 В production/CI — Flyway (см. `.gitlab/`).
 

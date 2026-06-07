@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -163,11 +162,7 @@ func CORSAllowsAll(origins []string) bool {
 }
 
 func LoadConfig() Config {
-	// Загружаем .env файл, если он существует
-	if err := godotenv.Load(); err != nil {
-		// .env файл не найден, используем системные переменные окружения
-		// В продакшене это нормально
-	}
+	LoadDotEnv()
 
 	return Config{
 		Postgres: LoadPostgresConfig(),

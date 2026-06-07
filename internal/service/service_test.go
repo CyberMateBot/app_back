@@ -33,6 +33,36 @@ func (f *fakeUC) UpdateProfileTheme(ctx context.Context, input ucModels.UpdatePr
     return ucModels.UpdateProfileThemeOutput{Theme: input.Theme}, nil
 }
 
+// Web site methods (unused in service tests)
+func (f *fakeUC) RegisterWebAccount(ctx context.Context, input ucModels.RegisterWebAccountInput) (ucModels.AuthTokensOutput, error) {
+    return ucModels.AuthTokensOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) LoginWebAccount(ctx context.Context, input ucModels.LoginWebAccountInput) (ucModels.AuthTokensOutput, error) {
+    return ucModels.AuthTokensOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) GetWebAccount(ctx context.Context, webAccountID int64) (ucModels.GetWebAccountOutput, error) {
+    return ucModels.GetWebAccountOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) CreateWebPrompt(ctx context.Context, input ucModels.CreateWebPromptInput) (ucModels.CreateWebPromptOutput, error) {
+    return ucModels.CreateWebPromptOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) ListWebPrompts(ctx context.Context, input ucModels.ListWebPromptsInput) (ucModels.ListWebPromptsOutput, error) {
+    return ucModels.ListWebPromptsOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) ListReferralsByTelegramID(ctx context.Context, telegramID string) (ucModels.ListReferralsOutput, error) {
+    if telegramID == "x" {
+        return ucModels.ListReferralsOutput{}, ucModels.ErrProfileNotFound
+    }
+    return ucModels.ListReferralsOutput{
+        Referrals: []ucModels.ReferralItem{
+            {TelegramID: "999", Name: "Friend", CompletedTasksCount: 2, Earnings: 100},
+        },
+        TotalCount:     1,
+        TotalEarnings:  100,
+        CompletedTasks: 2,
+    }, nil
+}
+
 var _ internal.UseCase = (*fakeUC)(nil)
 
 func TestService_GetUser_OK(t *testing.T) {

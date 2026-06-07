@@ -20,6 +20,7 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/health"
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/logger"
+	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
 )
 
@@ -66,7 +67,7 @@ func main() {
 	repo := repository.NewRepository(pool)
 
 	// Create single instances of usecase and service
-	uc := usecase.NewUseCase(repo)
+	uc := usecase.NewUseCase(repo, addConfig.JWT)
 	svc := service.NewService(uc)
 
 	// Register gRPC services BEFORE starting the server
@@ -98,8 +99,13 @@ func main() {
 			generate.Wrap(
 				prompthistory.Wrap(
 					applinks.Wrap(
-						swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+						siteapi.Wrap(
+							swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+							uc,
+							addConfig.JWT,
+						),
 						addConfig.App,
+						uc,
 					),
 					promptHistory,
 				),

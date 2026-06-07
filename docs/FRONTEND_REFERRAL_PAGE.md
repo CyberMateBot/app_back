@@ -64,11 +64,44 @@ GET /v1/app/links
 }
 ```
 
-Сборка ссылки (если нет отдельного запроса referral-link):
+### 3. Список приглашённых рефералов
 
-```ts
-const referralLink = referral_link_base + String(telegramUserId);
+```http
+GET /v1/users/telegram/{telegram_id}/referrals
 ```
+
+`{telegram_id}` — ID **текущего** пользователя (пригласившего), не реферала.
+
+**Ответ:**
+
+```json
+{
+  "referrals": [
+    {
+      "profile_id": 42,
+      "telegram_id": "987654321",
+      "name": "Ivan",
+      "username": "ivan",
+      "avatar": "https://...",
+      "completed_tasks_count": 2,
+      "earnings": 150
+    }
+  ],
+  "total_count": 1,
+  "total_earnings": 150,
+  "completed_tasks": 2
+}
+```
+
+| Поле | Описание |
+|------|----------|
+| `referrals` | Массив приглашённых пользователей |
+| `total_count` | Количество рефералов |
+| `total_earnings` | Сумма `earnings` по всем рефералам |
+| `completed_tasks` | Сумма `completed_tasks_count` |
+
+Если рефералов нет — `referrals: []`, счётчики `0`.  
+`404` — профиль с таким `telegram_id` не найден.
 
 ---
 
@@ -107,6 +140,33 @@ export async function copyReferralLink(link: string): Promise<void> {
   }
   tg?.showAlert?.(link);
 }
+
+export type ReferralItem = {
+  profile_id: number;
+  telegram_id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  completed_tasks_count: number;
+  earnings: number;
+};
+
+export type ReferralsResponse = {
+  referrals: ReferralItem[];
+  total_count: number;
+  total_earnings: number;
+  completed_tasks: number;
+};
+
+export async function fetchReferrals(telegramId: string): Promise<ReferralsResponse> {
+  const res = await fetch(
+    `${API}/v1/users/telegram/${encodeURIComponent(telegramId)}/referrals`
+  );
+  if (!res.ok) {
+    throw new Error(`referrals failed: ${res.status}`);
+  }
+  return (await res.json()) as ReferralsResponse;
+}
 ```
 
 ### Страница реферальной программы
@@ -114,14 +174,19 @@ export async function copyReferralLink(link: string): Promise<void> {
 1. При монтировании / открытии экрана:
    - взять `telegramId` из `getTelegramUserId()`;
    - если нет ID — показать ошибку («Откройте через Telegram»);
-   - вызвать `fetchReferralLink(telegramId)`;
-   - сохранить в state (`referralLink`).
+   - параллельно вызвать `fetchReferralLink(telegramId)` и `fetchReferrals(telegramId)`;
+   - сохранить в state (`referralLink`, `referrals`, `total_count`, `total_earnings`).
 
 2. Поле «Ваша ссылка» / QR — показывать **только** `referralLink` с API, не хардкод.
 
-3. Кнопка «Скопировать» → `copyReferralLink(referralLink)`.
+3. Блок «Мои рефералы» — список из `referrals`:
+   - если `total_count === 0` — пустое состояние («Пока никого не пригласили»);
+   - для каждого элемента: имя (`name` или `@username`), `completed_tasks_count`, `earnings`;
+   - аватар — `avatar`, если пустой — fallback по первой букве имени.
 
-4. Кнопка «Поделиться» (опционально):
+4. Кнопка «Скопировать» → `copyReferralLink(referralLink)`.
+
+5. Кнопка «Поделиться» (опционально):
 
 ```ts
 const tg = window.Telegram?.WebApp;
@@ -138,13 +203,32 @@ if (tg?.openTelegramLink) {
 
 5. **Не** использовать `<a href={referralLink} target="_blank">` внутри Mini App для открытия своей же реферальной ссылки — для внешних t.me-ссылок в Telegram клиенте предпочтительнее `Telegram.WebApp.openTelegramLink(url)`.
 
+Пример загрузки данных на странице:
+
+```tsx
+useEffect(() => {
+  const telegramId = getTelegramUserId();
+  if (!telegramId) return;
+
+  Promise.all([
+    fetchReferralLink(telegramId),
+    fetchReferrals(telegramId),
+  ]).then(([link, stats]) => {
+    setReferralLink(link);
+    setReferrals(stats.referrals);
+    setTotalCount(stats.total_count);
+    setTotalEarnings(stats.total_earnings);
+  }).catch(console.error);
+}, []);
+```
+
 ---
 
-## Регистрация по реферальной ссылке (уже на бэкенде)
+## Регистрация по реферальной ссылке (бэкенд)
 
 Когда новый пользователь открывает Mini App по ссылке `?startapp=ref_777000`, в `initData` приходит `start_param` (часто `ref_777000`).
 
-При **первой** регистрации фронт должен передать его в API:
+При регистрации фронт передаёт его в API (рекомендуется явно):
 
 ```http
 POST /v1/register
@@ -156,8 +240,12 @@ Content-Type: application/json
 }
 ```
 
-Бэкенд сам извлечёт `777000` из префикса `ref_` и привяжет реферала.  
-На странице реферальной программы менять регистрацию не нужно — только убедиться, что при `POST /v1/register` **не обнуляется** `start_param` из `Telegram.WebApp.initDataUnsafe.start_param`.
+Бэкенд:
+- извлекает `777000` из префикса `ref_` и создаёт запись в `referrals`;
+- если `start_param` не передан в body, читает его из `init_data_raw`;
+- если пользователь уже зарегистрирован (`409 AlreadyExists`), но пришёл по реферальной ссылке — **всё равно** привязывает реферала (идемпотентно).
+
+На странице реферальной программы убедиться, что при `POST /v1/register` не обнуляется `start_param` из `Telegram.WebApp.initDataUnsafe.start_param`.
 
 ---
 
@@ -186,11 +274,12 @@ shareLink
 
 2. В DevTools → Network на странице рефералов:
    - запрос `GET .../referral-link` → `200`;
+   - запрос `GET .../referrals` → `200` (или `404`, если профиль ещё не создан);
    - в ответе `referral_link` содержит `CyberMate_bot` и `startapp=ref_`.
 
 3. Скопированная ссылка открывается в Telegram и ведёт в **ваш** Mini App (@CyberMate_bot), не в @CyberMateBot.
 
-4. Тест: открыть ссылку с другого аккаунта → регистрация → в БД появилась связь в `referrals` (проверка на бэкенде).
+4. Тест: открыть ссылку с другого аккаунта → регистрация → `GET .../referrals` у пригласившего возвращает нового пользователя в `referrals`.
 
 ---
 
@@ -198,7 +287,9 @@ shareLink
 
 - [ ] Удалён хардкод `CyberMateBot` и ручная сборка `t.me/...`
 - [ ] Ссылка загружается с `GET /v1/users/telegram/{id}/referral-link` (или `referral_link_base` + id)
+- [ ] Список рефералов загружается с `GET /v1/users/telegram/{id}/referrals`
 - [ ] В UI отображается полная ссылка с `startapp=ref_`
+- [ ] Блок «Мои рефералы» показывает `referrals` из API (не мок/локальный массив)
 - [ ] «Копировать» / «Поделиться» используют значение с API
 - [ ] `POST /v1/register` передаёт `start_param` из Telegram initData
 - [ ] Support (`t.me/+...`) не смешан с реферальной ссылкой на бота

@@ -40,6 +40,7 @@ VITE_API_URL=http://localhost:8090
 |-------|-----|
 | GET | `/v1/app/links` → `support_chat_url`, `bot_username`, `referral_link_base` |
 | GET | `/v1/users/telegram/{telegram_id}/referral-link` → `referral_link` |
+| GET | `/v1/users/telegram/{telegram_id}/referrals` → список приглашённых + `total_count`, `total_earnings` |
 
 Бот Mini App: **@CyberMate_bot** (`TELEGRAM_BOT_USERNAME=CyberMate_bot`).
 
@@ -70,4 +71,5 @@ Telegram Web App test user: `telegram_id=777000` — нужен профиль �
 - [ ] Тема: `data-theme`, CSS variables, PATCH theme API
 - [ ] Support: `openTelegramLink` на `support_chat_url`
 - [ ] Реферал: `GET .../referral-link` или `referral_link_base` + `telegram_id` (бот @CyberMate_bot)
+- [ ] Список рефералов: `GET .../referrals` — см. `docs/FRONTEND_REFERRAL_PAGE.md`
 - [ ] Не встраивать статику в Go (`pkg/web` не используется)

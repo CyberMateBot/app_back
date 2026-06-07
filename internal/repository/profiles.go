@@ -76,7 +76,10 @@ func (r *Repository) CreateWalletForUser(ctx context.Context, tx pgx.Tx, profile
 
 // AddReferral links referrer to referee with zeroed stats.
 func (r *Repository) AddReferral(ctx context.Context, tx pgx.Tx, referrerProfileID int64, refereeProfileID int64) error {
-	const q = `INSERT INTO referrals(referrer_profile_id, referee_profile_id, completed_tasks_count, earnings) VALUES($1,$2,0,0)`
+	const q = `
+INSERT INTO referrals(referrer_profile_id, referee_profile_id, completed_tasks_count, earnings)
+VALUES($1,$2,0,0)
+ON CONFLICT (referrer_profile_id, referee_profile_id) DO NOTHING`
 	qry := r.getQueryable(tx)
 	_, err := qry.Exec(ctx, q, referrerProfileID, refereeProfileID)
 	return err

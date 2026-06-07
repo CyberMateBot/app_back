@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
-	"github.com/twelvepills-936/tgapp-/pkg/applinks"
 )
 
 func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.RegisterByTelegramInput) (output ucModels.RegisterByTelegramOutput, err error) {
@@ -32,6 +31,10 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 	userStr := params.Get("user")
 	if userStr == "" {
 		return output, fmt.Errorf("%w: user not found in init data", ucModels.ErrInvalidInput)
+	}
+	startParam := input.StartParam
+	if startParam == "" {
+		startParam = params.Get("start_param")
 	}
 	// we don't need full user struct now; minimally extract fields from json
 	// to keep scope tight, parse a subset via a lightweight map
@@ -60,8 +63,20 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 		}
 	}()
 
-	// if exists, return already registered
-	if _, checkErr := uc.repo.GetProfileByTelegramID(ctx, tx, intToString(tg.ID)); checkErr == nil {
+	refereeTelegramID := intToString(tg.ID)
+
+	// if exists, still try to link referral from start_param, then return already registered
+	if existing, checkErr := uc.repo.GetProfileByTelegramID(ctx, tx, refereeTelegramID); checkErr == nil {
+		if startParam != "" {
+			if linkErr := uc.linkReferral(ctx, tx, existing.ID, refereeTelegramID, startParam); linkErr != nil {
+				err = linkErr
+				return output, err
+			}
+		}
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			err = commitErr
+			return output, err
+		}
 		err = ucModels.ErrProfileAlreadyRegistered
 		return output, err
 	} else if !errors.Is(checkErr, pgx.ErrNoRows) {
@@ -71,7 +86,7 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 
 	pid, createErr := uc.repo.CreateProfile(ctx, tx, repoModels.Profile{
 		Name:             tg.FirstName,
-		TelegramID:       intToString(tg.ID),
+		TelegramID:       refereeTelegramID,
 		Avatar:           tg.PhotoURL,
 		Location:         tg.LanguageCode,
 		Role:             "",
@@ -90,17 +105,10 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 		return output, err
 	}
 
-	if input.StartParam != "" {
-		referrerID := applinks.ParseReferralStartParam(input.StartParam, "")
-		if referrerID == "" {
-			referrerID = input.StartParam
-		}
-		ref, refErr := uc.repo.GetProfileByTelegramID(ctx, tx, referrerID)
-		if refErr == nil && ref.ID != 0 {
-			if addRefErr := uc.repo.AddReferral(ctx, tx, ref.ID, pid); addRefErr != nil {
-				err = addRefErr
-				return output, err
-			}
+	if startParam != "" {
+		if linkErr := uc.linkReferral(ctx, tx, pid, refereeTelegramID, startParam); linkErr != nil {
+			err = linkErr
+			return output, err
 		}
 	}
 

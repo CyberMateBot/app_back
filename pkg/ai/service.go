@@ -9,15 +9,15 @@ import (
 
 // TextRequest is the body for POST /v1/generate/text.
 type TextRequest struct {
-	Prompt      string        `json:"prompt"`
-	Text        string        `json:"text"` // alias for prompt
-	Model       string        `json:"model"`
-	System      string        `json:"system"`
-	Messages    []ChatMessage `json:"messages"`
-	ImageBase64 string        `json:"imageBase64"`
-	ImageMimeType string      `json:"imageMimeType"`
-	Temperature *float64      `json:"temperature"`
-	MaxTokens   *int          `json:"max_tokens"`
+	Prompt        string        `json:"prompt"`
+	Text          string        `json:"text"` // alias for prompt
+	Model         string        `json:"model"`
+	System        string        `json:"system"`
+	Messages      []ChatMessage `json:"messages"`
+	ImageBase64   string        `json:"imageBase64"`
+	ImageMimeType string        `json:"imageMimeType"`
+	Temperature   *float64      `json:"temperature"`
+	MaxTokens     *int          `json:"max_tokens"`
 }
 
 type ChatMessage struct {
@@ -35,7 +35,9 @@ type TextResponse struct {
 
 // ModelsResponse is returned by GET /v1/generate/models.
 type ModelsResponse struct {
-	TextModels []TextModel `json:"text_models"`
+	TextModels  []TextModel  `json:"text_models"`
+	ImageModels []MediaModel `json:"image_models,omitempty"`
+	VideoModels []MediaModel `json:"video_models,omitempty"`
 }
 
 // ImageRequest is the body for POST /v1/generate/image.
@@ -54,6 +56,21 @@ type ImageResponse struct {
 	Model       string `json:"model"`
 }
 
+// VideoRequest is the body for POST /v1/generate/video.
+type VideoRequest struct {
+	Prompt      string `json:"prompt"`
+	Text        string `json:"text"`
+	Model       string `json:"model"`
+	AspectRatio string `json:"aspect_ratio"`
+	Duration    int    `json:"duration"`
+}
+
+// VideoResponse is returned by POST /v1/generate/video.
+type VideoResponse struct {
+	VideoURL string `json:"video_url"`
+	Model    string `json:"model"`
+}
+
 // Service routes generation to configured providers.
 type Service struct {
 	cfg config.ConfigAI
@@ -64,7 +81,11 @@ func NewService(cfg config.ConfigAI) *Service {
 }
 
 func (s *Service) ListModels() ModelsResponse {
-	return ModelsResponse{TextModels: ListTextModels()}
+	return ModelsResponse{
+		TextModels:  ListTextModels(),
+		ImageModels: ListImageModels(),
+		VideoModels: ListVideoModels(),
+	}
 }
 
 func (s *Service) GenerateText(ctx context.Context, req TextRequest) (TextResponse, error) {
@@ -79,32 +100,47 @@ func (s *Service) GenerateText(ctx context.Context, req TextRequest) (TextRespon
 		if s.cfg.OpenAITextEnabled() {
 			return generateOpenAICompatText(ctx, s.cfg, "https://api.openai.com/v1", s.cfg.OpenAITextModel, messages, prompt, req)
 		}
-	case "gemini", "wavespeed":
-		if !s.cfg.WavespeedTextEnabled() {
-			return TextResponse{}, ErrNotConfigured
+	}
+
+	def, ok := resolveTextModel(req.Model, s.cfg.YandexGPTModel)
+	if ok {
+		if def.UseWavespeed {
+			if !s.cfg.WavespeedTextEnabled() {
+				return TextResponse{}, &ProviderError{
+					Provider: "wavespeed",
+					Message:  "WAVESPEED_API_KEY is not configured",
+				}
+			}
+			slug := def.Slug
+			if slug == "" {
+				slug = s.cfg.GeminiModel
+			}
+			out, err := generateOpenAICompatText(ctx, s.cfg, s.cfg.GeminiAPIBaseURL, slug, messages, prompt, req)
+			if err != nil {
+				return out, err
+			}
+			out.Model = def.ID
+			return out, nil
 		}
-		return generateOpenAICompatText(ctx, s.cfg, s.cfg.GeminiAPIBaseURL, s.cfg.GeminiModel, messages, prompt, req)
+
+		if s.cfg.YandexTextEnabled() {
+			if def.UseOpenAIChat {
+				return generateYandexOpenAIChat(ctx, s.cfg, messages, def.Slug, req)
+			}
+			if def.UseResponses {
+				return generateYandexResponsesText(ctx, s.cfg, messages, def.Slug, req)
+			}
+			slug := def.Slug
+			if slug == "" {
+				slug = s.cfg.YandexGPTModel
+			}
+			return generateYandexText(ctx, s.cfg, messages, prompt, slug, req)
+		}
 	}
 
 	if s.cfg.YandexTextEnabled() {
-		def, ok := resolveTextModel(req.Model, s.cfg.YandexGPTModel)
-		if !ok {
-			// unknown slug — try completion API with raw model name
-			return generateYandexText(ctx, s.cfg, messages, prompt, req.Model, req)
-		}
-		if def.UseOpenAIChat {
-			return generateYandexOpenAIChat(ctx, s.cfg, messages, def.Slug, req)
-		}
-		if def.UseResponses {
-			return generateYandexResponsesText(ctx, s.cfg, messages, def.Slug, req)
-		}
-		slug := def.Slug
-		if slug == "" {
-			slug = s.cfg.YandexGPTModel
-		}
-		return generateYandexText(ctx, s.cfg, messages, prompt, slug, req)
+		return generateYandexText(ctx, s.cfg, messages, prompt, req.Model, req)
 	}
-
 	if s.cfg.OpenAITextEnabled() {
 		return generateOpenAICompatText(ctx, s.cfg, "https://api.openai.com/v1", s.cfg.OpenAITextModel, messages, prompt, req)
 	}
@@ -124,18 +160,19 @@ func (s *Service) GenerateImage(ctx context.Context, req ImageRequest) (ImageRes
 		return ImageResponse{}, ErrPromptEmpty
 	}
 
+	if def, ok := resolveWavespeedImageModel(req.Model); ok {
+		if !s.cfg.WavespeedImageEnabled() {
+			return ImageResponse{}, &ProviderError{
+				Provider: "wavespeed",
+				Message:  "WAVESPEED_API_KEY is not configured",
+			}
+		}
+		return generateWavespeedImage(ctx, s.cfg, prompt, req, def)
+	}
+
 	provider := strings.ToLower(strings.TrimSpace(req.Model))
 	switch provider {
-	case "nano-banana", "wavespeed", "banana":
-		if s.cfg.WavespeedImageEnabled() {
-			return generateWavespeedImage(ctx, s.cfg, prompt, req)
-		}
-		return ImageResponse{}, &ProviderError{
-			Provider: "wavespeed",
-			Message:  "nano-banana requires WAVESPEED_API_KEY on the server",
-		}
 	case "alice-ai-art":
-		// Alice AI ART is served via Yandex AI Studio OpenAI-compatible Images API.
 		if s.cfg.YandexTextEnabled() {
 			return generateYandexOpenAIImage(ctx, s.cfg, prompt, req)
 		}
@@ -154,10 +191,38 @@ func (s *Service) GenerateImage(ctx context.Context, req ImageRequest) (ImageRes
 		return generateYandexImage(ctx, s.cfg, prompt, req)
 	}
 	if s.cfg.WavespeedImageEnabled() {
-		return generateWavespeedImage(ctx, s.cfg, prompt, req)
+		def, _ := resolveWavespeedImageModel("nano-banana")
+		return generateWavespeedImage(ctx, s.cfg, prompt, req, def)
 	}
 
 	return ImageResponse{}, ErrNotConfigured
+}
+
+func (s *Service) GenerateVideo(ctx context.Context, req VideoRequest) (VideoResponse, error) {
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
+		prompt = strings.TrimSpace(req.Text)
+	}
+	if prompt == "" {
+		return VideoResponse{}, ErrPromptEmpty
+	}
+
+	if !s.cfg.WavespeedImageEnabled() {
+		return VideoResponse{}, &ProviderError{
+			Provider: "wavespeed",
+			Message:  "WAVESPEED_API_KEY is not configured",
+		}
+	}
+
+	def, ok := resolveWavespeedVideoModel(req.Model)
+	if !ok {
+		def, ok = resolveWavespeedVideoModel("kling-v3-std")
+	}
+	if !ok {
+		return VideoResponse{}, &ProviderError{Provider: "wavespeed", Message: "unknown video model: " + req.Model}
+	}
+
+	return generateWavespeedVideo(ctx, s.cfg, prompt, req, def)
 }
 
 func normalizeTextInput(req TextRequest) (prompt string, messages []ChatMessage, err error) {

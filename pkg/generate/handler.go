@@ -16,6 +16,7 @@ const (
 	pathGenerateModels = "/v1/generate/models"
 	pathGenerateText   = "/v1/generate/text"
 	pathGenerateImage  = "/v1/generate/image"
+	pathGenerateVideo  = "/v1/generate/video"
 )
 
 // Wrap adds POST /v1/generate/text and POST /v1/generate/image.
@@ -33,6 +34,9 @@ func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateImage:
 			handleImage(w, r, svc)
+			return
+		case r.Method == http.MethodPost && r.URL.Path == pathGenerateVideo:
+			handleVideo(w, r, svc)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -113,6 +117,22 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 	}
 
 	writeJSON(w, http.StatusOK, ai.FinalizeImageResponse(out))
+}
+
+func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
+	var req ai.VideoRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	out, err := svc.GenerateVideo(r.Context(), req)
+	if err != nil {
+		writeServiceError(w, r, "generate video", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, out)
 }
 
 func decodeJSON(r *http.Request, dst any) error {

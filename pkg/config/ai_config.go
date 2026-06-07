@@ -53,7 +53,7 @@ func LoadAIConfig() ConfigAI {
 
 		WavespeedAPIKey:      strings.TrimSpace(os.Getenv("WAVESPEED_API_KEY")),
 		GeminiAPIBaseURL:     strings.TrimRight(getenv("GEMINI_API_BASE_URL", "https://llm.wavespeed.ai/v1"), "/"),
-		GeminiModel:          getenv("GEMINI_MODEL", "google/gemini-2.0-flash-001"),
+		GeminiModel:          getenv("GEMINI_MODEL", "google/gemini-2.5-flash"),
 		NanoBananaModel:      getenv("NANO_BANANA_MODEL", "google/nano-banana-pro"),
 		NanoBananaResolution: getenv("NANO_BANANA_RESOLUTION", "1k"),
 		NanoBananaOutputFmt:  getenv("NANO_BANANA_OUTPUT_FORMAT", "jpeg"),

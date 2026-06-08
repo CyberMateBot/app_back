@@ -53,10 +53,27 @@ func imageModelOptions(id string) []MediaOption {
 func videoModelOptions(id string) []MediaOption {
 	switch id {
 	case "kling-v3-std", "kling-v3-pro":
-		return []MediaOption{
+		opts := []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
-			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "duration", Type: "select", Values: klingDurationOptionValues(), Default: "5"},
+			{Key: "quality_tier", Type: "select", Values: []string{"std", "pro"}, Default: qualityTierDefault(id)},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "camera_movement", Type: "select", Values: []string{
+				"auto", "simple", "down_back", "forward_up", "right_turn_forward", "left_turn_forward",
+			}, Default: "auto"},
+			{Key: "camera_horizontal", Type: "range", Values: []string{"-10", "10"}, Default: "0"},
+			{Key: "camera_vertical", Type: "range", Values: []string{"-10", "10"}, Default: "0"},
+			{Key: "camera_pan", Type: "range", Values: []string{"-10", "10"}, Default: "0"},
+			{Key: "camera_tilt", Type: "range", Values: []string{"-10", "10"}, Default: "0"},
+			{Key: "camera_roll", Type: "range", Values: []string{"-10", "10"}, Default: "0"},
+			{Key: "camera_zoom", Type: "range", Values: []string{"-10", "10"}, Default: "0"},
 		}
+		if klingModelSupportsSound(id) {
+			opts = append(opts, MediaOption{
+				Key: "sound", Type: "boolean", Values: []string{"false", "true"}, Default: "false",
+			})
+		}
+		return opts
 	case "seedance-v1-pro-i2v":
 		return []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}, Default: "16:9"},
@@ -140,6 +157,13 @@ func normalizeImageResolution(modelID, resolution string) string {
 			return strings.ToLower(resolution)
 		}
 	}
+}
+
+func qualityTierDefault(modelID string) string {
+	if modelID == "kling-v3-pro" {
+		return "pro"
+	}
+	return "std"
 }
 
 func normalizeImageOutputFormat(modelID, format string) string {

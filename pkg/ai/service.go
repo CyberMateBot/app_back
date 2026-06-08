@@ -68,22 +68,41 @@ type ImageResponse struct {
 	Model       string   `json:"model"`
 }
 
+// CameraControlConfig holds per-axis camera movement for Kling simple mode.
+type CameraControlConfig struct {
+	Horizontal float64 `json:"horizontal,omitempty"`
+	Vertical   float64 `json:"vertical,omitempty"`
+	Pan        float64 `json:"pan,omitempty"`
+	Tilt       float64 `json:"tilt,omitempty"`
+	Roll       float64 `json:"roll,omitempty"`
+	Zoom       float64 `json:"zoom,omitempty"`
+}
+
+// CameraControl configures optional Kling camera motion.
+type CameraControl struct {
+	Type   string               `json:"type,omitempty"`
+	Config *CameraControlConfig `json:"config,omitempty"`
+}
+
 // VideoRequest is the body for POST /v1/generate/video.
 type VideoRequest struct {
-	Prompt         string        `json:"prompt"`
-	Text           string        `json:"text"`
-	Model          string        `json:"model"`
-	AspectRatio    string        `json:"aspect_ratio"`
-	Duration       int           `json:"duration"`
-	Resolution     string        `json:"resolution"`
-	Quality        string        `json:"quality"`
-	SourceImageURL string        `json:"sourceImageUrl"`
-	SourceVideoURL string        `json:"sourceVideoUrl"`
-	ImageURL       string        `json:"image_url"`
-	VideoURL       string        `json:"video_url"`
+	Prompt          string        `json:"prompt"`
+	Text            string        `json:"text"`
+	Model           string        `json:"model"`
+	AspectRatio     string        `json:"aspect_ratio"`
+	Duration        int           `json:"duration"`
+	Resolution      string        `json:"resolution"`
+	Quality         string        `json:"quality"`
+	NegativePrompt  string        `json:"negative_prompt"`
+	SourceImageURL  string        `json:"sourceImageUrl"`
+	SourceVideoURL  string        `json:"sourceVideoUrl"`
+	ImageURL        string        `json:"image_url"`
+	VideoURL        string        `json:"video_url"`
 	LastImageURL    string        `json:"last_image"`
 	ReferenceImages []string      `json:"reference_images"`
 	GenerateAudio   *bool         `json:"generate_audio"`
+	Sound           *bool         `json:"sound"`
+	CameraControl   *CameraControl `json:"camera_control"`
 	CameraFixed     *bool         `json:"camera_fixed"`
 	TurboMode       *bool         `json:"turbo_mode"`
 	Seed            int           `json:"seed"`

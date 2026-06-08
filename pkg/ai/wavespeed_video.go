@@ -97,6 +97,8 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		input["enable_web_search"] = false
 	}
 
+	applyKlingVideoInput(input, def, req)
+
 	return input
 }
 

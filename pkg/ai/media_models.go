@@ -90,6 +90,12 @@ var wavespeedVideoModelCatalog = []mediaModelDef{
 		Provider: "wavespeed", Kind: "video",
 	},
 	{
+		ID: "kling-v3-4k", Label: "Kling 3.0 4K", Group: "Kling",
+		Description: "Видео в разрешении 4K",
+		TextSlug: "kwaivgi/kling-v3.0-4k/text-to-video",
+		Provider: "wavespeed", Kind: "video",
+	},
+	{
 		ID: "seedance-v1-pro-i2v", Label: "Seedance 1.0 I2V", Group: "Seedance",
 		Description: "Image-to-video 720p от ByteDance",
 		TextSlug: "bytedance/seedance-v1-pro-i2v-720p",
@@ -160,6 +166,8 @@ var mediaModelAliases = map[string]string{
 	"kwaivgi/kling-v3.0-std/text-to-video": "kling-v3-std",
 	"kling-v3-pro": "kling-v3-pro",
 	"kwaivgi/kling-v3.0-pro/text-to-video": "kling-v3-pro",
+	"kling-v3-4k": "kling-v3-4k",
+	"kwaivgi/kling-v3.0-4k/text-to-video": "kling-v3-4k",
 	"seedance-v1-pro-i2v": "seedance-v1-pro-i2v",
 	"bytedance/seedance-v1-pro-i2v-720p": "seedance-v1-pro-i2v",
 	"seedance-v1.5-i2v-fast": "seedance-v1.5-i2v-fast",

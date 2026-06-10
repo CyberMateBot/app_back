@@ -54,7 +54,7 @@ func applyKlingVideoInput(input map[string]any, def mediaModelDef, req VideoRequ
 		input["sound"] = *req.Sound
 	case req.GenerateAudio != nil && klingModelSupportsSound(def.ID):
 		input["sound"] = *req.GenerateAudio
-	case def.ID == "kling-v3-pro":
+	case def.ID == "kling-v3-pro", def.ID == "kling-v3-4k":
 		input["sound"] = false
 	}
 
@@ -140,5 +140,21 @@ func clampKlingAxis(v float64) float64 {
 }
 
 func klingModelSupportsSound(modelID string) bool {
-	return modelID == "kling-v3-pro"
+	return modelID == "kling-v3-pro" || modelID == "kling-v3-4k"
+}
+
+func resolveKlingModelID(resolution, fallbackModel string) string {
+	switch strings.ToLower(strings.TrimSpace(resolution)) {
+	case "4k":
+		return "kling-v3-4k"
+	case "1080p":
+		return "kling-v3-pro"
+	case "720p":
+		return "kling-v3-std"
+	default:
+		if isKlingVideoModel(fallbackModel) {
+			return fallbackModel
+		}
+		return "kling-v3-std"
+	}
 }

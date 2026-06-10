@@ -52,11 +52,11 @@ func imageModelOptions(id string) []MediaOption {
 
 func videoModelOptions(id string) []MediaOption {
 	switch id {
-	case "kling-v3-std", "kling-v3-pro":
+	case "kling-v3-std", "kling-v3-pro", "kling-v3-4k":
 		opts := []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: klingDurationOptionValues(), Default: "5"},
-			{Key: "quality_tier", Type: "select", Values: []string{"std", "pro"}, Default: qualityTierDefault(id)},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p", "4k"}, Default: klingResolutionDefault(id)},
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "camera_movement", Type: "select", Values: []string{
 				"auto", "simple", "down_back", "forward_up", "right_turn_forward", "left_turn_forward",
@@ -159,11 +159,15 @@ func normalizeImageResolution(modelID, resolution string) string {
 	}
 }
 
-func qualityTierDefault(modelID string) string {
-	if modelID == "kling-v3-pro" {
-		return "pro"
+func klingResolutionDefault(modelID string) string {
+	switch modelID {
+	case "kling-v3-4k":
+		return "4k"
+	case "kling-v3-pro":
+		return "1080p"
+	default:
+		return "720p"
 	}
-	return "std"
 }
 
 func normalizeImageOutputFormat(modelID, format string) string {

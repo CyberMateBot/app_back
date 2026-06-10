@@ -290,6 +290,13 @@ func (s *Service) GenerateVideo(ctx context.Context, req VideoRequest) (VideoRes
 		return VideoResponse{}, &ProviderError{Provider: "wavespeed", Message: "unknown video model: " + req.Model}
 	}
 
+	if isKlingVideoModel(def.ID) {
+		resolvedID := resolveKlingModelID(req.Resolution, def.ID)
+		if resolvedDef, resolvedOK := resolveWavespeedVideoModel(resolvedID); resolvedOK {
+			def = resolvedDef
+		}
+	}
+
 	return generateWavespeedVideo(ctx, s.cfg, prompt, req, def)
 }
 

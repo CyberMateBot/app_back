@@ -58,6 +58,9 @@ type ImageRequest struct {
 	ImageBase64    string        `json:"imageBase64"`
 	ImageMimeType  string        `json:"imageMimeType"`
 	Messages       []ChatMessage `json:"messages"`
+	TelegramID     string        `json:"telegramId"`
+	SessionID      string        `json:"sessionId"`
+	Category       string        `json:"category"`
 }
 
 // ImageResponse is returned by POST /v1/generate/image.
@@ -107,6 +110,9 @@ type VideoRequest struct {
 	TurboMode       *bool         `json:"turbo_mode"`
 	Seed            int           `json:"seed"`
 	Messages        []ChatMessage `json:"messages"`
+	TelegramID      string        `json:"telegramId"`
+	SessionID       string        `json:"sessionId"`
+	Category        string        `json:"category"`
 }
 
 // VideoResponse is returned by POST /v1/generate/video.

@@ -34,10 +34,10 @@ func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http
 			handleText(w, r, svc, history)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateImage:
-			handleImage(w, r, svc)
+			handleImage(w, r, svc, history)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateVideo:
-			handleVideo(w, r, svc)
+			handleVideo(w, r, svc, history)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateAudio:
 			handleAudio(w, r, svc)
@@ -107,7 +107,15 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
+type imageGenerateResponse struct {
+	ImageURL    string              `json:"image_url,omitempty"`
+	ImageURLs   []string            `json:"image_urls,omitempty"`
+	ImageBase64 string              `json:"image_base64,omitempty"`
+	Model       string              `json:"model"`
+	Item        *prompthistory.Item `json:"item,omitempty"`
+}
+
+func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
 	var req ai.ImageRequest
 	if err := decodeImageJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
@@ -120,10 +128,55 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, ai.FinalizeImageResponse(out))
+	finalized := ai.FinalizeImageResponse(out)
+	resp := imageGenerateResponse{
+		ImageURL:    finalized.ImageURL,
+		ImageURLs:   finalized.ImageURLs,
+		ImageBase64: finalized.ImageBase64,
+		Model:       finalized.Model,
+	}
+
+	if history != nil {
+		prompt := strings.TrimSpace(req.Prompt)
+		if prompt == "" {
+			prompt = strings.TrimSpace(req.Text)
+		}
+		response := strings.TrimSpace(finalized.ImageURL)
+		if response == "" && len(finalized.ImageURLs) > 0 {
+			response = strings.TrimSpace(finalized.ImageURLs[0])
+		}
+		category := strings.TrimSpace(req.Category)
+		if category == "" {
+			category = strings.TrimSpace(req.Model)
+		}
+		if category == "" {
+			category = "image"
+		}
+		if item, saveErr := history.SaveAfterGenerate(
+			r.Context(),
+			req.TelegramID,
+			prompt,
+			response,
+			category,
+			req.Model,
+			req.SessionID,
+		); saveErr != nil {
+			slog.WarnContext(r.Context(), "failed to save prompt history after image generation", slog.Any("error", saveErr))
+		} else if item != nil {
+			resp.Item = item
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
-func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
+type videoGenerateResponse struct {
+	VideoURL string              `json:"video_url"`
+	Model    string              `json:"model"`
+	Item     *prompthistory.Item `json:"item,omitempty"`
+}
+
+func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
 	var req ai.VideoRequest
 	if err := decodeVideoJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
@@ -136,7 +189,39 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, out)
+	resp := videoGenerateResponse{
+		VideoURL: out.VideoURL,
+		Model:    out.Model,
+	}
+
+	if history != nil {
+		prompt := strings.TrimSpace(req.Prompt)
+		if prompt == "" {
+			prompt = strings.TrimSpace(req.Text)
+		}
+		category := strings.TrimSpace(req.Category)
+		if category == "" {
+			category = strings.TrimSpace(req.Model)
+		}
+		if category == "" {
+			category = "video"
+		}
+		if item, saveErr := history.SaveAfterGenerate(
+			r.Context(),
+			req.TelegramID,
+			prompt,
+			strings.TrimSpace(out.VideoURL),
+			category,
+			req.Model,
+			req.SessionID,
+		); saveErr != nil {
+			slog.WarnContext(r.Context(), "failed to save prompt history after video generation", slog.Any("error", saveErr))
+		} else if item != nil {
+			resp.Item = item
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service) {

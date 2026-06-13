@@ -1,10 +1,13 @@
 package mediadownload
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateRemoteURL_blocksPrivateHosts(t *testing.T) {
@@ -75,6 +78,57 @@ func TestHandleDownload_proxiesUpstream(t *testing.T) {
 		t.Fatalf("disposition %q", got)
 	}
 	if rec.Body.String() != "png-bytes" {
+		t.Fatalf("body %q", rec.Body.String())
+	}
+}
+
+func TestHandlePrepareDownload_returnsDownloadURL(t *testing.T) {
+	payload := `{"dataBase64":"aGVsbG8=","mimeType":"text/plain","filename":"test.txt"}`
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, pathPrepareDownload, strings.NewReader(payload))
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Host = "api.example.com"
+
+	handlePrepareDownload(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+
+	var resp prepareResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.HasPrefix(resp.DownloadURL, "https://api.example.com/v1/media/download/prepared/") {
+		t.Fatalf("unexpected url %q", resp.DownloadURL)
+	}
+}
+
+func TestHandlePreparedDownload_servesAttachment(t *testing.T) {
+	id, err := newPreparedID()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	preparedDownloads.Store(id, preparedEntry{
+		data:      []byte("hello"),
+		mimeType:  "text/plain",
+		filename:  "test.txt",
+		expiresAt: time.Now().Add(preparedTTL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, pathPreparedPrefix+id+"/test.txt", nil)
+	handlePreparedDownload(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="test.txt"` {
+		t.Fatalf("disposition %q", got)
+	}
+	if rec.Body.String() != "hello" {
 		t.Fatalf("body %q", rec.Body.String())
 	}
 }

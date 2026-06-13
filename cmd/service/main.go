@@ -18,8 +18,9 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/cors"
 	"github.com/twelvepills-936/tgapp-/pkg/generate"
 	"github.com/twelvepills-936/tgapp-/pkg/health"
-	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/logger"
+	"github.com/twelvepills-936/tgapp-/pkg/mediadownload"
+	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
 )
@@ -96,21 +97,23 @@ func main() {
 
 	httpHandler := bot.HTTPWrap(cors.Wrap(
 		health.Wrap(
-			generate.Wrap(
-				prompthistory.Wrap(
-					applinks.Wrap(
-						siteapi.Wrap(
-							swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+			mediadownload.Wrap(
+				generate.Wrap(
+					prompthistory.Wrap(
+						applinks.Wrap(
+							siteapi.Wrap(
+								swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+								uc,
+								addConfig.JWT,
+							),
+							addConfig.App,
 							uc,
-							addConfig.JWT,
 						),
-						addConfig.App,
-						uc,
+						promptHistory,
 					),
+					aiSvc,
 					promptHistory,
 				),
-				aiSvc,
-				promptHistory,
 			),
 		),
 		addConfig.CORS,

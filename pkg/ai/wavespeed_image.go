@@ -43,18 +43,20 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 		"enable_base64_output": cfg.NanoBananaBase64Out,
 	}
 
-	isEdit := strings.HasSuffix(slug, "/edit")
-	isMulti := strings.Contains(slug, "text-to-image-multi")
+	isEdit := strings.HasSuffix(slug, "/edit") || strings.Contains(slug, "/edit-")
+	isMulti := strings.Contains(slug, "multi") || strings.Contains(slug, "sequential")
 
-	if isEdit {
-		sourceURL := strings.TrimSpace(req.SourceImageURL)
-		if sourceURL == "" {
-			sourceURL = strings.TrimSpace(req.ImageURL)
-		}
-		if sourceURL != "" {
-			input["images"] = []string{sourceURL}
-		}
+	sourceURL := strings.TrimSpace(req.SourceImageURL)
+	if sourceURL == "" {
+		sourceURL = strings.TrimSpace(req.ImageURL)
+	}
+
+	if isEdit || (sourceURL != "" && def.ID != "z-image-base") {
+		applyWavespeedImageSourceInput(input, def.ID, slug, sourceURL, req)
 		input["prompt"] = prompt
+	} else if sourceURL != "" && def.ID == "z-image-base" {
+		input["prompt"] = prompt
+		applyWavespeedImageSourceInput(input, def.ID, slug, sourceURL, req)
 	} else {
 		input["prompt"] = prompt
 	}
@@ -66,11 +68,14 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 	if outputFmt == "" {
 		outputFmt = "png"
 	}
+	if def.ID == "seedream-v5.0-lite" && outputFmt == "" {
+		outputFmt = "jpeg"
+	}
 	input["output_format"] = normalizeImageOutputFormat(def.ID, outputFmt)
 
-	if ar := strings.TrimSpace(req.AspectRatio); ar != "" {
+	if ar := strings.TrimSpace(req.AspectRatio); ar != "" && !wavespeedImageUsesSizeField(def.ID) {
 		input["aspect_ratio"] = ar
-	} else if !isEdit {
+	} else if !isEdit && !wavespeedImageUsesSizeField(def.ID) {
 		input["aspect_ratio"] = defaultAspectRatio(def.ID)
 	}
 
@@ -101,9 +106,11 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 		input["num_images"] = num
 	}
 
-	if size := strings.TrimSpace(req.Size); size != "" {
+	if size := strings.TrimSpace(req.Size); size != "" && !wavespeedImageUsesSizeField(def.ID) {
 		input["size"] = size
 	}
+
+	applyWavespeedImageExtraFields(input, def.ID, req)
 
 	return input
 }

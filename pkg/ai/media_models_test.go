@@ -109,15 +109,57 @@ func TestResolveWavespeedVideoSlug(t *testing.T) {
 	}
 }
 
+func TestResolveWavespeedAudioModel(t *testing.T) {
+	def, ok := resolveWavespeedAudioModel("omnivoice")
+	if !ok || def.TextSlug != "wavespeed-ai/omnivoice/text-to-speech" {
+		t.Fatalf("omnivoice: %+v ok=%v", def, ok)
+	}
+
+	def, ok = resolveWavespeedAudioModel("elevenlabs-v3")
+	if !ok || def.TextSlug != "elevenlabs/eleven-v3" {
+		t.Fatalf("elevenlabs-v3: %+v", def)
+	}
+
+	def, ok = resolveWavespeedAudioModel("mureka-v9")
+	if !ok || def.TextSlug != "mureka-ai/mureka-v9/generate-song" {
+		t.Fatalf("mureka-v9: %+v", def)
+	}
+
+	def, ok = resolveWavespeedAudioModel("ace-step-1.5")
+	if !ok || def.TextSlug != "wavespeed-ai/ace-step-1.5" {
+		t.Fatalf("ace-step-1.5: %+v", def)
+	}
+}
+
+func TestBuildWavespeedAudioInput(t *testing.T) {
+	omni, _ := resolveWavespeedAudioModel("omnivoice")
+	input := buildWavespeedAudioInput(omni, "hello", AudioRequest{
+		StyleInstruction: "female, young adult",
+		Speed:            1.2,
+	}, omni.TextSlug)
+	if input["text"] != "hello" || input["voice_description"] != "female, young adult" {
+		t.Fatalf("omnivoice input: %+v", input)
+	}
+
+	ace, _ := resolveWavespeedAudioModel("ace-step-1.5")
+	input = buildWavespeedAudioInput(ace, "[Verse]\nline", AudioRequest{
+		StyleInstruction: "lo-fi, chill",
+		Duration:         90,
+	}, ace.TextSlug)
+	if input["tags"] != "lo-fi, chill" || input["duration"] != 90 || input["lyrics"] != "[Verse]\nline" {
+		t.Fatalf("ace-step input: %+v", input)
+	}
+}
+
 func TestListMediaModels(t *testing.T) {
 	images := ListImageModels()
 	videos := ListVideoModels()
-	if len(videos) < 8 {
-		t.Fatalf("expected at least 8 video models, got %d", len(videos))
+	if len(videos) < 29 {
+		t.Fatalf("expected at least 29 video models, got %d", len(videos))
 	}
 
-	if len(images) < 7 {
-		t.Fatalf("expected at least 7 image models, got %d", len(images))
+	if len(images) < 16 {
+		t.Fatalf("expected at least 16 image models, got %d", len(images))
 	}
 	nanoCount := 0
 	for _, m := range images {

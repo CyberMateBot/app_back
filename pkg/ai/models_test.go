@@ -9,8 +9,13 @@ func TestResolveTextModel(t *testing.T) {
 	}
 
 	def, ok = resolveTextModel("deepseek", "")
-	if !ok || !def.UseOpenAIChat || def.Slug != "deepseek-v32" {
-		t.Fatalf("deepseek: %+v ok=%v", def, ok)
+	if !ok || !def.UseWavespeed || def.ID != "deepseek-v3.2" {
+		t.Fatalf("deepseek legacy alias: %+v ok=%v", def, ok)
+	}
+
+	def, ok = resolveTextModel("deepseek-v4-flash", "")
+	if !ok || !def.UseWavespeed || def.Slug != "deepseek/deepseek-v4-flash" {
+		t.Fatalf("deepseek-v4-flash: %+v ok=%v", def, ok)
 	}
 
 	def, ok = resolveTextModel("yandexgpt", "")
@@ -32,12 +37,22 @@ func TestResolveTextModel(t *testing.T) {
 	if !ok || def.ID != "gemini-2.5-flash" {
 		t.Fatalf("gemini-flash alias: %+v", def)
 	}
+
+	def, ok = resolveTextModel("openai/gpt-4o-mini", "")
+	if !ok || !def.UseWavespeed || def.ID != "gpt-4o-mini" {
+		t.Fatalf("gpt-4o-mini: %+v ok=%v", def, ok)
+	}
+
+	def, ok = resolveTextModel("openai", "")
+	if !ok || def.ID != "gpt-4o-mini" {
+		t.Fatalf("openai legacy alias: %+v ok=%v", def, ok)
+	}
 }
 
 func TestListTextModels(t *testing.T) {
 	models := ListTextModels()
-	if len(models) < 12 {
-		t.Fatalf("expected at least 12 models, got %d", len(models))
+	if len(models) < 29 {
+		t.Fatalf("expected at least 29 models, got %d", len(models))
 	}
 	wavespeedCount := 0
 	for _, m := range models {
@@ -45,7 +60,7 @@ func TestListTextModels(t *testing.T) {
 			wavespeedCount++
 		}
 	}
-	if wavespeedCount < 6 {
-		t.Fatalf("expected at least 6 wavespeed models, got %d", wavespeedCount)
+	if wavespeedCount < 24 {
+		t.Fatalf("expected at least 24 wavespeed models, got %d", wavespeedCount)
 	}
 }

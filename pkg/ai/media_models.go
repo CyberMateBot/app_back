@@ -18,17 +18,18 @@ type MediaModel struct {
 }
 
 type mediaModelDef struct {
-	ID            string
-	Label         string
-	Group         string
-	Description   string
-	TextSlug      string
-	EditSlug      string
-	MultiSlug     string
-	Provider      string
-	Kind          string
-	RequiresImage bool
-	RequiresVideo bool
+	ID                 string
+	Label              string
+	Group              string
+	Description        string
+	TextSlug           string
+	EditSlug           string
+	MultiSlug          string
+	EditSequentialSlug string
+	Provider           string
+	Kind               string
+	RequiresImage      bool
+	RequiresVideo      bool
 }
 
 var wavespeedImageModelCatalog = []mediaModelDef{
@@ -142,6 +143,36 @@ var wavespeedAudioModelCatalog = []mediaModelDef{
 		EditSlug: qwen3TTSCloneSlug,
 		Provider: "wavespeed", Kind: "audio",
 	},
+	{
+		ID: "omnivoice", Label: "OmniVoice", Group: "OmniVoice",
+		Description: "Text-to-speech на 600+ языках",
+		TextSlug: "wavespeed-ai/omnivoice/text-to-speech",
+		Provider: "wavespeed", Kind: "audio",
+	},
+	{
+		ID: "elevenlabs-v3", Label: "ElevenLabs V3", Group: "ElevenLabs",
+		Description: "Высококачественный синтез речи",
+		TextSlug: "elevenlabs/eleven-v3",
+		Provider: "wavespeed", Kind: "audio",
+	},
+	{
+		ID: "minimax-speech-2.6", Label: "MiniMax Speech 2.6", Group: "MiniMax Speech",
+		Description: "Эмоциональная озвучка с естественным ритмом",
+		TextSlug: "minimax/speech-2.6-turbo",
+		Provider: "wavespeed", Kind: "audio",
+	},
+	{
+		ID: "mureka-v9", Label: "Mureka V9", Group: "Mureka",
+		Description: "Генерация песен из текста",
+		TextSlug: "mureka-ai/mureka-v9/generate-song",
+		Provider: "wavespeed", Kind: "audio",
+	},
+	{
+		ID: "ace-step-1.5", Label: "ACE-Step 1.5", Group: "ACE-Step",
+		Description: "Генерация музыки до 4 минут",
+		TextSlug: "wavespeed-ai/ace-step-1.5",
+		Provider: "wavespeed", Kind: "audio",
+	},
 }
 
 var mediaModelAliases = map[string]string{
@@ -184,7 +215,17 @@ var mediaModelAliases = map[string]string{
 	"bytedance/seedance-2.0/video-extend": "seedance-v2-video-extend",
 	"qwen3-tts": "qwen3-tts",
 	"wavespeed-ai/qwen3-tts/text-to-speech": "qwen3-tts",
-	"wavespeed-ai/qwen3-tts/voice-clone":  "qwen3-tts",
+	"wavespeed-ai/qwen3-tts/voice-clone":     "qwen3-tts",
+	"omnivoice": "omnivoice",
+	"wavespeed-ai/omnivoice/text-to-speech": "omnivoice",
+	"elevenlabs-v3": "elevenlabs-v3",
+	"elevenlabs/eleven-v3": "elevenlabs-v3",
+	"minimax-speech-2.6": "minimax-speech-2.6",
+	"minimax/speech-2.6-turbo": "minimax-speech-2.6",
+	"mureka-v9": "mureka-v9",
+	"mureka-ai/mureka-v9/generate-song": "mureka-v9",
+	"ace-step-1.5": "ace-step-1.5",
+	"wavespeed-ai/ace-step-1.5": "ace-step-1.5",
 }
 
 func ListImageModels() []MediaModel {
@@ -227,8 +268,8 @@ func toMediaModel(m mediaModelDef) MediaModel {
 	return MediaModel{
 		ID: m.ID, Label: m.Label, Group: m.Group,
 		Description: m.Description, Provider: m.Provider, Kind: m.Kind,
-		SupportsEdit: m.EditSlug != "" || m.RequiresVideo,
-		SupportsMulti: m.MultiSlug != "",
+		SupportsEdit:  m.EditSlug != "" || m.RequiresVideo,
+		SupportsMulti: m.MultiSlug != "" || m.EditSequentialSlug != "",
 		RequiresImage: m.RequiresImage,
 		RequiresVideo: m.RequiresVideo,
 		Options: opts,
@@ -287,7 +328,7 @@ func resolveMediaModel(catalog []mediaModelDef, requested string) (mediaModelDef
 		if m.ID == key {
 			return m, true
 		}
-		if strings.EqualFold(m.TextSlug, key) || strings.EqualFold(m.EditSlug, key) || strings.EqualFold(m.MultiSlug, key) {
+		if strings.EqualFold(m.TextSlug, key) || strings.EqualFold(m.EditSlug, key) || strings.EqualFold(m.MultiSlug, key) || strings.EqualFold(m.EditSequentialSlug, key) {
 			return m, true
 		}
 	}
@@ -301,6 +342,26 @@ func resolveWavespeedImageSlug(def mediaModelDef, req ImageRequest) (string, err
 	}
 
 	mode := strings.ToLower(strings.TrimSpace(req.Mode))
+
+	if mode == "edit-sequential" || (sourceURL != "" && mode == "sequential" && def.EditSequentialSlug != "") {
+		if def.EditSequentialSlug == "" {
+			return "", &ProviderError{Provider: "wavespeed", Message: "model does not support edit-sequential generation"}
+		}
+		if sourceURL == "" {
+			return "", &ProviderError{Provider: "wavespeed", Message: "source image is required for edit-sequential mode"}
+		}
+		return def.EditSequentialSlug, nil
+	}
+
+	if mode == "sequential" || mode == "multi" {
+		if def.MultiSlug != "" {
+			return def.MultiSlug, nil
+		}
+		if mode == "multi" {
+			return "", &ProviderError{Provider: "wavespeed", Message: "model does not support multi-image generation"}
+		}
+	}
+
 	if sourceURL != "" || mode == "edit" {
 		if def.EditSlug == "" {
 			return "", &ProviderError{Provider: "wavespeed", Message: "model does not support image editing"}
@@ -311,15 +372,11 @@ func resolveWavespeedImageSlug(def mediaModelDef, req ImageRequest) (string, err
 		return def.EditSlug, nil
 	}
 
-	if mode == "multi" {
-		if def.MultiSlug == "" {
-			return "", &ProviderError{Provider: "wavespeed", Message: "model does not support multi-image generation"}
-		}
-		return def.MultiSlug, nil
-	}
-
 	if def.TextSlug != "" {
 		return def.TextSlug, nil
+	}
+	if def.EditSlug != "" {
+		return "", &ProviderError{Provider: "wavespeed", Message: "source image is required for this model"}
 	}
 	return "", &ProviderError{Provider: "wavespeed", Message: "unknown image model slug"}
 }

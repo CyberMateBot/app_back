@@ -58,11 +58,77 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		if sourceVideo == "" {
 			sourceVideo = strings.TrimSpace(req.VideoURL)
 		}
-		input["video"] = sourceVideo
+		if def.ID == "wan-2.7-edit" {
+			if instr := strings.TrimSpace(req.EditInstruction); instr != "" {
+				input["edit_instruction"] = instr
+			} else if strings.TrimSpace(prompt) != "" {
+				input["edit_instruction"] = strings.TrimSpace(prompt)
+			}
+			input["video"] = sourceVideo
+		} else {
+			input["video"] = sourceVideo
+		}
+	}
+
+	if def.ID == "happyhorse-video-extend" || def.ID == "veo-3.1-extend" {
+		if req.ExtendBy > 0 {
+			input["extend_by"] = req.ExtendBy
+		}
+	}
+
+	if def.ID == "wan-2.7-flf" {
+		if first := strings.TrimSpace(req.FirstFrameURL); first != "" {
+			input["first_frame_url"] = first
+		}
+		if last := strings.TrimSpace(req.LastFrameURL); last != "" {
+			input["last_frame_url"] = last
+		}
+	}
+
+	if def.ID == "wan-2.7-grid" {
+		gridURL := strings.TrimSpace(req.ImageGridURL)
+		if gridURL == "" {
+			gridURL = strings.TrimSpace(req.SourceImageURL)
+		}
+		if gridURL == "" {
+			gridURL = strings.TrimSpace(req.ImageURL)
+		}
+		if gridURL != "" {
+			input["image_grid"] = gridURL
+		}
+	}
+
+	if def.ID == "happyhorse-ref2v" {
+		refs := normalizeReferenceImages(req.ReferenceImages)
+		if len(refs) == 0 {
+			sourceImage := strings.TrimSpace(req.SourceImageURL)
+			if sourceImage == "" {
+				sourceImage = strings.TrimSpace(req.ImageURL)
+			}
+			if sourceImage != "" {
+				refs = []string{sourceImage}
+			}
+		}
+		if len(refs) > 0 {
+			input["reference_images"] = refs
+		}
+	}
+
+	if def.ID == "vidu-q3-i2v-spicy" {
+		if req.BGM != nil {
+			input["bgm"] = *req.BGM
+		} else {
+			input["bgm"] = true
+		}
+		if amp := strings.TrimSpace(req.MovementAmplitude); amp != "" {
+			input["movement_amplitude"] = amp
+		} else {
+			input["movement_amplitude"] = "auto"
+		}
 	}
 
 	if res := strings.TrimSpace(req.Resolution); res != "" {
-		input["resolution"] = res
+		input["resolution"] = normalizeVideoResolution(def.ID, res)
 	} else if defaultRes := defaultVideoResolution(def.ID); defaultRes != "" {
 		input["resolution"] = defaultRes
 	}
@@ -118,6 +184,18 @@ func normalizeReferenceImages(refs []string) []string {
 
 func defaultVideoDuration(modelID string) int {
 	switch {
+	case strings.HasPrefix(modelID, "wan-"):
+		return 5
+	case strings.HasPrefix(modelID, "happyhorse-"):
+		return 5
+	case strings.HasPrefix(modelID, "sora-"):
+		return 5
+	case strings.HasPrefix(modelID, "hailuo-"):
+		return 6
+	case strings.HasPrefix(modelID, "vidu-"):
+		return 5
+	case strings.HasPrefix(modelID, "veo-"):
+		return 5
 	case strings.HasPrefix(modelID, "seedance-v1-pro"):
 		return 5
 	case strings.HasPrefix(modelID, "seedance-v1.5"):
@@ -138,6 +216,16 @@ func defaultVideoAspectRatio(modelID string) string {
 
 func defaultVideoResolution(modelID string) string {
 	switch {
+	case strings.HasPrefix(modelID, "wan-2.5"), strings.HasPrefix(modelID, "wan-2.6"), strings.HasPrefix(modelID, "wan-2.2"):
+		return "720P"
+	case strings.HasPrefix(modelID, "wan-2.7"):
+		return "1080P"
+	case strings.HasPrefix(modelID, "happyhorse-"):
+		return "720p"
+	case strings.HasPrefix(modelID, "sora-"):
+		return "720p"
+	case strings.HasPrefix(modelID, "vidu-"):
+		return "720p"
 	case strings.HasPrefix(modelID, "seedance-v1.5"):
 		return "720p"
 	case strings.HasPrefix(modelID, "seedance-v2"):
@@ -147,8 +235,28 @@ func defaultVideoResolution(modelID string) string {
 	}
 }
 
+func normalizeVideoResolution(modelID, resolution string) string {
+	resolution = strings.TrimSpace(resolution)
+	if resolution == "" {
+		return resolution
+	}
+	if strings.HasPrefix(modelID, "wan-") {
+		switch strings.ToLower(resolution) {
+		case "480p":
+			return "480P"
+		case "720p":
+			return "720P"
+		case "1080p":
+			return "1080P"
+		default:
+			return strings.ToUpper(resolution)
+		}
+	}
+	return strings.ToLower(resolution)
+}
+
 func modelSupportsGenerateAudio(modelID string) bool {
-	return strings.HasPrefix(modelID, "seedance-v1.5")
+	return strings.HasPrefix(modelID, "seedance-v1.5") || modelID == "vidu-q3-i2v-spicy"
 }
 
 func seedanceUsesCameraFixed(modelID string) bool {

@@ -34,11 +34,6 @@ var textModelCatalog = []textModelDef{
 		Tier: "standard", Slug: "yandexgpt/latest",
 	},
 	{
-		ID: "deepseek", Label: "DeepSeek V3.2", Group: "Yandex",
-		Description: "Код, отладка, алгоритмы и пошаговые рассуждения",
-		Tier: "pro", Slug: "deepseek-v32", UseOpenAIChat: true,
-	},
-	{
 		ID: "gpt-oss-20b", Label: "GPT OSS 20B", Group: "Open-weight GPT",
 		Description: "Черновики, короткие ответы и быстрые правки текста",
 		Tier: "fast", Slug: "gpt-oss-20b/latest", UseResponses: true,
@@ -92,6 +87,96 @@ var wavespeedTextModelCatalog = []textModelDef{
 		Description: "Глубокий анализ, код и работа с изображениями",
 		Tier: "pro", Slug: "google/gemini-2.5-pro", UseWavespeed: true, SupportsImage: true,
 	},
+	{
+		ID: "gpt-5.4", Label: "GPT-5.4", Group: "ChatGPT",
+		Description: "Самая новая модель OpenAI для сложных задач",
+		Tier: "pro", Slug: "openai/gpt-5.4", UseWavespeed: true,
+	},
+	{
+		ID: "gpt-5.4-mini", Label: "GPT-5.4 Mini", Group: "ChatGPT",
+		Description: "Быстрые и экономичные ответы GPT-5.4",
+		Tier: "fast", Slug: "openai/gpt-5.4-mini", UseWavespeed: true,
+	},
+	{
+		ID: "gpt-4.1", Label: "GPT-4.1", Group: "ChatGPT",
+		Description: "Длинный контекст и глубокий анализ документов",
+		Tier: "pro", Slug: "openai/gpt-4.1", UseWavespeed: true,
+	},
+	{
+		ID: "gpt-4.1-mini", Label: "GPT-4.1 Mini", Group: "ChatGPT",
+		Description: "Баланс цены и качества для повседневных задач",
+		Tier: "standard", Slug: "openai/gpt-4.1-mini", UseWavespeed: true,
+	},
+	{
+		ID: "gpt-4.1-nano", Label: "GPT-4.1 Nano", Group: "ChatGPT",
+		Description: "Максимальная скорость для коротких ответов",
+		Tier: "fast", Slug: "openai/gpt-4.1-nano", UseWavespeed: true,
+	},
+	{
+		ID: "gpt-4o", Label: "GPT-4o", Group: "ChatGPT",
+		Description: "Омни-модель: текст, изображения и инструменты",
+		Tier: "pro", Slug: "openai/gpt-4o", UseWavespeed: true, SupportsImage: true,
+	},
+	{
+		ID: "gpt-4o-mini", Label: "GPT-4o Mini", Group: "ChatGPT",
+		Description: "Популярная быстрая модель для чата и черновиков",
+		Tier: "fast", Slug: "openai/gpt-4o-mini", UseWavespeed: true,
+	},
+	{
+		ID: "o4-mini", Label: "o4-mini", Group: "ChatGPT",
+		Description: "O-серия: низкая задержка и пошаговые рассуждения",
+		Tier: "fast", Slug: "openai/o4-mini", UseWavespeed: true,
+	},
+	{
+		ID: "o3", Label: "o3", Group: "ChatGPT",
+		Description: "Мощные рассуждения для сложных задач",
+		Tier: "pro", Slug: "openai/o3", UseWavespeed: true,
+	},
+	{
+		ID: "o3-mini", Label: "o3-mini", Group: "ChatGPT",
+		Description: "O-серия, оптимизирована для программирования",
+		Tier: "pro", Slug: "openai/o3-mini", UseWavespeed: true,
+	},
+	{
+		ID: "o1", Label: "o1", Group: "ChatGPT",
+		Description: "Оригинальная O-серия с chain-of-thought",
+		Tier: "pro", Slug: "openai/o1", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-v4", Label: "DeepSeek V4", Group: "DeepSeek",
+		Description: "Лучшая модель для кодинга и сложных задач",
+		Tier: "pro", Slug: "deepseek/deepseek-v4", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-r1", Label: "DeepSeek R1", Group: "DeepSeek",
+		Description: "Пошаговые рассуждения для сложных задач и логики",
+		Tier: "pro", Slug: "deepseek/deepseek-r1", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-v4-flash", Label: "DeepSeek V4 Flash", Group: "DeepSeek",
+		Description: "Быстрые и экономичные ответы DeepSeek V4",
+		Tier: "fast", Slug: "deepseek/deepseek-v4-flash", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-v3.2", Label: "DeepSeek V3.2", Group: "DeepSeek",
+		Description: "Сбалансированная модель для текста и кода",
+		Tier: "standard", Slug: "deepseek/deepseek-v3.2", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-v3.2-exp", Label: "DeepSeek V3.2 Exp", Group: "DeepSeek",
+		Description: "Экспериментальная версия DeepSeek V3.2",
+		Tier: "pro", Slug: "deepseek/deepseek-v3.2-exp", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-chat-v3-0324", Label: "DeepSeek V3 0324", Group: "DeepSeek",
+		Description: "Улучшенная версия DeepSeek V3",
+		Tier: "standard", Slug: "deepseek/deepseek-chat-v3-0324", UseWavespeed: true,
+	},
+	{
+		ID: "deepseek-chat", Label: "DeepSeek Chat", Group: "DeepSeek",
+		Description: "Базовая модель DeepSeek для повседневных задач",
+		Tier: "fast", Slug: "deepseek/deepseek-chat", UseWavespeed: true,
+	},
 }
 
 // modelAliases maps client model ids to catalog ids.
@@ -101,7 +186,15 @@ var modelAliases = map[string]string{
 	"gpt-oss-20b/latest": "gpt-oss-20b", "gpt_oss_20b": "gpt-oss-20b",
 	"qwen3.6-35b-a3b/latest": "qwen3.6-35b", "qwen3.6-35b": "qwen3.6-35b",
 	"qwen3-235b-a22b-fp8/latest": "qwen3-235b", "qwen3-235b": "qwen3-235b",
-	"deepseek-v32/latest": "deepseek",
+	"deepseek": "deepseek-v3.2",
+	"deepseek-v32/latest": "deepseek-v3.2", "deepseek-v32": "deepseek-v3.2",
+	"deepseek/deepseek-v4": "deepseek-v4",
+	"deepseek/deepseek-r1": "deepseek-r1",
+	"deepseek/deepseek-v4-flash": "deepseek-v4-flash",
+	"deepseek/deepseek-v3.2": "deepseek-v3.2",
+	"deepseek/deepseek-v3.2-exp": "deepseek-v3.2-exp",
+	"deepseek/deepseek-chat-v3-0324": "deepseek-chat-v3-0324",
+	"deepseek/deepseek-chat": "deepseek-chat",
 	// legacy / shorthand
 	"gemini": "gemini-2.5-flash", "gemini-flash": "gemini-2.5-flash",
 	"anthropic/claude-haiku-4.5": "claude-haiku-4.5",
@@ -110,6 +203,18 @@ var modelAliases = map[string]string{
 	"anthropic/claude-opus-4.8": "claude-opus-4.8",
 	"google/gemini-2.5-flash": "gemini-2.5-flash",
 	"google/gemini-2.5-pro": "gemini-2.5-pro",
+	"openai": "gpt-4o-mini",
+	"openai/gpt-5.4": "gpt-5.4",
+	"openai/gpt-5.4-mini": "gpt-5.4-mini",
+	"openai/gpt-4.1": "gpt-4.1",
+	"openai/gpt-4.1-mini": "gpt-4.1-mini",
+	"openai/gpt-4.1-nano": "gpt-4.1-nano",
+	"openai/gpt-4o": "gpt-4o",
+	"openai/gpt-4o-mini": "gpt-4o-mini",
+	"openai/o4-mini": "o4-mini",
+	"openai/o3": "o3",
+	"openai/o3-mini": "o3-mini",
+	"openai/o1": "o1",
 }
 
 func ListTextModels() []TextModel {

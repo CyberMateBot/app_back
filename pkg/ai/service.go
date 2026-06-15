@@ -51,8 +51,14 @@ type ImageRequest struct {
 	Resolution     string        `json:"resolution"`
 	Quality        string        `json:"quality"`
 	OutputFormat   string        `json:"output_format"`
-	Mode           string        `json:"mode"` // generate | edit | multi
+	Mode           string        `json:"mode"` // generate | edit | multi | sequential | edit-sequential
 	NumImages      int           `json:"num_images"`
+	NegativePrompt string        `json:"negative_prompt"`
+	Seed           int           `json:"seed"`
+	PromptExtend   *bool         `json:"prompt_extend"`
+	Strength       float64       `json:"strength"`
+	Width          int           `json:"width"`
+	Height         int           `json:"height"`
 	SourceImageURL string        `json:"sourceImageUrl"`
 	ImageURL       string        `json:"image_url"`
 	ImageBase64    string        `json:"imageBase64"`
@@ -108,7 +114,14 @@ type VideoRequest struct {
 	CameraControl   *CameraControl `json:"camera_control"`
 	CameraFixed     *bool         `json:"camera_fixed"`
 	TurboMode       *bool         `json:"turbo_mode"`
-	Seed            int           `json:"seed"`
+	Seed              int           `json:"seed"`
+	ExtendBy          int           `json:"extend_by"`
+	EditInstruction   string        `json:"edit_instruction"`
+	FirstFrameURL     string        `json:"first_frame_url"`
+	LastFrameURL      string        `json:"last_frame_url"`
+	ImageGridURL      string        `json:"image_grid_url"`
+	BGM               *bool         `json:"bgm"`
+	MovementAmplitude string        `json:"movement_amplitude"`
 	Messages        []ChatMessage `json:"messages"`
 	TelegramID      string        `json:"telegramId"`
 	SessionID       string        `json:"sessionId"`
@@ -123,19 +136,34 @@ type VideoResponse struct {
 
 // AudioRequest is the body for POST /v1/generate/audio.
 type AudioRequest struct {
-	Prompt           string        `json:"prompt"`
-	Text             string        `json:"text"`
-	Model            string        `json:"model"`
-	Language         string        `json:"language"`
-	Voice            string        `json:"voice"`
-	StyleInstruction string        `json:"style_instruction"`
-	ReferenceText    string        `json:"reference_text"`
-	Mode             string        `json:"mode"` // tts | clone
-	SourceAudioURL   string        `json:"sourceAudioUrl"`
-	AudioURL         string        `json:"audio_url"`
-	AudioBase64      string        `json:"audioBase64"`
-	AudioMimeType    string        `json:"audioMimeType"`
-	Messages         []ChatMessage `json:"messages"`
+	Prompt               string        `json:"prompt"`
+	Text                 string        `json:"text"`
+	Model                string        `json:"model"`
+	Language             string        `json:"language"`
+	Voice                string        `json:"voice"`
+	StyleInstruction     string        `json:"style_instruction"`
+	ReferenceText        string        `json:"reference_text"`
+	Mode                 string        `json:"mode"` // tts | clone
+	SourceAudioURL       string        `json:"sourceAudioUrl"`
+	AudioURL             string        `json:"audio_url"`
+	AudioBase64          string        `json:"audioBase64"`
+	AudioMimeType        string        `json:"audioMimeType"`
+	Speed                float64       `json:"speed"`
+	Pitch                int           `json:"pitch"`
+	Volume               float64       `json:"volume"`
+	Emotion              string        `json:"emotion"`
+	Similarity           float64       `json:"similarity"`
+	Stability            float64       `json:"stability"`
+	UseSpeakerBoost      *bool         `json:"use_speaker_boost"`
+	Tags                 string        `json:"tags"`
+	Duration             int           `json:"duration"`
+	Seed                 int           `json:"seed"`
+	NumberOfSongs        int           `json:"number_of_songs"`
+	OutputFormat         string        `json:"output_format"`
+	LanguageBoost        string        `json:"language_boost"`
+	EnglishNormalization *bool         `json:"english_normalization"`
+	Format               string        `json:"format"`
+	Messages             []ChatMessage `json:"messages"`
 }
 
 // AudioResponse is returned by POST /v1/generate/audio.
@@ -311,9 +339,6 @@ func (s *Service) GenerateAudio(ctx context.Context, req AudioRequest) (AudioRes
 	if prompt == "" {
 		prompt = strings.TrimSpace(req.Text)
 	}
-	if prompt == "" {
-		return AudioResponse{}, ErrPromptEmpty
-	}
 
 	if !s.cfg.WavespeedImageEnabled() {
 		return AudioResponse{}, &ProviderError{
@@ -330,11 +355,39 @@ func (s *Service) GenerateAudio(ctx context.Context, req AudioRequest) (AudioRes
 		return AudioResponse{}, &ProviderError{Provider: "wavespeed", Message: "unknown audio model: " + req.Model}
 	}
 
-	if hasQwen3TTSSourceAudio(req) && strings.TrimSpace(req.SourceAudioURL) == "" && strings.TrimSpace(req.AudioURL) == "" && strings.TrimSpace(req.AudioBase64) == "" {
+	if err := validateAudioRequest(prompt, req, def); err != nil {
+		return AudioResponse{}, err
+	}
+
+	if isUnifiedQwen3TTS(def) && hasQwen3TTSSourceAudio(req) && strings.TrimSpace(req.SourceAudioURL) == "" && strings.TrimSpace(req.AudioURL) == "" && strings.TrimSpace(req.AudioBase64) == "" {
 		return AudioResponse{}, &ProviderError{Provider: "wavespeed", Message: "reference audio is required for voice clone"}
 	}
 
 	return generateWavespeedAudio(ctx, s.cfg, prompt, req, def)
+}
+
+func validateAudioRequest(prompt string, req AudioRequest, def mediaModelDef) error {
+	switch def.ID {
+	case "ace-step-1.5":
+		tags := strings.TrimSpace(req.Tags)
+		if tags == "" {
+			tags = strings.TrimSpace(req.StyleInstruction)
+		}
+		if tags == "" {
+			return ErrPromptEmpty
+		}
+		return nil
+	case "mureka-v9":
+		if prompt == "" {
+			return ErrPromptEmpty
+		}
+		return nil
+	default:
+		if prompt == "" {
+			return ErrPromptEmpty
+		}
+		return nil
+	}
 }
 
 func normalizeTextInput(req TextRequest) (prompt string, messages []ChatMessage, err error) {

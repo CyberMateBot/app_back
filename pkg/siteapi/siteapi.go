@@ -187,7 +187,7 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT) http.
 			// Backend-driven catalog for the site homepage ("all neural nets from the app").
 			writeJSON(w, http.StatusOK, envelope[modelsResp]{Data: modelsResp{Items: []modelItem{
 				{Slug: "yandexgpt", Type: "text", Name: "YandexGPT"},
-				{Slug: "deepseek", Type: "text", Name: "DeepSeek"},
+				{Slug: "deepseek-v4-flash", Type: "text", Name: "DeepSeek"},
 				{Slug: "gemini-flash", Type: "text", Name: "Gemini Flash"},
 				{Slug: "openai", Type: "text", Name: "OpenAI"},
 				{Slug: "nano-banana", Type: "image", Name: "Nano Banana (Gemini)"},

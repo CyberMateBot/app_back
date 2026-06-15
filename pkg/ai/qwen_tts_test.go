@@ -41,7 +41,8 @@ func TestSelectQwen3TTSSlug(t *testing.T) {
 }
 
 func TestBuildWavespeedAudioInput_TTS(t *testing.T) {
-	input := buildWavespeedAudioInput("Привет", AudioRequest{
+	def, _ := resolveWavespeedAudioModel("qwen3-tts")
+	input := buildWavespeedAudioInput(def, "Привет", AudioRequest{
 		Language:         "auto",
 		Voice:            "Serena",
 		StyleInstruction: "calm",
@@ -59,7 +60,8 @@ func TestBuildWavespeedAudioInput_TTS(t *testing.T) {
 }
 
 func TestBuildWavespeedAudioInput_Clone(t *testing.T) {
-	input := buildWavespeedAudioInput("Новый текст", AudioRequest{
+	def, _ := resolveWavespeedAudioModel("qwen3-tts")
+	input := buildWavespeedAudioInput(def, "Новый текст", AudioRequest{
 		SourceAudioURL: "https://cdn.example.com/ref.wav",
 		ReferenceText:  "оригинал",
 		Language:       "Russian",
@@ -75,7 +77,16 @@ func TestBuildWavespeedAudioInput_Clone(t *testing.T) {
 
 func TestListAudioModels(t *testing.T) {
 	models := ListAudioModels()
-	if len(models) != 1 || models[0].ID != "qwen3-tts" {
-		t.Fatalf("unexpected audio models: %+v", models)
+	if len(models) < 6 {
+		t.Fatalf("expected at least 6 audio models, got %d: %+v", len(models), models)
+	}
+	found := false
+	for _, m := range models {
+		if m.ID == "qwen3-tts" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("qwen3-tts missing from audio models")
 	}
 }

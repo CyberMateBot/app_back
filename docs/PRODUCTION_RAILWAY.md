@@ -55,7 +55,7 @@ YANDEX_ALICE_AI_ART_MODEL=aliceai-image-art-3.0
 WAVESPEED_API_KEY=...
 ```
 
-DeepSeek и Alice AI ART идут через Yandex (`YANDEX_GPT_*`). **Nano Banana** требует `WAVESPEED_API_KEY` на Railway.
+DeepSeek и Claude/Gemini идут через Wavespeed (`WAVESPEED_API_KEY`, `GEMINI_API_BASE_URL`). YandexGPT и Alice AI ART — через Yandex (`YANDEX_GPT_*`).
 
 ### Опционально
 

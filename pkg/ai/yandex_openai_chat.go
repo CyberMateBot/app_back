@@ -13,7 +13,7 @@ import (
 const yandexOpenAIBase = "https://ai.api.cloud.yandex.net/v1"
 
 // generateYandexOpenAIChat calls Yandex AI Studio OpenAI-compatible Chat Completions API.
-// Required for DeepSeek and other models that do not support foundationModels completion.
+// Required for Qwen and other models that do not support foundationModels completion.
 func generateYandexOpenAIChat(
 	ctx context.Context,
 	cfg config.ConfigAI,

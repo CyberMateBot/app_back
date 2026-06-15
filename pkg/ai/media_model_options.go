@@ -236,6 +236,42 @@ func audioModelOptions(id string) []MediaOption {
 	}
 }
 
+func threeDModelOptions(id string) []MediaOption {
+	switch id {
+	case "tripo3d-v2.5-i2d", "tripo3d-v2.5-multiview", "tripo3d-h3.1-i2d":
+		return []MediaOption{
+			{Key: "texture_quality", Type: "select", Values: []string{"standard", "detailed"}, Default: "detailed"},
+			{Key: "output_format", Type: "select", Values: []string{"glb", "fbx", "obj", "usdz", "stl"}, Default: "glb"},
+		}
+	case "tripo3d-h3.1-t2d":
+		return []MediaOption{
+			{Key: "texture_quality", Type: "select", Values: []string{"standard", "detailed"}, Default: "detailed"},
+			{Key: "geometry_quality", Type: "select", Values: []string{"standard", "detailed"}, Default: "detailed"},
+		}
+	case "meshy6-t2d":
+		return []MediaOption{
+			{Key: "mode", Type: "select", Values: []string{"full", "preview"}, Default: "full"},
+			{Key: "art_style", Type: "select", Values: []string{"realistic", "sculpture"}, Default: "realistic"},
+			{Key: "topology", Type: "select", Values: []string{"quad", "triangle"}, Default: "quad"},
+		}
+	case "rodin-v2-i2d":
+		return []MediaOption{
+			{Key: "tier", Type: "select", Values: []string{"Gen-2-Low", "Gen-2-Medium", "Gen-2-High"}, Default: "Gen-2-Medium"},
+			{Key: "material", Type: "select", Values: []string{"PBR", "Shaded", "All", "None"}, Default: "PBR"},
+		}
+	case "rodin-v2.5-i2d":
+		return []MediaOption{
+			{Key: "tier", Type: "select", Values: []string{
+				"Gen-2.5-Extreme-Low", "Gen-2.5-Low", "Gen-2.5-Medium", "Gen-2.5-High", "Gen-2.5-Extreme-High",
+			}, Default: "Gen-2.5-Medium"},
+			{Key: "geometry_file_format", Type: "select", Values: []string{"glb", "usdz", "fbx", "obj", "stl"}, Default: "glb"},
+			{Key: "texture_mode", Type: "select", Values: []string{"legacy", "low", "medium", "high"}, Default: "medium"},
+		}
+	default:
+		return nil
+	}
+}
+
 func modelSupportsQuality(id string) bool {
 	return id == "gpt-image-2" || id == "gpt-image-1.5"
 }

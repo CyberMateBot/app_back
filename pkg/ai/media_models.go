@@ -9,11 +9,12 @@ type MediaModel struct {
 	Group         string        `json:"group"`
 	Description   string        `json:"description,omitempty"`
 	Provider      string        `json:"provider"` // wavespeed | yandex
-	Kind          string        `json:"kind"`     // image | video | audio
+	Kind          string        `json:"kind"`     // image | video | audio | 3d
 	SupportsEdit   bool          `json:"supports_edit,omitempty"`
 	SupportsMulti  bool          `json:"supports_multi,omitempty"`
 	RequiresImage  bool          `json:"requires_image,omitempty"`
 	RequiresVideo  bool          `json:"requires_video,omitempty"`
+	RequiresMultiImage bool      `json:"requires_multi_image,omitempty"`
 	Options        []MediaOption `json:"options,omitempty"`
 }
 
@@ -30,6 +31,7 @@ type mediaModelDef struct {
 	Kind               string
 	RequiresImage      bool
 	RequiresVideo      bool
+	RequiresMultiImage bool
 }
 
 var wavespeedImageModelCatalog = []mediaModelDef{
@@ -257,6 +259,14 @@ func ListAudioModels() []MediaModel {
 	return out
 }
 
+func ListThreeDModels() []MediaModel {
+	out := make([]MediaModel, 0, len(wavespeedThreeDModelCatalog))
+	for _, m := range wavespeedThreeDModelCatalog {
+		out = append(out, toMediaModel(m))
+	}
+	return out
+}
+
 func toMediaModel(m mediaModelDef) MediaModel {
 	opts := imageModelOptions(m.ID)
 	switch m.Kind {
@@ -264,14 +274,17 @@ func toMediaModel(m mediaModelDef) MediaModel {
 		opts = videoModelOptions(m.ID)
 	case "audio":
 		opts = audioModelOptions(m.ID)
+	case "3d":
+		opts = threeDModelOptions(m.ID)
 	}
 	return MediaModel{
 		ID: m.ID, Label: m.Label, Group: m.Group,
 		Description: m.Description, Provider: m.Provider, Kind: m.Kind,
-		SupportsEdit:  m.EditSlug != "" || m.RequiresVideo,
-		SupportsMulti: m.MultiSlug != "" || m.EditSequentialSlug != "",
-		RequiresImage: m.RequiresImage,
-		RequiresVideo: m.RequiresVideo,
+		SupportsEdit:       m.EditSlug != "" || m.RequiresVideo,
+		SupportsMulti:      m.MultiSlug != "" || m.EditSequentialSlug != "",
+		RequiresImage:      m.RequiresImage,
+		RequiresVideo:      m.RequiresVideo,
+		RequiresMultiImage: m.RequiresMultiImage,
 		Options: opts,
 	}
 }
@@ -314,6 +327,10 @@ func resolveWavespeedVideoModel(requested string) (mediaModelDef, bool) {
 
 func resolveWavespeedAudioModel(requested string) (mediaModelDef, bool) {
 	return resolveMediaModel(wavespeedAudioModelCatalog, requested)
+}
+
+func resolveWavespeedThreeDModel(requested string) (mediaModelDef, bool) {
+	return resolveMediaModel(wavespeedThreeDModelCatalog, requested)
 }
 
 func resolveMediaModel(catalog []mediaModelDef, requested string) (mediaModelDef, bool) {

@@ -151,6 +151,32 @@ func TestBuildWavespeedAudioInput(t *testing.T) {
 	}
 }
 
+func TestResolveWavespeedThreeDModel(t *testing.T) {
+	def, ok := resolveWavespeedThreeDModel("meshy6-t2d")
+	if !ok || def.TextSlug != "wavespeed-ai/meshy6/text-to-3d" {
+		t.Fatalf("meshy6-t2d: %+v ok=%v", def, ok)
+	}
+
+	def, ok = resolveWavespeedThreeDModel("rodin-v2.5-i2d")
+	if !ok || def.TextSlug != "hyper3d/rodin-v2.5/image-to-3d" {
+		t.Fatalf("rodin-v2.5-i2d: %+v", def)
+	}
+}
+
+func TestBuildWavespeedThreeDInput(t *testing.T) {
+	rapid, _ := resolveWavespeedThreeDModel("hunyuan3d-v3.1-rapid")
+	input := buildWavespeedThreeDInput(rapid, "cute fox", ThreeDRequest{})
+	if input["prompt"] != "cute fox" {
+		t.Fatalf("rapid input: %+v", input)
+	}
+
+	meshy, _ := resolveWavespeedThreeDModel("meshy6-t2d")
+	input = buildWavespeedThreeDInput(meshy, "katana", ThreeDRequest{ArtStyle: "realistic"})
+	if input["art_style"] != "realistic" {
+		t.Fatalf("meshy input: %+v", input)
+	}
+}
+
 func TestListMediaModels(t *testing.T) {
 	images := ListImageModels()
 	videos := ListVideoModels()

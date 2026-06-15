@@ -35,10 +35,11 @@ type TextResponse struct {
 
 // ModelsResponse is returned by GET /v1/generate/models.
 type ModelsResponse struct {
-	TextModels  []TextModel  `json:"text_models"`
-	ImageModels []MediaModel `json:"image_models,omitempty"`
-	VideoModels []MediaModel `json:"video_models,omitempty"`
-	AudioModels []MediaModel `json:"audio_models,omitempty"`
+	TextModels   []TextModel  `json:"text_models"`
+	ImageModels  []MediaModel `json:"image_models,omitempty"`
+	VideoModels  []MediaModel `json:"video_models,omitempty"`
+	AudioModels  []MediaModel `json:"audio_models,omitempty"`
+	ThreeDModels []MediaModel `json:"three_d_models,omitempty"`
 }
 
 // ImageRequest is the body for POST /v1/generate/image.
@@ -172,6 +173,60 @@ type AudioResponse struct {
 	Model    string `json:"model"`
 }
 
+// ThreeDRequest is the body for POST /v1/generate/3d.
+type ThreeDRequest struct {
+	Prompt                string   `json:"prompt"`
+	Text                  string   `json:"text"`
+	Model                 string   `json:"model"`
+	NegativePrompt        string   `json:"negative_prompt"`
+	SourceImageURL        string   `json:"sourceImageUrl"`
+	ImageURL              string   `json:"image_url"`
+	ImageBase64           string   `json:"imageBase64"`
+	ImageMimeType         string   `json:"imageMimeType"`
+	SourceImages          []string `json:"sourceImages"`
+	Images                []string `json:"images"`
+	ImageBase64List       []string `json:"imageBase64List"`
+	ImageMimeTypes        []string `json:"imageMimeTypes"`
+	TextureQuality        string   `json:"texture_quality"`
+	FaceLimit             int      `json:"face_limit"`
+	Quad                  *bool    `json:"quad"`
+	PBR                   *bool    `json:"pbr"`
+	OutputFormat          string   `json:"output_format"`
+	Texture               *bool    `json:"texture"`
+	GeometryQuality       string   `json:"geometry_quality"`
+	AutoSize              *bool    `json:"auto_size"`
+	Mode                  string   `json:"mode"`
+	ArtStyle              string   `json:"art_style"`
+	Topology              string   `json:"topology"`
+	TargetPolycount       int      `json:"target_polycount"`
+	EnablePBR             *bool    `json:"enable_pbr"`
+	EnablePromptExpansion *bool    `json:"enable_prompt_expansion"`
+	TAPose                *bool    `json:"ta_pose"`
+	SymmetryMode          string   `json:"symmetry_mode"`
+	ShouldRemesh          *bool    `json:"should_remesh"`
+	Tier                  string   `json:"tier"`
+	QualityAndMesh        string   `json:"quality_and_mesh"`
+	Material              string   `json:"material"`
+	HDTexture             *bool    `json:"hd_texture"`
+	Addons                string   `json:"addons"`
+	GeometryFileFormat    string   `json:"geometry_file_format"`
+	TextureMode           string   `json:"texture_mode"`
+	GeometryInstructMode  string   `json:"geometry_instruct_mode"`
+	TextureDelight        *bool    `json:"texture_delight"`
+	IsSymmetric           string   `json:"is_symmetric"`
+	IsMicro               *bool    `json:"is_micro"`
+	PreviewRender         *bool    `json:"preview_render"`
+	TelegramID            string   `json:"telegramId"`
+	SessionID             string   `json:"sessionId"`
+	Category              string   `json:"category"`
+}
+
+// ThreeDResponse is returned by POST /v1/generate/3d.
+type ThreeDResponse struct {
+	ModelURL string `json:"model_url"`
+	Model    string `json:"model"`
+}
+
 // Service routes generation to configured providers.
 type Service struct {
 	cfg config.ConfigAI
@@ -183,10 +238,11 @@ func NewService(cfg config.ConfigAI) *Service {
 
 func (s *Service) ListModels() ModelsResponse {
 	return ModelsResponse{
-		TextModels:  ListTextModels(),
-		ImageModels: ListImageModels(),
-		VideoModels: ListVideoModels(),
-		AudioModels: ListAudioModels(),
+		TextModels:   ListTextModels(),
+		ImageModels:  ListImageModels(),
+		VideoModels:  ListVideoModels(),
+		AudioModels:  ListAudioModels(),
+		ThreeDModels: ListThreeDModels(),
 	}
 }
 
@@ -388,6 +444,55 @@ func validateAudioRequest(prompt string, req AudioRequest, def mediaModelDef) er
 		}
 		return nil
 	}
+}
+
+func (s *Service) GenerateThreeD(ctx context.Context, req ThreeDRequest) (ThreeDResponse, error) {
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
+		prompt = strings.TrimSpace(req.Text)
+	}
+
+	if !s.cfg.WavespeedImageEnabled() {
+		return ThreeDResponse{}, &ProviderError{
+			Provider: "wavespeed",
+			Message:  "WAVESPEED_API_KEY is not configured",
+		}
+	}
+
+	def, ok := resolveWavespeedThreeDModel(req.Model)
+	if !ok {
+		def, ok = resolveWavespeedThreeDModel("hunyuan3d-v3.1-rapid")
+	}
+	if !ok {
+		return ThreeDResponse{}, &ProviderError{Provider: "wavespeed", Message: "unknown 3d model: " + req.Model}
+	}
+
+	if err := validateThreeDRequest(prompt, req, def); err != nil {
+		return ThreeDResponse{}, err
+	}
+
+	return generateWavespeedThreeD(ctx, s.cfg, prompt, req, def)
+}
+
+func validateThreeDRequest(prompt string, req ThreeDRequest, def mediaModelDef) error {
+	if def.RequiresMultiImage {
+		if len(req.SourceImages) < 2 && len(req.Images) < 2 && len(req.ImageBase64List) < 2 {
+			return &ProviderError{Provider: "wavespeed", Message: "at least 2 source images are required"}
+		}
+		return nil
+	}
+	if def.RequiresImage {
+		if strings.TrimSpace(req.SourceImageURL) == "" &&
+			strings.TrimSpace(req.ImageURL) == "" &&
+			strings.TrimSpace(req.ImageBase64) == "" {
+			return &ProviderError{Provider: "wavespeed", Message: "source image is required"}
+		}
+		return nil
+	}
+	if prompt == "" {
+		return ErrPromptEmpty
+	}
+	return nil
 }
 
 func normalizeTextInput(req TextRequest) (prompt string, messages []ChatMessage, err error) {

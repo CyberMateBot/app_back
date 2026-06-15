@@ -18,6 +18,7 @@ const (
 	pathGenerateImage  = "/v1/generate/image"
 	pathGenerateVideo  = "/v1/generate/video"
 	pathGenerateAudio  = "/v1/generate/audio"
+	pathGenerate3D     = "/v1/generate/3d"
 )
 
 // Wrap adds POST /v1/generate/text and POST /v1/generate/image.
@@ -41,6 +42,9 @@ func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateAudio:
 			handleAudio(w, r, svc)
+			return
+		case r.Method == http.MethodPost && r.URL.Path == pathGenerate3D:
+			handle3D(w, r, svc, history)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -240,11 +244,66 @@ func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+type threeDGenerateResponse struct {
+	ModelURL string              `json:"model_url"`
+	Model    string              `json:"model"`
+	Item     *prompthistory.Item `json:"item,omitempty"`
+}
+
+func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
+	var req ai.ThreeDRequest
+	if err := decode3DJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, formatDecodeError(err))
+		return
+	}
+
+	out, err := svc.GenerateThreeD(r.Context(), req)
+	if err != nil {
+		writeServiceError(w, r, "generate 3d", err)
+		return
+	}
+
+	resp := threeDGenerateResponse{
+		ModelURL: out.ModelURL,
+		Model:    out.Model,
+	}
+
+	if history != nil {
+		prompt := strings.TrimSpace(req.Prompt)
+		if prompt == "" {
+			prompt = strings.TrimSpace(req.Text)
+		}
+		category := strings.TrimSpace(req.Category)
+		if category == "" {
+			category = strings.TrimSpace(req.Model)
+		}
+		if category == "" {
+			category = "3d"
+		}
+		if item, saveErr := history.SaveAfterGenerate(
+			r.Context(),
+			req.TelegramID,
+			prompt,
+			strings.TrimSpace(out.ModelURL),
+			category,
+			req.Model,
+			req.SessionID,
+		); saveErr != nil {
+			slog.WarnContext(r.Context(), "failed to save prompt history after 3d generation", slog.Any("error", saveErr))
+		} else if item != nil {
+			resp.Item = item
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
 const (
 	maxJSONBodyDefault = 1 << 20       // 1 MiB — text / small payloads
 	maxJSONBodyImage   = 12 << 20      // 12 MiB — imageBase64 (до ~8 MiB binary)
 	maxJSONBodyVideo   = 2 << 20       // 2 MiB — video metadata
 	maxJSONBodyAudio   = 12 << 20      // 12 MiB — audioBase64 for voice clone
+	maxJSONBody3D      = 24 << 20      // 24 MiB — multiview image uploads
 )
 
 func decodeJSON(r *http.Request, dst any) error {
@@ -261,6 +320,10 @@ func decodeVideoJSON(r *http.Request, dst any) error {
 
 func decodeAudioJSON(r *http.Request, dst any) error {
 	return decodeJSONWithLimit(r, dst, maxJSONBodyAudio)
+}
+
+func decode3DJSON(r *http.Request, dst any) error {
+	return decodeJSONWithLimit(r, dst, maxJSONBody3D)
 }
 
 func decodeJSONWithLimit(r *http.Request, dst any, maxBytes int64) error {

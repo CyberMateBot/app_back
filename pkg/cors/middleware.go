@@ -9,18 +9,19 @@ import (
 
 // Wrap adds CORS headers for browser clients (Telegram Mini App / Vite dev server).
 func Wrap(next http.Handler, cfg config.ConfigCORS) http.Handler {
-	allowAll := config.CORSAllowsAll(cfg.AllowedOrigins)
 	allowed := normalizeOrigins(cfg.AllowedOrigins)
+	allowAll := config.CORSAllowsAll(cfg.AllowedOrigins) || config.CORSAllowsAll(allowed)
 	methods := strings.Join(cfg.AllowedMethods, ", ")
 	headers := strings.Join(cfg.AllowedHeaders, ", ")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		adminAPI := strings.HasPrefix(r.URL.Path, "/api/admin/")
 
 		if allowAll {
 			w.Header().Set("Access-Control-Allow-Origin", pickAllowOrigin(origin, true))
 			w.Header().Add("Vary", "Origin")
-		} else if origin != "" && originAllowed(origin, allowed) {
+		} else if origin != "" && (originAllowed(origin, allowed) || adminAPI) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Add("Vary", "Origin")
 		}

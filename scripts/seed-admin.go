@@ -19,19 +19,27 @@ func main() {
 	email := strings.TrimSpace(strings.ToLower(os.Getenv("ADMIN_EMAIL")))
 	password := os.Getenv("ADMIN_PASSWORD")
 	if email == "" || password == "" {
-		fmt.Println("set ADMIN_EMAIL and ADMIN_PASSWORD in .env")
+		fmt.Println("set ADMIN_EMAIL and ADMIN_PASSWORD in .env or env")
 		os.Exit(1)
 	}
 
-	host := getenv("PG_HOST", "localhost")
-	port := getenv("PG_PORT", "5432")
-	user := getenv("PG_USER", "postgres")
-	pass := getenv("PG_PASSWORD", getenv("PG_PASS", "postgres"))
-	db := getenv("PG_DBNAME", "myapp_db")
-
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, db)
 	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, url)
+	var conn *pgx.Conn
+	var err error
+
+	if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" {
+		conn, err = pgx.Connect(ctx, dbURL)
+	} else {
+		host := getenv("PG_HOST", "localhost")
+		port := getenv("PG_PORT", "5432")
+		user := getenv("PG_USER", "postgres")
+		pass := getenv("PG_PASSWORD", getenv("PG_PASS", "postgres"))
+		db := getenv("PG_DBNAME", "myapp_db")
+		ssl := getenv("PG_SSLMODE", "disable")
+
+		url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, pass, host, port, db, ssl)
+		conn, err = pgx.Connect(ctx, url)
+	}
 	if err != nil {
 		fmt.Println("db connect:", err)
 		os.Exit(1)

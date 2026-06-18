@@ -72,10 +72,20 @@ curl -X POST http://127.0.0.1:8090/api/admin/auth/login `
 ### Бэкенд (`app_back`)
 
 ```env
-CORS_ALLOWED_ORIGINS=https://adminconsole-production-a33a.up.railway.app
+JWT_SECRET=your-long-random-secret
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=...
-JWT_SECRET=...
+ADMIN_PASSWORD=your-secure-password
+CORS_ALLOWED_ORIGINS=https://adminconsole-production-a33a.up.railway.app
+```
+
+Без `JWT_SECRET` логин отдаёт `500 internal error`.
+
+Создать админа в Postgres Railway (Query или локально через DATABASE_URL):
+
+```powershell
+# локально, если есть доступ к Railway Postgres
+$env:DATABASE_URL="postgresql://..."
+go run scripts/seed-admin.go
 ```
 
 Миграции в Postgres (Railway Query), включая `V20260607000100__profile_is_active.sql`.

@@ -28,6 +28,18 @@ type Repository interface {
 	GetWebAccountByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.WebAccount, error)
 	CreateWebPrompt(ctx context.Context, tx pgx.Tx, p repoModels.WebPrompt) (int64, error)
 	ListWebPrompts(ctx context.Context, tx pgx.Tx, webAccountID int64, limit int32, offset int32) ([]repoModels.WebPrompt, error)
+
+	// Admin panel repositories
+	GetAdminByEmail(ctx context.Context, tx pgx.Tx, email string) (repoModels.Admin, error)
+	GetAdminByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.Admin, error)
+	CreateAdmin(ctx context.Context, tx pgx.Tx, email, passwordHash string) (int64, error)
+	CountAdmins(ctx context.Context, tx pgx.Tx) (int64, error)
+	GetAdminStats(ctx context.Context, tx pgx.Tx) (repoModels.AdminStats, error)
+	ListAdminProfiles(ctx context.Context, tx pgx.Tx, search string, limit, offset int32) ([]repoModels.AdminProfile, int64, error)
+	GetAdminProfileByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.AdminProfile, error)
+	UpdateProfileActive(ctx context.Context, tx pgx.Tx, id int64, isActive bool) error
+	DeleteProfile(ctx context.Context, tx pgx.Tx, id int64) error
+	ListBroadcastTelegramIDs(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]string, error)
 }
 
 type UseCase interface {
@@ -45,6 +57,20 @@ type UseCase interface {
 	GetWebAccount(ctx context.Context, webAccountID int64) (ucModels.GetWebAccountOutput, error)
 	CreateWebPrompt(ctx context.Context, input ucModels.CreateWebPromptInput) (ucModels.CreateWebPromptOutput, error)
 	ListWebPrompts(ctx context.Context, input ucModels.ListWebPromptsInput) (ucModels.ListWebPromptsOutput, error)
+
+	// Admin panel usecases
+	BootstrapAdmin(ctx context.Context) error
+	AdminLogin(ctx context.Context, input ucModels.AdminLoginInput) (ucModels.AdminLoginOutput, error)
+	GetAdmin(ctx context.Context, adminID int64) (ucModels.AdminUser, error)
+	GetAdminStats(ctx context.Context) (ucModels.AdminStatsOutput, error)
+	ListAdminUsers(ctx context.Context, input ucModels.AdminListUsersInput) (ucModels.AdminListUsersOutput, error)
+	GetAdminUser(ctx context.Context, userID int64) (ucModels.AdminUserItem, error)
+	UpdateAdminUserActive(ctx context.Context, input ucModels.AdminUpdateUserInput) (ucModels.AdminUserItem, error)
+	DeleteAdminUser(ctx context.Context, userID int64) error
+	AdminBroadcast(ctx context.Context, input ucModels.AdminBroadcastInput, messenger interface {
+		Active() bool
+		SendText(chatID int64, text, parseMode string) error
+	}) (ucModels.AdminBroadcastOutput, error)
 }
 
 type Client interface {

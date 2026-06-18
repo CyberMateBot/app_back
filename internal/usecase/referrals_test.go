@@ -11,6 +11,7 @@ import (
 )
 
 type fakeRepoReferrals struct {
+	fakeAdminRepoStubs
 	profiles map[string]repoModels.Profile
 	referrals []repoModels.Referral
 	addCalls  [][2]int64

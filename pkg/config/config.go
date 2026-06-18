@@ -252,7 +252,7 @@ func LoadRedisConfig() ConfigRedis {
 }
 
 func LoadCORSConfig() ConfigCORS {
-	defaultOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
+	defaultOrigins := []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:5173"}
 	if strings.EqualFold(getenv("ENVIRONMENT", ""), "production") {
 		defaultOrigins = []string{"*"}
 	}

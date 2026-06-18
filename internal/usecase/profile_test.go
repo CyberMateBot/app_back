@@ -31,6 +31,7 @@ func (f *fakeTx) QueryFunc(ctx context.Context, sql string, args []interface{}, 
 func (f *fakeTx) Conn() *pgx.Conn { return nil }
 
 type fakeRepoProfile struct{
+    fakeAdminRepoStubs
     exists map[string]repoModels.Profile
     addCalls [][2]int64
 }

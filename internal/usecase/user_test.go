@@ -12,7 +12,9 @@ import (
     "github.com/twelvepills-936/tgapp-/pkg/config"
 )
 
-type fakeRepo struct{}
+type fakeRepo struct{
+    fakeAdminRepoStubs
+}
 
 func (f *fakeRepo) DBBeginTransaction(ctx context.Context) (pgx.Tx, error) { return nil, nil }
 func (f *fakeRepo) ReadUser(ctx context.Context, id int64, _ pgx.Tx) (repoModels.User, error) {

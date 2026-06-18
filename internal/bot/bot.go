@@ -205,6 +205,19 @@ func miniAppOpenURL() string {
 	return "https://t.me/" + username + "?startapp"
 }
 
+// SendText sends a plain or formatted message to a Telegram chat.
+func (b *Bot) SendText(chatID int64, text, parseMode string) error {
+	if b.api == nil {
+		return fmt.Errorf("bot not configured")
+	}
+	msg := tgbotapi.NewMessage(chatID, text)
+	if parseMode != "" {
+		msg.ParseMode = parseMode
+	}
+	_, err := b.api.Send(msg)
+	return err
+}
+
 // SendMessage sends a text with optional inline buttons.
 func (b *Bot) SendMessage(telegramID int64, text string, buttons []tgbotapi.InlineKeyboardButton) error {
 	if b.api == nil {

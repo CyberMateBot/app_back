@@ -63,6 +63,35 @@ func (f *fakeUC) ListReferralsByTelegramID(ctx context.Context, telegramID strin
     }, nil
 }
 
+func (f *fakeUC) BootstrapAdmin(ctx context.Context) error { return nil }
+func (f *fakeUC) AdminLogin(ctx context.Context, input ucModels.AdminLoginInput) (ucModels.AdminLoginOutput, error) {
+    return ucModels.AdminLoginOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) GetAdmin(ctx context.Context, adminID int64) (ucModels.AdminUser, error) {
+    return ucModels.AdminUser{}, errors.New("not impl")
+}
+func (f *fakeUC) GetAdminStats(ctx context.Context) (ucModels.AdminStatsOutput, error) {
+    return ucModels.AdminStatsOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) ListAdminUsers(ctx context.Context, input ucModels.AdminListUsersInput) (ucModels.AdminListUsersOutput, error) {
+    return ucModels.AdminListUsersOutput{}, errors.New("not impl")
+}
+func (f *fakeUC) GetAdminUser(ctx context.Context, userID int64) (ucModels.AdminUserItem, error) {
+    return ucModels.AdminUserItem{}, errors.New("not impl")
+}
+func (f *fakeUC) UpdateAdminUserActive(ctx context.Context, input ucModels.AdminUpdateUserInput) (ucModels.AdminUserItem, error) {
+    return ucModels.AdminUserItem{}, errors.New("not impl")
+}
+func (f *fakeUC) DeleteAdminUser(ctx context.Context, userID int64) error {
+    return errors.New("not impl")
+}
+func (f *fakeUC) AdminBroadcast(ctx context.Context, input ucModels.AdminBroadcastInput, messenger interface {
+    Active() bool
+    SendText(chatID int64, text, parseMode string) error
+}) (ucModels.AdminBroadcastOutput, error) {
+    return ucModels.AdminBroadcastOutput{}, errors.New("not impl")
+}
+
 var _ internal.UseCase = (*fakeUC)(nil)
 
 func TestService_GetUser_OK(t *testing.T) {

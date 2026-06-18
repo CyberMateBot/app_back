@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/twelvepills-936/tgapp-/internal/bot"
+	"github.com/twelvepills-936/tgapp-/pkg/adminapi"
 	"github.com/twelvepills-936/tgapp-/internal/repository"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
 	"github.com/twelvepills-936/tgapp-/internal/service"
@@ -69,6 +70,9 @@ func main() {
 
 	// Create single instances of usecase and service
 	uc := usecase.NewUseCase(repo, addConfig.JWT)
+	if err := uc.BootstrapAdmin(ctx); err != nil {
+		slog.WarnContext(ctx, "admin bootstrap skipped", logger.ErrorAttr(err))
+	}
 	svc := service.NewService(uc)
 
 	// Register gRPC services BEFORE starting the server
@@ -97,23 +101,28 @@ func main() {
 
 	httpHandler := bot.HTTPWrap(cors.Wrap(
 		health.Wrap(
-			mediadownload.Wrap(
-				generate.Wrap(
-					prompthistory.Wrap(
-						applinks.Wrap(
-							siteapi.Wrap(
-								swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+			adminapi.Wrap(
+				mediadownload.Wrap(
+					generate.Wrap(
+						prompthistory.Wrap(
+							applinks.Wrap(
+								siteapi.Wrap(
+									swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+									uc,
+									addConfig.JWT,
+								),
+								addConfig.App,
 								uc,
-								addConfig.JWT,
 							),
-							addConfig.App,
-							uc,
+							promptHistory,
 						),
+						aiSvc,
 						promptHistory,
 					),
-					aiSvc,
-					promptHistory,
 				),
+				uc,
+				addConfig.JWT,
+				tgBot,
 			),
 		),
 		addConfig.CORS,

@@ -43,7 +43,8 @@ $migrations = @(
     "V20251103000200__admin_resources.sql",
     "V20250525000000__profile_ui_theme.sql",
     "V20260527000000__prompt_history.sql",
-    "V20260528000100__web_auth_and_prompts.sql"
+    "V20260528000100__web_auth_and_prompts.sql",
+    "V20260607000100__profile_is_active.sql"
 )
 
 function Resolve-PsqlExecutable {

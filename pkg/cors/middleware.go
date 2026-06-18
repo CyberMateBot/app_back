@@ -40,10 +40,14 @@ func Wrap(next http.Handler, cfg config.ConfigCORS) http.Handler {
 	})
 }
 
+func normalizeOrigin(origin string) string {
+	return strings.TrimSuffix(strings.TrimSpace(origin), "/")
+}
+
 func normalizeOrigins(origins []string) []string {
 	out := make([]string, 0, len(origins))
 	for _, o := range origins {
-		o = strings.TrimSpace(o)
+		o = normalizeOrigin(o)
 		if o != "" && o != "*" {
 			out = append(out, o)
 		}
@@ -55,8 +59,9 @@ func normalizeOrigins(origins []string) []string {
 }
 
 func originAllowed(origin string, allowed []string) bool {
+	origin = normalizeOrigin(origin)
 	for _, a := range allowed {
-		if a == origin {
+		if normalizeOrigin(a) == origin {
 			return true
 		}
 	}

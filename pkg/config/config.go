@@ -251,9 +251,21 @@ func LoadRedisConfig() ConfigRedis {
 	}
 }
 
+func isDeployedProduction() bool {
+	if strings.EqualFold(getenv("ENVIRONMENT", ""), "production") {
+		return true
+	}
+	for _, key := range []string{"RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"} {
+		if os.Getenv(key) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func LoadCORSConfig() ConfigCORS {
 	defaultOrigins := []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:5173"}
-	if strings.EqualFold(getenv("ENVIRONMENT", ""), "production") {
+	if isDeployedProduction() {
 		defaultOrigins = []string{"*"}
 	}
 	return ConfigCORS{

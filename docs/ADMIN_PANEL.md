@@ -67,20 +67,32 @@ curl -X POST http://127.0.0.1:8090/api/admin/auth/login `
   -d '{"email":"admin@example.com","password":"your-secure-password"}'
 ```
 
-## Продакшен
+## Продакшен (Railway)
+
+### Бэкенд (`app_back`)
 
 ```env
-CORS_ALLOWED_ORIGINS=https://your-admin.up.railway.app
-ADMIN_EMAIL=...
+CORS_ALLOWED_ORIGINS=https://adminconsole-production-a33a.up.railway.app
+ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=...
 JWT_SECRET=...
 ```
 
-На сборке Admin Panel:
+Миграции в Postgres (Railway Query), включая `V20260607000100__profile_is_active.sql`.
+
+### Admin Panel (`adminconsole`)
+
+**Обязательно** переменная **Runtime** (не только Build):
 
 ```env
-VITE_API_BASE_URL=https://your-backend.up.railway.app
+API_BASE_URL=https://appback-production-6c0e.up.railway.app
 ```
+
+Без неё фронт шлёт запросы на `/api` **своего** домена → серый экран / пустой dashboard.
+
+Порт `8080` в логах Admin Panel — **нормально** (Railway `PORT`). Бэкенд слушает свой `PORT` отдельно.
+
+Альтернатива: `VITE_API_BASE_URL` при **сборке** (Build Variables) — тогда нужен redeploy после смены URL.
 
 ## Статистика
 

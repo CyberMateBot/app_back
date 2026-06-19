@@ -25,6 +25,7 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
+	"github.com/twelvepills-936/tgapp-/pkg/walletapi"
 )
 
 func main() {
@@ -103,30 +104,33 @@ func main() {
 
 	httpHandler := bot.HTTPWrap(cors.Wrap(
 		health.Wrap(
-			adminapi.Wrap(
-				mediadownload.Wrap(
-					generate.Wrap(
-						prompthistory.Wrap(
-							applinks.Wrap(
-								siteapi.Wrap(
-									swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+			walletapi.Wrap(
+				adminapi.Wrap(
+					mediadownload.Wrap(
+						generate.Wrap(
+							prompthistory.Wrap(
+								applinks.Wrap(
+									siteapi.Wrap(
+										swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+										uc,
+										addConfig.JWT,
+									),
+									addConfig.App,
 									uc,
-									addConfig.JWT,
 								),
-								addConfig.App,
-								uc,
+								promptHistory,
+								tokenGuard,
 							),
+							aiSvc,
 							promptHistory,
 							tokenGuard,
 						),
-						aiSvc,
-						promptHistory,
-						tokenGuard,
 					),
+					uc,
+					addConfig.JWT,
+					tgBot,
 				),
-				uc,
-				addConfig.JWT,
-				tgBot,
+				pool,
 			),
 		),
 		addConfig.CORS,

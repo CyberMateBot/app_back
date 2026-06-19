@@ -7,30 +7,31 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
 
 const pathPrefix = "/v1/prompts/history/telegram/"
 
 // Wrap adds prompt history HTTP routes.
-func Wrap(next http.Handler, store *Store) http.Handler {
+func Wrap(next http.Handler, store *Store, tokens *tokenguard.Guard) http.Handler {
 	if store == nil {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/prompts/history":
-			handleSave(w, r, store)
+			handleSave(w, r, store, tokens)
 			return
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, pathPrefix):
 			telegramID := strings.TrimPrefix(r.URL.Path, pathPrefix)
 			if telegramID != "" && !strings.Contains(telegramID, "/") {
-				handleList(w, r, store, telegramID)
+				handleList(w, r, store, tokens, telegramID)
 				return
 			}
 		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, pathPrefix):
 			telegramID := strings.TrimPrefix(r.URL.Path, pathPrefix)
 			if telegramID != "" && !strings.Contains(telegramID, "/") {
-				handleDelete(w, r, store, telegramID)
+				handleDelete(w, r, store, tokens, telegramID)
 				return
 			}
 		}
@@ -38,7 +39,7 @@ func Wrap(next http.Handler, store *Store) http.Handler {
 	})
 }
 
-func handleSave(w http.ResponseWriter, r *http.Request, store *Store) {
+func handleSave(w http.ResponseWriter, r *http.Request, store *Store, tokens *tokenguard.Guard) {
 	var req saveRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -46,6 +47,9 @@ func handleSave(w http.ResponseWriter, r *http.Request, store *Store) {
 	}
 	if strings.TrimSpace(req.TelegramID) == "" {
 		writeError(w, http.StatusBadRequest, "telegramId is required")
+		return
+	}
+	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
 		return
 	}
 	if strings.TrimSpace(req.Prompt) == "" {
@@ -61,7 +65,10 @@ func handleSave(w http.ResponseWriter, r *http.Request, store *Store) {
 	writeJSON(w, http.StatusOK, saveResponse{Item: item})
 }
 
-func handleList(w http.ResponseWriter, r *http.Request, store *Store, telegramID string) {
+func handleList(w http.ResponseWriter, r *http.Request, store *Store, tokens *tokenguard.Guard, telegramID string) {
+	if err := ensureIdentity(w, r, tokens, telegramID, tokenguard.InitDataFromRequest(r, "")); err != nil {
+		return
+	}
 	items, err := store.ListByTelegram(r.Context(), telegramID, 200)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "load prompt history",
@@ -77,7 +84,10 @@ func handleList(w http.ResponseWriter, r *http.Request, store *Store, telegramID
 	writeJSON(w, http.StatusOK, listResponse{Items: items})
 }
 
-func handleDelete(w http.ResponseWriter, r *http.Request, store *Store, telegramID string) {
+func handleDelete(w http.ResponseWriter, r *http.Request, store *Store, tokens *tokenguard.Guard, telegramID string) {
+	if err := ensureIdentity(w, r, tokens, telegramID, tokenguard.InitDataFromRequest(r, "")); err != nil {
+		return
+	}
 	if err := store.DeleteByTelegram(r.Context(), telegramID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to clear prompt history")
 		return
@@ -91,6 +101,28 @@ func decodeJSON(r *http.Request, dst any) error {
 	}
 	defer r.Body.Close()
 	return json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(dst)
+}
+
+func ensureIdentity(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, telegramID, initDataRaw string) error {
+	if tokens == nil {
+		return nil
+	}
+	err := tokens.CheckIdentity(r.Context(), telegramID, initDataRaw)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
+}
+
+func ensureTokens(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, telegramID, initDataRaw string) error {
+	if tokens == nil {
+		return nil
+	}
+	err := tokens.CheckAccess(r.Context(), telegramID, initDataRaw)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {

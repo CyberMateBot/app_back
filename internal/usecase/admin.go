@@ -160,6 +160,79 @@ func (uc *useCase) DeleteAdminUser(ctx context.Context, userID int64) error {
 	return err
 }
 
+func (uc *useCase) AdminCreditTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error) {
+	var out ucModels.AdminTokenChangeOutput
+	if err := input.Validate(); err != nil {
+		return out, err
+	}
+
+	tx, err := uc.repo.DBBeginTransaction(ctx)
+	if err != nil {
+		return out, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(context.Background())
+		}
+	}()
+
+	result, err := uc.repo.CreditProfileTokens(ctx, tx, input.UserID, input.AdminID, input.Amount, input.Reason)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return out, ucModels.ErrAdminUserNotFound
+		}
+		return out, err
+	}
+	if commitErr := tx.Commit(ctx); commitErr != nil {
+		return out, commitErr
+	}
+
+	return ucModels.AdminTokenChangeOutput{
+		UserID:    result.ProfileID,
+		Tokens:    result.BalanceAfter,
+		Delta:     input.Amount,
+		Operation: "credit",
+	}, nil
+}
+
+func (uc *useCase) AdminDebitTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error) {
+	var out ucModels.AdminTokenChangeOutput
+	if err := input.Validate(); err != nil {
+		return out, err
+	}
+
+	tx, err := uc.repo.DBBeginTransaction(ctx)
+	if err != nil {
+		return out, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(context.Background())
+		}
+	}()
+
+	result, err := uc.repo.DebitProfileTokens(ctx, tx, input.UserID, input.AdminID, input.Amount, input.Reason)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return out, ucModels.ErrAdminUserNotFound
+		}
+		if errors.Is(err, repoModels.ErrInsufficientTokens) {
+			return out, ucModels.ErrInsufficientTokens
+		}
+		return out, err
+	}
+	if commitErr := tx.Commit(ctx); commitErr != nil {
+		return out, commitErr
+	}
+
+	return ucModels.AdminTokenChangeOutput{
+		UserID:    result.ProfileID,
+		Tokens:    result.BalanceAfter,
+		Delta:     -input.Amount,
+		Operation: "debit",
+	}, nil
+}
+
 func (uc *useCase) AdminBroadcast(ctx context.Context, input ucModels.AdminBroadcastInput, messenger interface {
 	Active() bool
 	SendText(chatID int64, text, parseMode string) error
@@ -202,6 +275,7 @@ func mapAdminProfile(p repoModels.AdminProfile) ucModels.AdminUserItem {
 		FirstName:  p.Name,
 		LastName:   "",
 		IsActive:   p.IsActive,
+		Tokens:     p.Tokens,
 		CreatedAt:  p.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }

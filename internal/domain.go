@@ -40,6 +40,8 @@ type Repository interface {
 	UpdateProfileActive(ctx context.Context, tx pgx.Tx, id int64, isActive bool) error
 	DeleteProfile(ctx context.Context, tx pgx.Tx, id int64) error
 	ListBroadcastTelegramIDs(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]string, error)
+	CreditProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error)
+	DebitProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error)
 }
 
 type UseCase interface {
@@ -67,6 +69,8 @@ type UseCase interface {
 	GetAdminUser(ctx context.Context, userID int64) (ucModels.AdminUserItem, error)
 	UpdateAdminUserActive(ctx context.Context, input ucModels.AdminUpdateUserInput) (ucModels.AdminUserItem, error)
 	DeleteAdminUser(ctx context.Context, userID int64) error
+	AdminCreditTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error)
+	AdminDebitTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error)
 	AdminBroadcast(ctx context.Context, input ucModels.AdminBroadcastInput, messenger interface {
 		Active() bool
 		SendText(chatID int64, text, parseMode string) error

@@ -15,8 +15,9 @@ type Item struct {
 }
 
 type saveRequest struct {
-	TelegramID string `json:"telegramId"`
-	Prompt     string `json:"prompt"`
+	TelegramID  string `json:"telegramId"`
+	InitDataRaw string `json:"initDataRaw"`
+	Prompt      string `json:"prompt"`
 	Response   string `json:"response,omitempty"`
 	Category   string `json:"category"`
 	Model      string `json:"model,omitempty"`

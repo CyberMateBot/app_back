@@ -10,6 +10,7 @@ import (
 
 	"github.com/twelvepills-936/tgapp-/pkg/ai"
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
+	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 )
 
 // Wrap adds POST /v1/generate/text and POST /v1/generate/image.
-func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http.Handler {
+func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store, tokens *tokenguard.Guard) http.Handler {
 	if svc == nil {
 		return next
 	}
@@ -32,19 +33,19 @@ func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http
 			writeJSON(w, http.StatusOK, svc.ListModels())
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateText:
-			handleText(w, r, svc, history)
+			handleText(w, r, svc, history, tokens)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateImage:
-			handleImage(w, r, svc, history)
+			handleImage(w, r, svc, history, tokens)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateVideo:
-			handleVideo(w, r, svc, history)
+			handleVideo(w, r, svc, history, tokens)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerateAudio:
-			handleAudio(w, r, svc)
+			handleAudio(w, r, svc, tokens)
 			return
 		case r.Method == http.MethodPost && r.URL.Path == pathGenerate3D:
-			handle3D(w, r, svc, history)
+			handle3D(w, r, svc, history, tokens)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -53,9 +54,10 @@ func Wrap(next http.Handler, svc *ai.Service, history *prompthistory.Store) http
 
 type textGenerateRequest struct {
 	ai.TextRequest
-	TelegramID string `json:"telegramId"`
-	SessionID  string `json:"sessionId"`
-	Category   string `json:"category"`
+	TelegramID  string `json:"telegramId"`
+	InitDataRaw string `json:"initDataRaw"`
+	SessionID   string `json:"sessionId"`
+	Category    string `json:"category"`
 }
 
 type textGenerateResponse struct {
@@ -65,10 +67,13 @@ type textGenerateResponse struct {
 	Item   *prompthistory.Item `json:"item,omitempty"`
 }
 
-func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
+func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store, tokens *tokenguard.Guard) {
 	var req textGenerateRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
 		return
 	}
 
@@ -119,10 +124,13 @@ type imageGenerateResponse struct {
 	Item        *prompthistory.Item `json:"item,omitempty"`
 }
 
-func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
+func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store, tokens *tokenguard.Guard) {
 	var req ai.ImageRequest
 	if err := decodeImageJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
+		return
+	}
+	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
 		return
 	}
 
@@ -180,10 +188,13 @@ type videoGenerateResponse struct {
 	Item     *prompthistory.Item `json:"item,omitempty"`
 }
 
-func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
+func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store, tokens *tokenguard.Guard) {
 	var req ai.VideoRequest
 	if err := decodeVideoJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
+		return
+	}
+	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
 		return
 	}
 
@@ -228,14 +239,21 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service) {
-	var req ai.AudioRequest
+type audioGenerateRequest struct {
+	ai.AudioRequest
+}
+
+func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service, tokens *tokenguard.Guard) {
+	var req audioGenerateRequest
 	if err := decodeAudioJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
+	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+		return
+	}
 
-	out, err := svc.GenerateAudio(r.Context(), req)
+	out, err := svc.GenerateAudio(r.Context(), req.AudioRequest)
 	if err != nil {
 		writeServiceError(w, r, "generate audio", err)
 		return
@@ -250,10 +268,13 @@ type threeDGenerateResponse struct {
 	Item     *prompthistory.Item `json:"item,omitempty"`
 }
 
-func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store) {
+func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *prompthistory.Store, tokens *tokenguard.Guard) {
 	var req ai.ThreeDRequest
 	if err := decode3DJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
+		return
+	}
+	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
 		return
 	}
 
@@ -343,6 +364,17 @@ func formatDecodeError(err error) string {
 		return "request body too large or truncated (max image payload ~12 MiB)"
 	}
 	return err.Error()
+}
+
+func ensureTokens(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, telegramID, initDataRaw string) error {
+	if tokens == nil {
+		return nil
+	}
+	err := tokens.CheckAccess(r.Context(), telegramID, initDataRaw)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
 }
 
 func writeServiceError(w http.ResponseWriter, r *http.Request, op string, err error) {

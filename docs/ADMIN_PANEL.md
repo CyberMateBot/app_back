@@ -17,9 +17,13 @@ Admin Panel: отдельный репозиторий (`AdminPanel`, Vite/React
 | `GET` | `/api/admin/users/:id` | Bearer |
 | `PATCH` | `/api/admin/users/:id` body `{"is_active": false}` | Bearer |
 | `DELETE` | `/api/admin/users/:id` | Bearer |
+| `POST` | `/api/admin/users/:id/tokens/credit` body `{"amount": 100, "reason": "..."}` | Bearer |
+| `POST` | `/api/admin/users/:id/tokens/debit` body `{"amount": 50, "reason": "..."}` | Bearer |
 | `POST` | `/api/admin/broadcast` | Bearer |
 
-Форматы ответов совпадают с ожиданиями Admin Panel.
+Полная спецификация: `docs/BACKEND_API.md`
+
+Поле `tokens` в списке/деталях пользователя = `wallets.balance_available`.
 
 ## Локальная разработка
 

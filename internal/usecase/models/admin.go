@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	ErrAdminNotFound     = errors.New("ErrAdminNotFound")
-	ErrAdminUserNotFound = errors.New("ErrAdminUserNotFound")
-	ErrBroadcastNotReady = errors.New("ErrBroadcastNotReady")
+	ErrAdminNotFound        = errors.New("ErrAdminNotFound")
+	ErrAdminUserNotFound    = errors.New("ErrAdminUserNotFound")
+	ErrBroadcastNotReady    = errors.New("ErrBroadcastNotReady")
+	ErrInsufficientTokens   = errors.New("ErrInsufficientTokens")
 )
 
 type AdminLoginInput struct {
@@ -69,6 +70,7 @@ type AdminUserItem struct {
 	FirstName  string
 	LastName   string
 	IsActive   bool
+	Tokens     int64
 	CreatedAt  string
 }
 
@@ -101,4 +103,34 @@ func (i *AdminBroadcastInput) Validate() error {
 type AdminBroadcastOutput struct {
 	Sent   int64
 	Failed int64
+}
+
+type AdminTokenChangeInput struct {
+	UserID  int64
+	AdminID int64
+	Amount  int64
+	Reason  string
+}
+
+func (i *AdminTokenChangeInput) Validate() error {
+	if i.UserID <= 0 {
+		return fmt.Errorf("%w: user_id invalid", ErrInvalidInput)
+	}
+	if i.AdminID <= 0 {
+		return fmt.Errorf("%w: admin_id invalid", ErrInvalidInput)
+	}
+	if i.Amount <= 0 {
+		return fmt.Errorf("%w: amount must be greater than 0", ErrInvalidInput)
+	}
+	if len(strings.TrimSpace(i.Reason)) > 255 {
+		return fmt.Errorf("%w: reason is too long", ErrInvalidInput)
+	}
+	return nil
+}
+
+type AdminTokenChangeOutput struct {
+	UserID    int64
+	Tokens    int64
+	Delta     int64
+	Operation string
 }

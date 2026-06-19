@@ -15,7 +15,7 @@ func TestWrap_GenerateText_NotConfigured(t *testing.T) {
 	svc := ai.NewService(config.ConfigAI{})
 	mux := Wrap(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
-	}), svc, nil)
+	}), svc, nil, nil)
 
 	body, _ := json.Marshal(map[string]string{"prompt": "hello"})
 	req := httptest.NewRequest(http.MethodPost, pathGenerateText, bytes.NewReader(body))
@@ -29,7 +29,7 @@ func TestWrap_GenerateText_NotConfigured(t *testing.T) {
 
 func TestWrap_GenerateText_MissingPrompt(t *testing.T) {
 	svc := ai.NewService(config.ConfigAI{YandexAPIKey: "k", YandexFolderID: "f"})
-	mux := Wrap(http.NotFoundHandler(), svc, nil)
+	mux := Wrap(http.NotFoundHandler(), svc, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, pathGenerateText, bytes.NewReader([]byte(`{}`)))
 	rec := httptest.NewRecorder()
@@ -44,7 +44,7 @@ func TestWrap_PassThrough(t *testing.T) {
 	svc := ai.NewService(config.ConfigAI{})
 	mux := Wrap(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}), svc, nil)
+	}), svc, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/app/links", nil)
 	rec := httptest.NewRecorder()

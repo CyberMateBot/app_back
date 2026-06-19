@@ -47,10 +47,11 @@ func TestWrap_AllowList(t *testing.T) {
 }
 
 func TestWrap_AdminAPIReflectsOrigin(t *testing.T) {
+	adminOrigin := "https://adminconsole-production-a33a.up.railway.app"
 	h := Wrap(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}), config.ConfigCORS{
-		AllowedOrigins: []string{"https://mini-app.example.com"},
+		AllowedOrigins: []string{"https://mini-app.example.com", adminOrigin},
 		AllowedMethods: []string{"POST", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
 	})
@@ -61,7 +62,7 @@ func TestWrap_AdminAPIReflectsOrigin(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://adminconsole-production-a33a.up.railway.app" {
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != adminOrigin {
 		t.Fatalf("Allow-Origin = %q, want admin origin reflected", got)
 	}
 	if rec.Code != http.StatusNoContent {

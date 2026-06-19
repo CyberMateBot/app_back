@@ -42,6 +42,12 @@ func (fakeAdminRepoStubs) DeleteProfile(ctx context.Context, tx pgx.Tx, id int64
 func (fakeAdminRepoStubs) ListBroadcastTelegramIDs(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]string, error) {
 	return nil, errors.New("not impl")
 }
+func (fakeAdminRepoStubs) CreditProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error) {
+	return repoModels.TokenOperationResult{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) DebitProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error) {
+	return repoModels.TokenOperationResult{}, errors.New("not impl")
+}
 
 // fakeAdminUCStubs provides no-op admin usecase methods for test fakes.
 type fakeAdminUCStubs struct{}
@@ -67,6 +73,12 @@ func (fakeAdminUCStubs) UpdateAdminUserActive(ctx context.Context, input ucModel
 }
 func (fakeAdminUCStubs) DeleteAdminUser(ctx context.Context, userID int64) error {
 	return errors.New("not impl")
+}
+func (fakeAdminUCStubs) AdminCreditTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error) {
+	return ucModels.AdminTokenChangeOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) AdminDebitTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error) {
+	return ucModels.AdminTokenChangeOutput{}, errors.New("not impl")
 }
 func (fakeAdminUCStubs) AdminBroadcast(ctx context.Context, input ucModels.AdminBroadcastInput, messenger interface {
 	Active() bool

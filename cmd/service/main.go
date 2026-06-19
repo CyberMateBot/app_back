@@ -24,6 +24,7 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
+	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
 
 func main() {
@@ -98,6 +99,7 @@ func main() {
 
 	aiSvc := ai.NewService(config.LoadAIConfig())
 	promptHistory := prompthistory.NewStore(pool)
+	tokenGuard := tokenguard.New(pool)
 
 	httpHandler := bot.HTTPWrap(cors.Wrap(
 		health.Wrap(
@@ -115,9 +117,11 @@ func main() {
 								uc,
 							),
 							promptHistory,
+							tokenGuard,
 						),
 						aiSvc,
 						promptHistory,
+						tokenGuard,
 					),
 				),
 				uc,

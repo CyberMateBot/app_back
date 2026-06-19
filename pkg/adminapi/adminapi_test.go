@@ -71,6 +71,12 @@ func (f *fakeAdminUC) UpdateAdminUserActive(ctx context.Context, input ucModels.
 func (f *fakeAdminUC) DeleteAdminUser(ctx context.Context, userID int64) error {
 	return errors.New("not impl")
 }
+func (f *fakeAdminUC) AdminCreditTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error) {
+	return ucModels.AdminTokenChangeOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) AdminDebitTokens(ctx context.Context, input ucModels.AdminTokenChangeInput) (ucModels.AdminTokenChangeOutput, error) {
+	return ucModels.AdminTokenChangeOutput{}, errors.New("not impl")
+}
 func (f *fakeAdminUC) AdminBroadcast(ctx context.Context, input ucModels.AdminBroadcastInput, messenger interface {
 	Active() bool
 	SendText(chatID int64, text, parseMode string) error

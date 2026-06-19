@@ -50,7 +50,20 @@ type userResp struct {
 	FirstName  string `json:"first_name"`
 	LastName   string `json:"last_name"`
 	IsActive   bool   `json:"is_active"`
+	Tokens     int64  `json:"tokens"`
 	CreatedAt  string `json:"created_at"`
+}
+
+type tokenChangeReq struct {
+	Amount int64  `json:"amount"`
+	Reason string `json:"reason"`
+}
+
+type tokenChangeResp struct {
+	UserID    int64  `json:"user_id"`
+	Tokens    int64  `json:"tokens"`
+	Delta     int64  `json:"delta"`
+	Operation string `json:"operation"`
 }
 
 type usersListResp struct {
@@ -117,8 +130,10 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 			})
 			return
 
-		case r.Method == http.MethodPost && path == "auth/logout":
-			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		}
+
+		if config.JWTSecretWeak(jwtCfg.Secret) && config.IsDeployedProduction() {
+			writeErr(w, http.StatusServiceUnavailable, "jwt is not configured")
 			return
 		}
 
@@ -126,9 +141,12 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 		if !ok {
 			return
 		}
-		_ = adminID
 
 		switch {
+		case r.Method == http.MethodPost && path == "auth/logout":
+			w.WriteHeader(http.StatusNoContent)
+			return
+
 		case r.Method == http.MethodGet && path == "auth/me":
 			out, err := uc.GetAdmin(r.Context(), adminID)
 			if err != nil {
@@ -195,50 +213,118 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 				writeErr(w, http.StatusBadRequest, "invalid user id")
 				return
 			}
-			if tail != "" {
-				writeErr(w, http.StatusNotFound, "not found")
-				return
-			}
 
-			switch r.Method {
-			case http.MethodGet:
-				out, getErr := uc.GetAdminUser(r.Context(), userID)
-				if getErr != nil {
-					writeUsecaseErr(w, getErr)
+			switch tail {
+			case "tokens/credit":
+				if r.Method != http.MethodPost {
+					writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
 					return
 				}
-				writeJSON(w, http.StatusOK, mapUser(out))
-				return
-
-			case http.MethodPatch:
-				var req patchUserReq
+				var req tokenChangeReq
 				if decErr := json.NewDecoder(r.Body).Decode(&req); decErr != nil {
 					writeErr(w, http.StatusBadRequest, "invalid json")
 					return
 				}
-				out, patchErr := uc.UpdateAdminUserActive(r.Context(), ucModels.AdminUpdateUserInput{
-					UserID:   userID,
-					IsActive: req.IsActive,
-				})
-				if patchErr != nil {
-					writeUsecaseErr(w, patchErr)
+				if msg := validateTokenChangeReq(req.Amount, req.Reason); msg != "" {
+					writeErr(w, http.StatusUnprocessableEntity, msg)
 					return
 				}
-				writeJSON(w, http.StatusOK, mapUser(out))
+				out, creditErr := uc.AdminCreditTokens(r.Context(), ucModels.AdminTokenChangeInput{
+					UserID:  userID,
+					AdminID: adminID,
+					Amount:  req.Amount,
+					Reason:  req.Reason,
+				})
+				if creditErr != nil {
+					writeUsecaseErr(w, creditErr)
+					return
+				}
+				writeJSON(w, http.StatusOK, mapTokenChange(out))
 				return
 
-			case http.MethodDelete:
-				if delErr := uc.DeleteAdminUser(r.Context(), userID); delErr != nil {
-					writeUsecaseErr(w, delErr)
+			case "tokens/debit":
+				if r.Method != http.MethodPost {
+					writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
 					return
 				}
-				w.WriteHeader(http.StatusNoContent)
+				var req tokenChangeReq
+				if decErr := json.NewDecoder(r.Body).Decode(&req); decErr != nil {
+					writeErr(w, http.StatusBadRequest, "invalid json")
+					return
+				}
+				if msg := validateTokenChangeReq(req.Amount, req.Reason); msg != "" {
+					writeErr(w, http.StatusUnprocessableEntity, msg)
+					return
+				}
+				out, debitErr := uc.AdminDebitTokens(r.Context(), ucModels.AdminTokenChangeInput{
+					UserID:  userID,
+					AdminID: adminID,
+					Amount:  req.Amount,
+					Reason:  req.Reason,
+				})
+				if debitErr != nil {
+					writeUsecaseErr(w, debitErr)
+					return
+				}
+				writeJSON(w, http.StatusOK, mapTokenChange(out))
 				return
+
+			case "":
+				switch r.Method {
+				case http.MethodGet:
+					out, getErr := uc.GetAdminUser(r.Context(), userID)
+					if getErr != nil {
+						writeUsecaseErr(w, getErr)
+						return
+					}
+					writeJSON(w, http.StatusOK, mapUser(out))
+					return
+
+				case http.MethodPatch:
+					var req patchUserReq
+					if decErr := json.NewDecoder(r.Body).Decode(&req); decErr != nil {
+						writeErr(w, http.StatusBadRequest, "invalid json")
+						return
+					}
+					out, patchErr := uc.UpdateAdminUserActive(r.Context(), ucModels.AdminUpdateUserInput{
+						UserID:   userID,
+						IsActive: req.IsActive,
+					})
+					if patchErr != nil {
+						writeUsecaseErr(w, patchErr)
+						return
+					}
+					writeJSON(w, http.StatusOK, mapUser(out))
+					return
+
+				case http.MethodDelete:
+					if delErr := uc.DeleteAdminUser(r.Context(), userID); delErr != nil {
+						writeUsecaseErr(w, delErr)
+						return
+					}
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
 			}
 		}
 
 		writeErr(w, http.StatusNotFound, "not found")
 	})
+}
+
+const maxTokenAmount int64 = 1_000_000_000
+
+func validateTokenChangeReq(amount int64, reason string) string {
+	if amount <= 0 {
+		return "amount must be greater than 0"
+	}
+	if amount > maxTokenAmount {
+		return "amount is too large"
+	}
+	if len(strings.TrimSpace(reason)) > 255 {
+		return "reason is too long"
+	}
+	return ""
 }
 
 func parseUserPath(path string) (userID int64, tail string, err error) {
@@ -248,8 +334,8 @@ func parseUserPath(path string) (userID int64, tail string, err error) {
 		return 0, "", errors.New("empty")
 	}
 	userID, err = strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return 0, "", err
+	if err != nil || userID <= 0 {
+		return 0, "", errors.New("invalid")
 	}
 	if len(parts) == 2 {
 		tail = parts[1]
@@ -265,7 +351,17 @@ func mapUser(u ucModels.AdminUserItem) userResp {
 		FirstName:  u.FirstName,
 		LastName:   u.LastName,
 		IsActive:   u.IsActive,
+		Tokens:     u.Tokens,
 		CreatedAt:  u.CreatedAt,
+	}
+}
+
+func mapTokenChange(o ucModels.AdminTokenChangeOutput) tokenChangeResp {
+	return tokenChangeResp{
+		UserID:    o.UserID,
+		Tokens:    o.Tokens,
+		Delta:     o.Delta,
+		Operation: o.Operation,
 	}
 }
 
@@ -296,13 +392,15 @@ func requireAdmin(w http.ResponseWriter, r *http.Request, jwtCfg config.ConfigJW
 func writeUsecaseErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ucModels.ErrInvalidInput):
-		writeErr(w, http.StatusBadRequest, err.Error())
+		writeErr(w, http.StatusUnprocessableEntity, err.Error())
 	case errors.Is(err, ucModels.ErrInvalidCredentials):
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
 	case errors.Is(err, ucModels.ErrAdminNotFound):
 		writeErr(w, http.StatusNotFound, "admin not found")
 	case errors.Is(err, ucModels.ErrAdminUserNotFound):
 		writeErr(w, http.StatusNotFound, "user not found")
+	case errors.Is(err, ucModels.ErrInsufficientTokens):
+		writeErr(w, http.StatusUnprocessableEntity, "Insufficient tokens")
 	case errors.Is(err, ucModels.ErrBroadcastNotReady):
 		writeErr(w, http.StatusServiceUnavailable, "telegram bot is not configured")
 	default:

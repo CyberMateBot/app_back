@@ -161,6 +161,17 @@ func CORSAllowsAll(origins []string) bool {
 	return false
 }
 
+// IsDeployedProduction reports Railway/production runtime.
+func IsDeployedProduction() bool {
+	return isDeployedProduction()
+}
+
+// JWTSecretWeak reports missing or default JWT secret.
+func JWTSecretWeak(secret string) bool {
+	s := strings.TrimSpace(secret)
+	return s == "" || s == "your-super-secret-jwt-key-change-this" || len(s) < 16
+}
+
 func LoadConfig() Config {
 	LoadDotEnv()
 
@@ -268,11 +279,16 @@ func LoadCORSConfig() ConfigCORS {
 	if isDeployedProduction() {
 		defaultOrigins = []string{"*"}
 	}
+	origins := getenvStringSlice("CORS_ALLOWED_ORIGINS", defaultOrigins)
+	if adminOrigin := strings.TrimSpace(os.Getenv("ADMIN_PANEL_ORIGIN")); adminOrigin != "" {
+		origins = append(origins, adminOrigin)
+	}
+	origins = append(origins, getenvStringSlice("ADMIN_CORS_ORIGINS", nil)...)
 	return ConfigCORS{
-		AllowedOrigins: getenvStringSlice("CORS_ALLOWED_ORIGINS", defaultOrigins),
+		AllowedOrigins: origins,
 		AllowedMethods: getenvStringSlice("CORS_ALLOWED_METHODS", []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
-		AllowedHeaders: getenvStringSlice("CORS_ALLOWED_HEADERS", []string{
-			"Content-Type", "Authorization", "Accept", "X-Requested-With",
+	AllowedHeaders: getenvStringSlice("CORS_ALLOWED_HEADERS", []string{
+			"Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Telegram-Init-Data",
 		}),
 	}
 }

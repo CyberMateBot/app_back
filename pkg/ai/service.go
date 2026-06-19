@@ -66,6 +66,7 @@ type ImageRequest struct {
 	ImageMimeType  string        `json:"imageMimeType"`
 	Messages       []ChatMessage `json:"messages"`
 	TelegramID     string        `json:"telegramId"`
+	InitDataRaw    string        `json:"initDataRaw"`
 	SessionID      string        `json:"sessionId"`
 	Category       string        `json:"category"`
 }
@@ -125,6 +126,7 @@ type VideoRequest struct {
 	MovementAmplitude string        `json:"movement_amplitude"`
 	Messages        []ChatMessage `json:"messages"`
 	TelegramID      string        `json:"telegramId"`
+	InitDataRaw     string        `json:"initDataRaw"`
 	SessionID       string        `json:"sessionId"`
 	Category        string        `json:"category"`
 }
@@ -165,6 +167,8 @@ type AudioRequest struct {
 	EnglishNormalization *bool         `json:"english_normalization"`
 	Format               string        `json:"format"`
 	Messages             []ChatMessage `json:"messages"`
+	TelegramID           string        `json:"telegramId"`
+	InitDataRaw          string        `json:"initDataRaw"`
 }
 
 // AudioResponse is returned by POST /v1/generate/audio.
@@ -217,6 +221,7 @@ type ThreeDRequest struct {
 	IsMicro               *bool    `json:"is_micro"`
 	PreviewRender         *bool    `json:"preview_render"`
 	TelegramID            string   `json:"telegramId"`
+	InitDataRaw           string   `json:"initDataRaw"`
 	SessionID             string   `json:"sessionId"`
 	Category              string   `json:"category"`
 }

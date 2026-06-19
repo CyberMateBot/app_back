@@ -46,6 +46,11 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
+	if err := ensureAdminsTable(ctx, conn); err != nil {
+		fmt.Println("create table:", err)
+		os.Exit(1)
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		fmt.Println("hash:", err)
@@ -62,6 +67,18 @@ ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
 		os.Exit(1)
 	}
 	fmt.Printf("admin upserted: %s (rows %d)\n", email, tag.RowsAffected())
+}
+
+func ensureAdminsTable(ctx context.Context, conn *pgx.Conn) error {
+	_, err := conn.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS admins (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'admin',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)`)
+	return err
 }
 
 func getenv(k, def string) string {

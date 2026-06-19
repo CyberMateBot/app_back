@@ -100,14 +100,15 @@ func (r *Repository) ListAdminProfiles(ctx context.Context, tx pgx.Tx, search st
 			return nil, 0, err
 		}
 		const listQ = `
-SELECT id, telegram_id, name, COALESCE(username, ''), is_active, created_at
-FROM profiles
+SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at
+FROM profiles p
+LEFT JOIN wallets w ON w.profile_id = p.id
 WHERE (
-	COALESCE(username, '') ILIKE $1
-	OR name ILIKE $1
-	OR telegram_id ILIKE $1
+	COALESCE(p.username, '') ILIKE $1
+	OR p.name ILIKE $1
+	OR p.telegram_id ILIKE $1
 )
-ORDER BY created_at DESC
+ORDER BY p.created_at DESC
 LIMIT $2 OFFSET $3`
 		rows, err = qry.Query(ctx, listQ, pattern, limit, offset)
 	} else {
@@ -116,9 +117,10 @@ LIMIT $2 OFFSET $3`
 			return nil, 0, err
 		}
 		const listQ = `
-SELECT id, telegram_id, name, COALESCE(username, ''), is_active, created_at
-FROM profiles
-ORDER BY created_at DESC
+SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at
+FROM profiles p
+LEFT JOIN wallets w ON w.profile_id = p.id
+ORDER BY p.created_at DESC
 LIMIT $1 OFFSET $2`
 		rows, err = qry.Query(ctx, listQ, limit, offset)
 	}
@@ -130,7 +132,7 @@ LIMIT $1 OFFSET $2`
 	items := make([]repoModels.AdminProfile, 0)
 	for rows.Next() {
 		var p repoModels.AdminProfile
-		if scanErr := rows.Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.CreatedAt); scanErr != nil {
+		if scanErr := rows.Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.Tokens, &p.CreatedAt); scanErr != nil {
 			return nil, 0, scanErr
 		}
 		items = append(items, p)
@@ -140,12 +142,14 @@ LIMIT $1 OFFSET $2`
 
 func (r *Repository) GetAdminProfileByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.AdminProfile, error) {
 	const q = `
-SELECT id, telegram_id, name, COALESCE(username, ''), is_active, created_at
-FROM profiles WHERE id = $1 LIMIT 1`
+SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at
+FROM profiles p
+LEFT JOIN wallets w ON w.profile_id = p.id
+WHERE p.id = $1 LIMIT 1`
 
 	var p repoModels.AdminProfile
 	qry := r.getQueryable(tx)
-	err := qry.QueryRow(ctx, q, id).Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.CreatedAt)
+	err := qry.QueryRow(ctx, q, id).Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.Tokens, &p.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return p, pgx.ErrNoRows
@@ -210,4 +214,106 @@ WHERE p.is_active = TRUE
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+func (r *Repository) CreditProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error) {
+	var out repoModels.TokenOperationResult
+	qry := r.getQueryable(tx)
+
+	var exists bool
+	if err := qry.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM profiles WHERE id = $1)`, profileID).Scan(&exists); err != nil {
+		return out, err
+	}
+	if !exists {
+		return out, pgx.ErrNoRows
+	}
+
+	err := qry.QueryRow(ctx, `
+WITH locked AS (
+  SELECT id FROM wallets WHERE profile_id = $1 ORDER BY id LIMIT 1 FOR UPDATE
+)
+UPDATE wallets w
+SET balance_available = w.balance_available + $2,
+    balance = w.balance + $2
+FROM locked
+WHERE w.id = locked.id
+RETURNING w.balance_available`, profileID, amount).Scan(&out.BalanceAfter)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			if _, insErr := qry.Exec(ctx, `
+INSERT INTO wallets(profile_id, balance, total_earned, balance_available)
+SELECT $1, 0, 0, 0
+WHERE NOT EXISTS (SELECT 1 FROM wallets WHERE profile_id = $1)`, profileID); insErr != nil {
+				return out, insErr
+			}
+			retryErr := qry.QueryRow(ctx, `
+WITH locked AS (
+  SELECT id FROM wallets WHERE profile_id = $1 ORDER BY id LIMIT 1 FOR UPDATE
+)
+UPDATE wallets w
+SET balance_available = w.balance_available + $2,
+    balance = w.balance + $2
+FROM locked
+WHERE w.id = locked.id
+RETURNING w.balance_available`, profileID, amount).Scan(&out.BalanceAfter)
+			if retryErr != nil {
+				return out, retryErr
+			}
+		} else {
+			return out, err
+		}
+	}
+
+	_, err = qry.Exec(ctx, `
+INSERT INTO token_transactions(profile_id, admin_id, operation, amount, balance_after, reason)
+VALUES($1, $2, 'credit', $3, $4, $5)`,
+		profileID, adminID, amount, out.BalanceAfter, strings.TrimSpace(reason))
+	if err != nil {
+		return out, err
+	}
+
+	out.ProfileID = profileID
+	return out, nil
+}
+
+func (r *Repository) DebitProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error) {
+	var out repoModels.TokenOperationResult
+	qry := r.getQueryable(tx)
+
+	err := qry.QueryRow(ctx, `
+WITH locked AS (
+  SELECT id FROM wallets WHERE profile_id = $1 ORDER BY id LIMIT 1 FOR UPDATE
+)
+UPDATE wallets w
+SET balance_available = w.balance_available - $2,
+    balance = w.balance - $2
+FROM locked
+WHERE w.id = locked.id
+  AND w.balance_available >= $2
+RETURNING w.balance_available`, profileID, amount).Scan(&out.BalanceAfter)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			var exists bool
+			profileErr := qry.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM profiles WHERE id = $1)`, profileID).Scan(&exists)
+			if profileErr != nil {
+				return out, profileErr
+			}
+			if !exists {
+				return out, pgx.ErrNoRows
+			}
+			return out, repoModels.ErrInsufficientTokens
+		}
+		return out, err
+	}
+
+	_, err = qry.Exec(ctx, `
+INSERT INTO token_transactions(profile_id, admin_id, operation, amount, balance_after, reason)
+VALUES($1, $2, 'debit', $3, $4, $5)`,
+		profileID, adminID, amount, out.BalanceAfter, strings.TrimSpace(reason))
+	if err != nil {
+		return out, err
+	}
+
+	out.ProfileID = profileID
+	return out, nil
 }

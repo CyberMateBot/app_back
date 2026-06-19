@@ -16,12 +16,11 @@ func Wrap(next http.Handler, cfg config.ConfigCORS) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		adminAPI := strings.HasPrefix(r.URL.Path, "/api/admin/")
 
 		if allowAll {
 			w.Header().Set("Access-Control-Allow-Origin", pickAllowOrigin(origin, true))
 			w.Header().Add("Vary", "Origin")
-		} else if origin != "" && (originAllowed(origin, allowed) || adminAPI) {
+		} else if origin != "" && originAllowed(origin, allowed) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Add("Vary", "Origin")
 		}

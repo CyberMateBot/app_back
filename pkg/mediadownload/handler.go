@@ -220,8 +220,6 @@ func setDownloadHeaders(w http.ResponseWriter, contentType, filename string) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Access-Control-Allow-Origin", "https://web.telegram.org")
-	w.Header().Add("Vary", "Origin")
 }
 
 func buildAbsoluteURL(r *http.Request, pathname string) string {

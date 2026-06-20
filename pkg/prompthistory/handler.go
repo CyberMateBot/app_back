@@ -28,6 +28,9 @@ func Wrap(next http.Handler, store *Store, tokens *tokenguard.Guard) http.Handle
 				handleList(w, r, store, tokens, telegramID)
 				return
 			}
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/prompts/history/delete":
+			handleDeleteTopic(w, r, store, tokens)
+			return
 		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, pathPrefix):
 			telegramID := strings.TrimPrefix(r.URL.Path, pathPrefix)
 			if telegramID != "" && !strings.Contains(telegramID, "/") {
@@ -90,6 +93,37 @@ func handleDelete(w http.ResponseWriter, r *http.Request, store *Store, tokens *
 	}
 	if err := store.DeleteByTelegram(r.Context(), telegramID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to clear prompt history")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+type deleteTopicRequest struct {
+	TelegramID  string  `json:"telegramId"`
+	InitDataRaw string  `json:"initDataRaw"`
+	SessionID   string  `json:"sessionId"`
+	IDs         []int64 `json:"ids"`
+}
+
+func handleDeleteTopic(w http.ResponseWriter, r *http.Request, store *Store, tokens *tokenguard.Guard) {
+	var req deleteTopicRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if strings.TrimSpace(req.TelegramID) == "" {
+		writeError(w, http.StatusBadRequest, "telegramId is required")
+		return
+	}
+	if err := ensureIdentity(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+		return
+	}
+	if strings.TrimSpace(req.SessionID) == "" && len(req.IDs) == 0 {
+		writeError(w, http.StatusBadRequest, "sessionId or ids is required")
+		return
+	}
+	if err := store.DeleteTopic(r.Context(), req.TelegramID, req.SessionID, req.IDs); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete prompt history topic")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})

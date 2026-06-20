@@ -1,11 +1,12 @@
 package config
 
 import (
+	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
 )
 
 type Config struct {
@@ -284,11 +285,54 @@ func LoadCORSConfig() ConfigCORS {
 		origins = append(origins, adminOrigin)
 	}
 	origins = append(origins, getenvStringSlice("ADMIN_CORS_ORIGINS", nil)...)
+	origins = appendProductionCORSOrigins(origins)
 	return ConfigCORS{
 		AllowedOrigins: origins,
 		AllowedMethods: getenvStringSlice("CORS_ALLOWED_METHODS", []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
-	AllowedHeaders: getenvStringSlice("CORS_ALLOWED_HEADERS", []string{
+		AllowedHeaders: getenvStringSlice("CORS_ALLOWED_HEADERS", []string{
 			"Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Telegram-Init-Data",
 		}),
 	}
+}
+
+func appendProductionCORSOrigins(origins []string) []string {
+	if !isDeployedProduction() || CORSAllowsAll(origins) {
+		return origins
+	}
+
+	extra := []string{
+		"https://web.telegram.org",
+		"https://telegram.org",
+	}
+	if miniAppURL := strings.TrimSpace(os.Getenv("TELEGRAM_MINI_APP_URL")); miniAppURL != "" {
+		if parsed, err := url.Parse(miniAppURL); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			extra = append(extra, fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host))
+		}
+	}
+
+	seen := make(map[string]struct{}, len(origins)+len(extra))
+	out := make([]string, 0, len(origins)+len(extra))
+	for _, origin := range origins {
+		normalized := strings.TrimSuffix(strings.TrimSpace(origin), "/")
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	for _, origin := range extra {
+		normalized := strings.TrimSuffix(strings.TrimSpace(origin), "/")
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out
 }

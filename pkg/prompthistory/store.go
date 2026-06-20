@@ -126,6 +126,44 @@ func (s *Store) DeleteByTelegram(ctx context.Context, telegramID string) error {
 	return nil
 }
 
+func (s *Store) DeleteTopic(ctx context.Context, telegramID, sessionKey string, ids []int64) error {
+	profileID, err := s.resolveProfileID(ctx, telegramID)
+	if err != nil {
+		return err
+	}
+
+	sessionKey = strings.TrimSpace(sessionKey)
+	if sessionKey != "" {
+		if strings.HasPrefix(sessionKey, "legacy-") {
+			rawID := strings.TrimPrefix(sessionKey, "legacy-")
+			var itemID int64
+			if _, parseErr := fmt.Sscan(rawID, &itemID); parseErr == nil && itemID > 0 {
+				_, err = s.db.Exec(ctx, `DELETE FROM prompt_history WHERE profile_id = $1 AND id = $2`, profileID, itemID)
+				if err != nil {
+					return fmt.Errorf("delete legacy prompt history item: %w", err)
+				}
+				return nil
+			}
+		}
+
+		_, err = s.db.Exec(ctx, `DELETE FROM prompt_history WHERE profile_id = $1 AND session_id = $2`, profileID, sessionKey)
+		if err != nil {
+			return fmt.Errorf("delete prompt history session: %w", err)
+		}
+		return nil
+	}
+
+	if len(ids) == 0 {
+		return nil
+	}
+
+	_, err = s.db.Exec(ctx, `DELETE FROM prompt_history WHERE profile_id = $1 AND id = ANY($2::bigint[])`, profileID, ids)
+	if err != nil {
+		return fmt.Errorf("delete prompt history items: %w", err)
+	}
+	return nil
+}
+
 // SaveAfterGenerate stores a generation result when telegramId is present.
 func (s *Store) SaveAfterGenerate(ctx context.Context, telegramID, prompt, response, category, model, sessionID string) (*Item, error) {
 	telegramID = strings.TrimSpace(telegramID)

@@ -55,6 +55,35 @@ type homeWidgetsResponse struct {
 	Data []homeWidgetItemResponse `json:"data"`
 }
 
+type billingPlanResponse struct {
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Badge      string   `json:"badge"`
+	BadgeClass string   `json:"badge_class"`
+	PriceRub   int64    `json:"price_rub"`
+	PriceSub   string   `json:"price_sub"`
+	Coins      int64    `json:"coins"`
+	Features   []string `json:"features"`
+	Locked     []string `json:"locked,omitempty"`
+	Popular    bool     `json:"popular"`
+	SortOrder  int32    `json:"sort_order"`
+}
+
+type billingCoinPackResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Coins     int64  `json:"coins"`
+	PriceRub  int64  `json:"price_rub"`
+	Badge     string `json:"badge,omitempty"`
+	SortOrder int32  `json:"sort_order"`
+}
+
+type billingCatalogResponse struct {
+	CoinRateRub float64                   `json:"coin_rate_rub"`
+	Plans       []billingPlanResponse     `json:"plans"`
+	CoinPacks   []billingCoinPackResponse `json:"coin_packs"`
+}
+
 const referralLinkPathPrefix = "/v1/users/telegram/"
 const referralLinkPathSuffix = "/referral-link"
 const referralsPathSuffix = "/referrals"
@@ -76,6 +105,39 @@ func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Han
 				SupportChatURL:   app.SupportTelegramInviteURL,
 				BotUsername:      botUsername,
 				ReferralLinkBase: ReferralLinkBase(botUsername, app.TelegramReferralParamPrefix),
+			})
+			return
+
+		case r.URL.Path == "/v1/billing/catalog":
+			if uc == nil {
+				http.Error(w, "billing catalog is not configured", http.StatusServiceUnavailable)
+				return
+			}
+			out, err := uc.GetPublicBillingCatalog(r.Context())
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			plans := make([]billingPlanResponse, 0, len(out.Plans))
+			for _, item := range out.Plans {
+				plans = append(plans, billingPlanResponse{
+					ID: item.ID, Name: item.Name, Badge: item.Badge, BadgeClass: item.BadgeClass,
+					PriceRub: item.PriceRub, PriceSub: item.PriceSub, Coins: item.Coins,
+					Features: item.Features, Locked: item.Locked, Popular: item.Popular, SortOrder: item.SortOrder,
+				})
+			}
+			packs := make([]billingCoinPackResponse, 0, len(out.CoinPacks))
+			for _, item := range out.CoinPacks {
+				packs = append(packs, billingCoinPackResponse{
+					ID: item.ID, Name: item.Name, Coins: item.Coins,
+					PriceRub: item.PriceRub, Badge: item.Badge, SortOrder: item.SortOrder,
+				})
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			_ = json.NewEncoder(w).Encode(billingCatalogResponse{
+				CoinRateRub: out.CoinRateRub,
+				Plans:       plans,
+				CoinPacks:   packs,
 			})
 			return
 

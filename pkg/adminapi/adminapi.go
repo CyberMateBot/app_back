@@ -155,6 +155,47 @@ type modelsListResp struct {
 	Data []modelItemResp `json:"data"`
 }
 
+type subscriptionPlanItemResp struct {
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Badge      string   `json:"badge"`
+	BadgeClass string   `json:"badge_class"`
+	PriceRub   int64    `json:"price_rub"`
+	PriceSub   string   `json:"price_sub"`
+	Coins      int64    `json:"coins"`
+	Features   []string `json:"features"`
+	Locked     []string `json:"locked,omitempty"`
+	Popular    bool     `json:"popular"`
+	Enabled    bool     `json:"enabled"`
+	SortOrder  int32    `json:"sort_order"`
+}
+
+type subscriptionPlansListResp struct {
+	Data []subscriptionPlanItemResp `json:"data"`
+}
+
+type updateSubscriptionPlansReq struct {
+	Data []subscriptionPlanItemResp `json:"data"`
+}
+
+type coinPackItemResp struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Coins     int64  `json:"coins"`
+	PriceRub  int64  `json:"price_rub"`
+	Badge     string `json:"badge,omitempty"`
+	Enabled   bool   `json:"enabled"`
+	SortOrder int32  `json:"sort_order"`
+}
+
+type coinPacksListResp struct {
+	Data []coinPackItemResp `json:"data"`
+}
+
+type updateCoinPacksReq struct {
+	Data []coinPackItemResp `json:"data"`
+}
+
 type patchModelReq struct {
 	Price   *int64 `json:"price"`
 	Enabled *bool  `json:"enabled"`
@@ -361,6 +402,79 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 				return
 			}
 			writeJSON(w, http.StatusOK, out)
+			return
+
+			writeJSON(w, http.StatusOK, out)
+			return
+
+		case r.Method == http.MethodGet && path == "billing/subscription-plans":
+			out, err := uc.ListAdminSubscriptionPlans(r.Context())
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]subscriptionPlanItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, subscriptionPlanItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, subscriptionPlansListResp{Data: items})
+			return
+
+		case r.Method == http.MethodPut && path == "billing/subscription-plans":
+			var req updateSubscriptionPlansReq
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			plans := make([]ucModels.SubscriptionPlanItem, 0, len(req.Data))
+			for _, item := range req.Data {
+				plans = append(plans, ucModels.SubscriptionPlanItem(item))
+			}
+			out, err := uc.UpdateAdminSubscriptionPlans(r.Context(), ucModels.AdminUpdateSubscriptionPlansInput{Data: plans})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]subscriptionPlanItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, subscriptionPlanItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, subscriptionPlansListResp{Data: items})
+			return
+
+		case r.Method == http.MethodGet && path == "billing/coin-packs":
+			out, err := uc.ListAdminCoinPacks(r.Context())
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]coinPackItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, coinPackItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, coinPacksListResp{Data: items})
+			return
+
+		case r.Method == http.MethodPut && path == "billing/coin-packs":
+			var req updateCoinPacksReq
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			packs := make([]ucModels.CoinPackItem, 0, len(req.Data))
+			for _, item := range req.Data {
+				packs = append(packs, ucModels.CoinPackItem(item))
+			}
+			out, err := uc.UpdateAdminCoinPacks(r.Context(), ucModels.AdminUpdateCoinPacksInput{Data: packs})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]coinPackItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, coinPackItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, coinPacksListResp{Data: items})
 			return
 
 		case r.Method == http.MethodGet && path == "home-widgets":

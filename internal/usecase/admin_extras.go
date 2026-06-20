@@ -18,7 +18,7 @@ var defaultAdminSettings = ucModels.AdminSettingsOutput{
 	MaintenanceMode:      false,
 	YookassaEnabled:      true,
 	TelegramStarsEnabled: true,
-	CoinRateRub:          0.7,
+	CoinRateRub:          1.0,
 }
 
 func (uc *useCase) ListAdminEvents(ctx context.Context, limit int32) (ucModels.AdminListEventsOutput, error) {

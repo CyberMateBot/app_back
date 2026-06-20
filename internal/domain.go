@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5"
 	rcModels "github.com/twelvepills-936/tgapp-/internal/rest/client/models"
@@ -42,6 +43,20 @@ type Repository interface {
 	ListBroadcastTelegramIDs(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]string, error)
 	CreditProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error)
 	DebitProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error)
+	ListAdminEvents(ctx context.Context, tx pgx.Tx, limit int32) ([]repoModels.AdminEvent, error)
+	GetAdminTransactionStats(ctx context.Context, tx pgx.Tx) (repoModels.AdminTransactionStats, error)
+	ListAdminTokenTransactions(ctx context.Context, tx pgx.Tx, operation string, limit, offset int32) ([]repoModels.AdminTokenTransaction, int64, error)
+	CreateAdminBroadcast(ctx context.Context, tx pgx.Tx, adminID int64, message, target, parseMode string, sent, failed int64) (int64, error)
+	ListAdminBroadcasts(ctx context.Context, tx pgx.Tx, limit, offset int32) ([]repoModels.AdminBroadcastRecord, int64, error)
+	GetAdminSettings(ctx context.Context, tx pgx.Tx) (map[string]json.RawMessage, error)
+	UpsertAdminSetting(ctx context.Context, tx pgx.Tx, key string, value any) error
+	ListModelConfigs(ctx context.Context, tx pgx.Tx) (map[string]repoModels.ModelConfig, error)
+	UpsertModelConfig(ctx context.Context, tx pgx.Tx, cfg repoModels.ModelConfig) error
+	ListHomeWidgets(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]repoModels.HomeWidget, error)
+	GetHomeWidgetByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.HomeWidget, error)
+	CreateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) (int64, error)
+	UpdateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) error
+	DeleteHomeWidget(ctx context.Context, tx pgx.Tx, id int64) error
 }
 
 type UseCase interface {
@@ -75,6 +90,18 @@ type UseCase interface {
 		Active() bool
 		SendText(chatID int64, text, parseMode string) error
 	}) (ucModels.AdminBroadcastOutput, error)
+	ListAdminEvents(ctx context.Context, limit int32) (ucModels.AdminListEventsOutput, error)
+	ListAdminTransactions(ctx context.Context, input ucModels.AdminListTransactionsInput) (ucModels.AdminListTransactionsOutput, error)
+	ListAdminBroadcasts(ctx context.Context, input ucModels.AdminListBroadcastsInput) (ucModels.AdminListBroadcastsOutput, error)
+	GetAdminSettings(ctx context.Context) (ucModels.AdminSettingsOutput, error)
+	UpdateAdminSettings(ctx context.Context, input ucModels.AdminUpdateSettingsInput) (ucModels.AdminSettingsOutput, error)
+	ListAdminModels(ctx context.Context) (ucModels.AdminListModelsOutput, error)
+	UpdateAdminModel(ctx context.Context, input ucModels.AdminUpdateModelInput) (ucModels.AdminModelItem, error)
+	ListHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error)
+	ListAdminHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error)
+	CreateAdminHomeWidget(ctx context.Context, input ucModels.AdminCreateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error)
+	UpdateAdminHomeWidget(ctx context.Context, input ucModels.AdminUpdateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error)
+	DeleteAdminHomeWidget(ctx context.Context, id int64) error
 }
 
 type Client interface {

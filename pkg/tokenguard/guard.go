@@ -41,12 +41,16 @@ func New(db *pgxpool.Pool) *Guard {
 }
 
 // CheckAccess validates identity and positive token balance (AI generation).
+// Token balance is not required when ENVIRONMENT is development/dev/local.
 func (g *Guard) CheckAccess(ctx context.Context, telegramID, initDataRaw string) error {
 	if g == nil || g.db == nil {
 		return nil
 	}
 	if err := g.CheckIdentity(ctx, telegramID, initDataRaw); err != nil {
 		return err
+	}
+	if isDevelopmentEnv() {
+		return nil
 	}
 	return g.checkBalance(ctx, telegramID)
 }
@@ -67,6 +71,9 @@ func (g *Guard) CheckIdentity(ctx context.Context, telegramID, initDataRaw strin
 			return ErrInitDataRequired
 		}
 		verifiedID, err := telegramauth.VerifyInitData(initDataRaw, g.botToken)
+		if err != nil && isDevelopmentEnv() && telegramauth.InitDataMissingHash(initDataRaw) {
+			verifiedID, err = telegramauth.ExtractUserID(initDataRaw)
+		}
 		if err != nil {
 			return err
 		}
@@ -140,6 +147,15 @@ func WriteHTTPError(w http.ResponseWriter, r *http.Request, err error) bool {
 		writeJSON(w, http.StatusInternalServerError, "failed to verify account tokens")
 	}
 	return true
+}
+
+func isDevelopmentEnv() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ENVIRONMENT"))) {
+	case "", "development", "dev", "local":
+		return true
+	default:
+		return false
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, msg string) {

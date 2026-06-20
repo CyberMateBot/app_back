@@ -39,6 +39,22 @@ type referralsListResponse struct {
 	CompletedTasks int64                      `json:"completed_tasks"`
 }
 
+type homeWidgetItemResponse struct {
+	ID              int64  `json:"id"`
+	SortOrder       int32  `json:"sort_order"`
+	TagText         string `json:"tag_text"`
+	TagBg           string `json:"tag_bg"`
+	TagColor        string `json:"tag_color"`
+	Title           string `json:"title"`
+	Description     string `json:"description"`
+	BackgroundStyle string `json:"background_style"`
+	ImageURL        string `json:"image_url"`
+}
+
+type homeWidgetsResponse struct {
+	Data []homeWidgetItemResponse `json:"data"`
+}
+
 const referralLinkPathPrefix = "/v1/users/telegram/"
 const referralLinkPathSuffix = "/referral-link"
 const referralsPathSuffix = "/referrals"
@@ -61,6 +77,34 @@ func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Han
 				BotUsername:      botUsername,
 				ReferralLinkBase: ReferralLinkBase(botUsername, app.TelegramReferralParamPrefix),
 			})
+			return
+
+		case r.URL.Path == "/v1/home/widgets":
+			if uc == nil {
+				http.Error(w, "home widgets are not configured", http.StatusServiceUnavailable)
+				return
+			}
+			out, err := uc.ListHomeWidgets(r.Context())
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			items := make([]homeWidgetItemResponse, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, homeWidgetItemResponse{
+					ID:              item.ID,
+					SortOrder:       item.SortOrder,
+					TagText:         item.TagText,
+					TagBg:           item.TagBg,
+					TagColor:        item.TagColor,
+					Title:           item.Title,
+					Description:     item.Description,
+					BackgroundStyle: item.BackgroundStyle,
+					ImageURL:        item.ImageURL,
+				})
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			_ = json.NewEncoder(w).Encode(homeWidgetsResponse{Data: items})
 			return
 
 		case strings.HasPrefix(r.URL.Path, referralLinkPathPrefix) &&

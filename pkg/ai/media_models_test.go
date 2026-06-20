@@ -152,7 +152,17 @@ func TestBuildWavespeedAudioInput(t *testing.T) {
 }
 
 func TestResolveWavespeedThreeDModel(t *testing.T) {
-	def, ok := resolveWavespeedThreeDModel("meshy6-t2d")
+	def, ok := resolveWavespeedThreeDModel("tripo3d-v2.5-i2d")
+	if !ok || def.TextSlug != "tripo3d/v2.5/image-to-3d" {
+		t.Fatalf("tripo3d-v2.5-i2d: %+v ok=%v", def, ok)
+	}
+
+	hunyuan, ok := resolveWavespeedThreeDModel("hunyuan3d-v3-t2d")
+	if !ok || hunyuan.TextSlug != "wavespeed-ai/hunyuan3d-v3/text-to-3d" {
+		t.Fatalf("hunyuan3d-v3-t2d: %+v ok=%v", hunyuan, ok)
+	}
+
+	def, ok = resolveWavespeedThreeDModel("meshy6-t2d")
 	if !ok || def.TextSlug != "wavespeed-ai/meshy6/text-to-3d" {
 		t.Fatalf("meshy6-t2d: %+v ok=%v", def, ok)
 	}
@@ -174,6 +184,57 @@ func TestBuildWavespeedThreeDInput(t *testing.T) {
 	input = buildWavespeedThreeDInput(meshy, "katana", ThreeDRequest{ArtStyle: "realistic"})
 	if input["art_style"] != "realistic" {
 		t.Fatalf("meshy input: %+v", input)
+	}
+
+	multiview, _ := resolveWavespeedThreeDModel("tripo3d-v2.5-multiview")
+	input = buildWavespeedThreeDInput(multiview, "", ThreeDRequest{
+		SourceImages: []string{"https://cdn.example.com/front.png", "https://cdn.example.com/back.png"},
+	})
+	if input["front_image_url"] != "https://cdn.example.com/front.png" {
+		t.Fatalf("multiview front_image_url: %+v", input)
+	}
+	if input["back_image_url"] != "https://cdn.example.com/back.png" {
+		t.Fatalf("multiview back_image_url: %+v", input)
+	}
+	if _, ok := input["images"]; ok {
+		t.Fatalf("multiview must not set images array: %+v", input)
+	}
+
+	tripoImage, _ := resolveWavespeedThreeDModel("tripo3d-v2.5-i2d")
+	input = buildWavespeedThreeDInput(tripoImage, "", ThreeDRequest{SourceImageURL: "https://cdn.example.com/source.png"})
+	if input["image"] != "https://cdn.example.com/source.png" {
+		t.Fatalf("tripo image input: %+v", input)
+	}
+	if len(input) != 1 {
+		t.Fatalf("tripo v2.5 image should only send image: %+v", input)
+	}
+
+	hunyuan, _ := resolveWavespeedThreeDModel("hunyuan3d-v3-t2d")
+	input = buildWavespeedThreeDInput(hunyuan, "robot", ThreeDRequest{})
+	if input["prompt"] != "robot" || input["generate_type"] != "Normal" || input["enable_pbr"] != false {
+		t.Fatalf("hunyuan input: %+v", input)
+	}
+
+	rodinV2, _ := resolveWavespeedThreeDModel("rodin-v2-i2d")
+	input = buildWavespeedThreeDInput(rodinV2, "chair", ThreeDRequest{SourceImageURL: "https://cdn.example.com/chair.png"})
+	images, ok := input["images"].([]string)
+	if !ok || len(images) != 1 || images[0] != "https://cdn.example.com/chair.png" {
+		t.Fatalf("rodin v2 images: %+v", input["images"])
+	}
+	if input["quality_and_mesh"] != "8k_Quad" {
+		t.Fatalf("rodin v2 quality_and_mesh: %+v", input["quality_and_mesh"])
+	}
+	if _, ok := input["image"]; ok {
+		t.Fatalf("rodin v2 must not set image: %+v", input)
+	}
+
+	rodinV25, _ := resolveWavespeedThreeDModel("rodin-v2.5-i2d")
+	input = buildWavespeedThreeDInput(rodinV25, "", ThreeDRequest{
+		SourceImageURL: "https://cdn.example.com/asset.png",
+		IsSymmetric:    "auto",
+	})
+	if input["is_symmetric"] != "unknown" {
+		t.Fatalf("rodin v2.5 is_symmetric: %+v", input["is_symmetric"])
 	}
 }
 

@@ -86,6 +86,121 @@ type broadcastResp struct {
 	Failed int64 `json:"failed"`
 }
 
+type eventItemResp struct {
+	ID      string `json:"id"`
+	Time    string `json:"time"`
+	User    string `json:"user"`
+	Action  string `json:"action"`
+	Details string `json:"details"`
+}
+
+type eventsListResp struct {
+	Data []eventItemResp `json:"data"`
+}
+
+type transactionItemResp struct {
+	ID          int64  `json:"id"`
+	User        string `json:"user"`
+	Type        string `json:"type"`
+	TypeLabel   string `json:"type_label"`
+	Amount      int64  `json:"amount"`
+	AmountLabel string `json:"amount_label"`
+	Method      string `json:"method"`
+	MethodLabel string `json:"method_label"`
+	CreatedAt   string `json:"created_at"`
+	Status      string `json:"status"`
+	StatusLabel string `json:"status_label"`
+}
+
+type transactionStatsResp struct {
+	CreditsMonth    int64 `json:"credits_month"`
+	DebitsMonth     int64 `json:"debits_month"`
+	OperationsMonth int64 `json:"operations_month"`
+	AvgAmount       int64 `json:"avg_amount"`
+}
+
+type transactionsListResp struct {
+	Stats transactionStatsResp  `json:"stats"`
+	Data  []transactionItemResp `json:"data"`
+	Total int64                 `json:"total"`
+}
+
+type broadcastHistoryItemResp struct {
+	ID          int64  `json:"id"`
+	Message     string `json:"message"`
+	Target      string `json:"target"`
+	TargetLabel string `json:"target_label"`
+	Sent        int64  `json:"sent"`
+	Failed      int64  `json:"failed"`
+	CreatedAt   string `json:"created_at"`
+	Status      string `json:"status"`
+	StatusLabel string `json:"status_label"`
+}
+
+type broadcastsListResp struct {
+	Data  []broadcastHistoryItemResp `json:"data"`
+	Total int64                      `json:"total"`
+}
+
+type modelItemResp struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+	Category string `json:"category"`
+	Price    int64  `json:"price"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type modelsListResp struct {
+	Data []modelItemResp `json:"data"`
+}
+
+type patchModelReq struct {
+	Price   *int64 `json:"price"`
+	Enabled *bool  `json:"enabled"`
+}
+
+type homeWidgetItemResp struct {
+	ID              int64  `json:"id"`
+	SortOrder       int32  `json:"sort_order"`
+	TagText         string `json:"tag_text"`
+	TagBg           string `json:"tag_bg"`
+	TagColor        string `json:"tag_color"`
+	Title           string `json:"title"`
+	Description     string `json:"description"`
+	BackgroundStyle string `json:"background_style"`
+	ImageURL        string `json:"image_url"`
+	IsActive        bool   `json:"is_active"`
+}
+
+type homeWidgetsListResp struct {
+	Data []homeWidgetItemResp `json:"data"`
+}
+
+type createHomeWidgetReq struct {
+	SortOrder       int32  `json:"sort_order"`
+	TagText         string `json:"tag_text"`
+	TagBg           string `json:"tag_bg"`
+	TagColor        string `json:"tag_color"`
+	Title           string `json:"title"`
+	Description     string `json:"description"`
+	BackgroundStyle string `json:"background_style"`
+	ImageURL        string `json:"image_url"`
+	IsActive        bool   `json:"is_active"`
+}
+
+type patchHomeWidgetReq struct {
+	SortOrder       *int32  `json:"sort_order"`
+	TagText         *string `json:"tag_text"`
+	TagBg           *string `json:"tag_bg"`
+	TagColor        *string `json:"tag_color"`
+	Title           *string `json:"title"`
+	Description     *string `json:"description"`
+	BackgroundStyle *string `json:"background_style"`
+	ImageURL        *string `json:"image_url"`
+	IsActive        *bool   `json:"is_active"`
+}
+
 type errorResp struct {
 	Error string `json:"error"`
 }
@@ -170,6 +285,209 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 			})
 			return
 
+		case r.Method == http.MethodGet && path == "events":
+			limit := parseInt32(r.URL.Query().Get("limit"), 20)
+			out, err := uc.ListAdminEvents(r.Context(), limit)
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]eventItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, eventItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, eventsListResp{Data: items})
+			return
+
+		case r.Method == http.MethodGet && path == "transactions":
+			page := parseInt32(r.URL.Query().Get("page"), 1)
+			perPage := parseInt32(r.URL.Query().Get("per_page"), 20)
+			out, err := uc.ListAdminTransactions(r.Context(), ucModels.AdminListTransactionsInput{
+				Page:      page,
+				PerPage:   perPage,
+				Operation: r.URL.Query().Get("operation"),
+			})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]transactionItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, transactionItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, transactionsListResp{
+				Stats: transactionStatsResp(out.Stats),
+				Data:  items,
+				Total: out.Total,
+			})
+			return
+
+		case r.Method == http.MethodGet && path == "broadcasts":
+			page := parseInt32(r.URL.Query().Get("page"), 1)
+			perPage := parseInt32(r.URL.Query().Get("per_page"), 20)
+			out, err := uc.ListAdminBroadcasts(r.Context(), ucModels.AdminListBroadcastsInput{
+				Page:    page,
+				PerPage: perPage,
+			})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]broadcastHistoryItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, broadcastHistoryItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, broadcastsListResp{Data: items, Total: out.Total})
+			return
+
+		case r.Method == http.MethodGet && path == "settings":
+			out, err := uc.GetAdminSettings(r.Context())
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+			return
+
+		case r.Method == http.MethodPut && path == "settings":
+			var req ucModels.AdminUpdateSettingsInput
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			out, err := uc.UpdateAdminSettings(r.Context(), req)
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, out)
+			return
+
+		case r.Method == http.MethodGet && path == "home-widgets":
+			out, err := uc.ListAdminHomeWidgets(r.Context())
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]homeWidgetItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, mapHomeWidgetItem(item))
+			}
+			writeJSON(w, http.StatusOK, homeWidgetsListResp{Data: items})
+			return
+
+		case r.Method == http.MethodPost && path == "home-widgets":
+			var req createHomeWidgetReq
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			out, err := uc.CreateAdminHomeWidget(r.Context(), ucModels.AdminCreateHomeWidgetInput{
+				SortOrder:       req.SortOrder,
+				TagText:         req.TagText,
+				TagBg:           req.TagBg,
+				TagColor:        req.TagColor,
+				Title:           req.Title,
+				Description:     req.Description,
+				BackgroundStyle: req.BackgroundStyle,
+				ImageURL:        req.ImageURL,
+				IsActive:        req.IsActive,
+			})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusCreated, mapHomeWidgetItem(out.HomeWidgetItem))
+			return
+
+		case strings.HasPrefix(path, "home-widgets/"):
+			idStr := strings.TrimPrefix(path, "home-widgets/")
+			if idStr == "" || strings.Contains(idStr, "/") {
+				writeErr(w, http.StatusNotFound, "not found")
+				return
+			}
+			widgetID, err := strconv.ParseInt(idStr, 10, 64)
+			if err != nil || widgetID < 1 {
+				writeErr(w, http.StatusBadRequest, "invalid widget id")
+				return
+			}
+			switch r.Method {
+			case http.MethodPatch:
+				var req patchHomeWidgetReq
+				if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
+					writeErr(w, http.StatusBadRequest, "invalid json")
+					return
+				}
+				out, patchErr := uc.UpdateAdminHomeWidget(r.Context(), ucModels.AdminUpdateHomeWidgetInput{
+					ID:              widgetID,
+					SortOrder:       req.SortOrder,
+					TagText:         req.TagText,
+					TagBg:           req.TagBg,
+					TagColor:        req.TagColor,
+					Title:           req.Title,
+					Description:     req.Description,
+					BackgroundStyle: req.BackgroundStyle,
+					ImageURL:        req.ImageURL,
+					IsActive:        req.IsActive,
+				})
+				if patchErr != nil {
+					writeUsecaseErr(w, patchErr)
+					return
+				}
+				writeJSON(w, http.StatusOK, mapHomeWidgetItem(out.HomeWidgetItem))
+				return
+			case http.MethodDelete:
+				if delErr := uc.DeleteAdminHomeWidget(r.Context(), widgetID); delErr != nil {
+					writeUsecaseErr(w, delErr)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+				return
+			default:
+				writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
+				return
+			}
+
+		case r.Method == http.MethodGet && path == "models":
+			out, err := uc.ListAdminModels(r.Context())
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]modelItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, modelItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, modelsListResp{Data: items})
+			return
+
+		case strings.HasPrefix(path, "models/"):
+			modelID := strings.TrimPrefix(path, "models/")
+			if modelID == "" || strings.Contains(modelID, "/") {
+				writeErr(w, http.StatusNotFound, "not found")
+				return
+			}
+			if r.Method != http.MethodPatch {
+				writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
+				return
+			}
+			var req patchModelReq
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			out, err := uc.UpdateAdminModel(r.Context(), ucModels.AdminUpdateModelInput{
+				ModelID: modelID,
+				Price:   req.Price,
+				Enabled: req.Enabled,
+			})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, modelItemResp(out))
+			return
+
 		case r.Method == http.MethodGet && path == "users":
 			page := parseInt32(r.URL.Query().Get("page"), 1)
 			perPage := parseInt32(r.URL.Query().Get("per_page"), 20)
@@ -196,6 +514,7 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 				return
 			}
 			out, err := uc.AdminBroadcast(r.Context(), ucModels.AdminBroadcastInput{
+				AdminID:   adminID,
 				Message:   req.Message,
 				Target:    req.Target,
 				ParseMode: req.ParseMode,
@@ -389,6 +708,21 @@ func requireAdmin(w http.ResponseWriter, r *http.Request, jwtCfg config.ConfigJW
 	return claims.AdminID, true
 }
 
+func mapHomeWidgetItem(item ucModels.HomeWidgetItem) homeWidgetItemResp {
+	return homeWidgetItemResp{
+		ID:              item.ID,
+		SortOrder:       item.SortOrder,
+		TagText:         item.TagText,
+		TagBg:           item.TagBg,
+		TagColor:        item.TagColor,
+		Title:           item.Title,
+		Description:     item.Description,
+		BackgroundStyle: item.BackgroundStyle,
+		ImageURL:        item.ImageURL,
+		IsActive:        item.IsActive,
+	}
+}
+
 func writeUsecaseErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ucModels.ErrInvalidInput):
@@ -399,6 +733,8 @@ func writeUsecaseErr(w http.ResponseWriter, err error) {
 		writeErr(w, http.StatusNotFound, "admin not found")
 	case errors.Is(err, ucModels.ErrAdminUserNotFound):
 		writeErr(w, http.StatusNotFound, "user not found")
+	case errors.Is(err, ucModels.ErrHomeWidgetNotFound):
+		writeErr(w, http.StatusNotFound, "widget not found")
 	case errors.Is(err, ucModels.ErrInsufficientTokens):
 		writeErr(w, http.StatusUnprocessableEntity, "Insufficient tokens")
 	case errors.Is(err, ucModels.ErrBroadcastNotReady):

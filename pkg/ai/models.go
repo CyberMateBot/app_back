@@ -60,22 +60,22 @@ var wavespeedTextModelCatalog = []textModelDef{
 	{
 		ID: "claude-haiku-4.5", Label: "Claude Haiku 4.5", Group: "Claude",
 		Description: "Быстрые ответы и повседневные задачи",
-		Tier: "fast", Slug: "anthropic/claude-haiku-4.5", UseWavespeed: true,
+		Tier: "fast", Slug: "anthropic/claude-haiku-4.5", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "claude-sonnet-4.5", Label: "Claude Sonnet 4.5", Group: "Claude",
 		Description: "Баланс скорости и качества для сложных задач",
-		Tier: "standard", Slug: "anthropic/claude-sonnet-4.5", UseWavespeed: true,
+		Tier: "standard", Slug: "anthropic/claude-sonnet-4.5", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "claude-opus-4.7", Label: "Claude Opus 4.7", Group: "Claude",
 		Description: "Максимальное качество рассуждений и анализа",
-		Tier: "pro", Slug: "anthropic/claude-opus-4.7", UseWavespeed: true,
+		Tier: "pro", Slug: "anthropic/claude-opus-4.7", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "claude-opus-4.8", Label: "Claude Opus 4.8", Group: "Claude",
 		Description: "Топовая модель Claude для сложнейших задач",
-		Tier: "pro", Slug: "anthropic/claude-opus-4.8", UseWavespeed: true,
+		Tier: "pro", Slug: "anthropic/claude-opus-4.8", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "gemini-2.5-flash", Label: "Gemini 2.5 Flash", Group: "Gemini",
@@ -90,27 +90,27 @@ var wavespeedTextModelCatalog = []textModelDef{
 	{
 		ID: "gpt-5.4", Label: "GPT-5.4", Group: "ChatGPT",
 		Description: "Самая новая модель OpenAI для сложных задач",
-		Tier: "pro", Slug: "openai/gpt-5.4", UseWavespeed: true,
+		Tier: "pro", Slug: "openai/gpt-5.4", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "gpt-5.4-mini", Label: "GPT-5.4 Mini", Group: "ChatGPT",
 		Description: "Быстрые и экономичные ответы GPT-5.4",
-		Tier: "fast", Slug: "openai/gpt-5.4-mini", UseWavespeed: true,
+		Tier: "fast", Slug: "openai/gpt-5.4-mini", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "gpt-4.1", Label: "GPT-4.1", Group: "ChatGPT",
 		Description: "Длинный контекст и глубокий анализ документов",
-		Tier: "pro", Slug: "openai/gpt-4.1", UseWavespeed: true,
+		Tier: "pro", Slug: "openai/gpt-4.1", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "gpt-4.1-mini", Label: "GPT-4.1 Mini", Group: "ChatGPT",
 		Description: "Баланс цены и качества для повседневных задач",
-		Tier: "standard", Slug: "openai/gpt-4.1-mini", UseWavespeed: true,
+		Tier: "standard", Slug: "openai/gpt-4.1-mini", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "gpt-4.1-nano", Label: "GPT-4.1 Nano", Group: "ChatGPT",
 		Description: "Максимальная скорость для коротких ответов",
-		Tier: "fast", Slug: "openai/gpt-4.1-nano", UseWavespeed: true,
+		Tier: "fast", Slug: "openai/gpt-4.1-nano", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "gpt-4o", Label: "GPT-4o", Group: "ChatGPT",
@@ -120,27 +120,27 @@ var wavespeedTextModelCatalog = []textModelDef{
 	{
 		ID: "gpt-4o-mini", Label: "GPT-4o Mini", Group: "ChatGPT",
 		Description: "Популярная быстрая модель для чата и черновиков",
-		Tier: "fast", Slug: "openai/gpt-4o-mini", UseWavespeed: true,
+		Tier: "fast", Slug: "openai/gpt-4o-mini", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "o4-mini", Label: "o4-mini", Group: "ChatGPT",
 		Description: "O-серия: низкая задержка и пошаговые рассуждения",
-		Tier: "fast", Slug: "openai/o4-mini", UseWavespeed: true,
+		Tier: "fast", Slug: "openai/o4-mini", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "o3", Label: "o3", Group: "ChatGPT",
 		Description: "Мощные рассуждения для сложных задач",
-		Tier: "pro", Slug: "openai/o3", UseWavespeed: true,
+		Tier: "pro", Slug: "openai/o3", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "o3-mini", Label: "o3-mini", Group: "ChatGPT",
 		Description: "O-серия, оптимизирована для программирования",
-		Tier: "pro", Slug: "openai/o3-mini", UseWavespeed: true,
+		Tier: "pro", Slug: "openai/o3-mini", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "o1", Label: "o1", Group: "ChatGPT",
 		Description: "Оригинальная O-серия с chain-of-thought",
-		Tier: "pro", Slug: "openai/o1", UseWavespeed: true,
+		Tier: "pro", Slug: "openai/o1", UseWavespeed: true, SupportsImage: true,
 	},
 	{
 		ID: "deepseek-v4", Label: "DeepSeek V4", Group: "DeepSeek",

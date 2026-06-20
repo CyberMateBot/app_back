@@ -83,6 +83,42 @@ func (f *fakeAdminUC) AdminBroadcast(ctx context.Context, input ucModels.AdminBr
 }) (ucModels.AdminBroadcastOutput, error) {
 	return ucModels.AdminBroadcastOutput{Sent: 1}, nil
 }
+func (f *fakeAdminUC) ListAdminEvents(ctx context.Context, limit int32) (ucModels.AdminListEventsOutput, error) {
+	return ucModels.AdminListEventsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) ListAdminTransactions(ctx context.Context, input ucModels.AdminListTransactionsInput) (ucModels.AdminListTransactionsOutput, error) {
+	return ucModels.AdminListTransactionsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) ListAdminBroadcasts(ctx context.Context, input ucModels.AdminListBroadcastsInput) (ucModels.AdminListBroadcastsOutput, error) {
+	return ucModels.AdminListBroadcastsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) GetAdminSettings(ctx context.Context) (ucModels.AdminSettingsOutput, error) {
+	return ucModels.AdminSettingsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) UpdateAdminSettings(ctx context.Context, input ucModels.AdminUpdateSettingsInput) (ucModels.AdminSettingsOutput, error) {
+	return ucModels.AdminSettingsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) ListAdminModels(ctx context.Context) (ucModels.AdminListModelsOutput, error) {
+	return ucModels.AdminListModelsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) UpdateAdminModel(ctx context.Context, input ucModels.AdminUpdateModelInput) (ucModels.AdminModelItem, error) {
+	return ucModels.AdminModelItem{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) ListHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error) {
+	return ucModels.ListHomeWidgetsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) ListAdminHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error) {
+	return ucModels.ListHomeWidgetsOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) CreateAdminHomeWidget(ctx context.Context, input ucModels.AdminCreateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error) {
+	return ucModels.AdminHomeWidgetOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) UpdateAdminHomeWidget(ctx context.Context, input ucModels.AdminUpdateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error) {
+	return ucModels.AdminHomeWidgetOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) DeleteAdminHomeWidget(ctx context.Context, id int64) error {
+	return errors.New("not impl")
+}
 
 var _ internal.UseCase = (*fakeAdminUC)(nil)
 

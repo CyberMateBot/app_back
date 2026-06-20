@@ -251,7 +251,7 @@ func (uc *useCase) AdminBroadcast(ctx context.Context, input ucModels.AdminBroad
 	}
 
 	parseMode := strings.TrimSpace(input.ParseMode)
-	for _, rawID := range ids {
+		for _, rawID := range ids {
 		chatID, parseErr := strconv.ParseInt(strings.TrimSpace(rawID), 10, 64)
 		if parseErr != nil || chatID <= 0 {
 			out.Failed++
@@ -263,6 +263,11 @@ func (uc *useCase) AdminBroadcast(ctx context.Context, input ucModels.AdminBroad
 		}
 		out.Sent++
 	}
+
+	if input.AdminID > 0 {
+		_, _ = uc.repo.CreateAdminBroadcast(ctx, nil, input.AdminID, input.Message, input.Target, parseMode, out.Sent, out.Failed)
+	}
+
 	return out, nil
 }
 

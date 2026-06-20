@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -48,6 +49,48 @@ func (fakeAdminRepoStubs) CreditProfileTokens(ctx context.Context, tx pgx.Tx, pr
 func (fakeAdminRepoStubs) DebitProfileTokens(ctx context.Context, tx pgx.Tx, profileID, adminID int64, amount int64, reason string) (repoModels.TokenOperationResult, error) {
 	return repoModels.TokenOperationResult{}, errors.New("not impl")
 }
+func (fakeAdminRepoStubs) ListAdminEvents(ctx context.Context, tx pgx.Tx, limit int32) ([]repoModels.AdminEvent, error) {
+	return nil, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) GetAdminTransactionStats(ctx context.Context, tx pgx.Tx) (repoModels.AdminTransactionStats, error) {
+	return repoModels.AdminTransactionStats{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) ListAdminTokenTransactions(ctx context.Context, tx pgx.Tx, operation string, limit, offset int32) ([]repoModels.AdminTokenTransaction, int64, error) {
+	return nil, 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) CreateAdminBroadcast(ctx context.Context, tx pgx.Tx, adminID int64, message, target, parseMode string, sent, failed int64) (int64, error) {
+	return 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) ListAdminBroadcasts(ctx context.Context, tx pgx.Tx, limit, offset int32) ([]repoModels.AdminBroadcastRecord, int64, error) {
+	return nil, 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) GetAdminSettings(ctx context.Context, tx pgx.Tx) (map[string]json.RawMessage, error) {
+	return nil, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) UpsertAdminSetting(ctx context.Context, tx pgx.Tx, key string, value any) error {
+	return errors.New("not impl")
+}
+func (fakeAdminRepoStubs) ListModelConfigs(ctx context.Context, tx pgx.Tx) (map[string]repoModels.ModelConfig, error) {
+	return nil, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) UpsertModelConfig(ctx context.Context, tx pgx.Tx, cfg repoModels.ModelConfig) error {
+	return errors.New("not impl")
+}
+func (fakeAdminRepoStubs) ListHomeWidgets(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]repoModels.HomeWidget, error) {
+	return nil, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) GetHomeWidgetByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.HomeWidget, error) {
+	return repoModels.HomeWidget{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) CreateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) (int64, error) {
+	return 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) UpdateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) error {
+	return errors.New("not impl")
+}
+func (fakeAdminRepoStubs) DeleteHomeWidget(ctx context.Context, tx pgx.Tx, id int64) error {
+	return errors.New("not impl")
+}
 
 // fakeAdminUCStubs provides no-op admin usecase methods for test fakes.
 type fakeAdminUCStubs struct{}
@@ -85,4 +128,40 @@ func (fakeAdminUCStubs) AdminBroadcast(ctx context.Context, input ucModels.Admin
 	SendText(chatID int64, text, parseMode string) error
 }) (ucModels.AdminBroadcastOutput, error) {
 	return ucModels.AdminBroadcastOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListAdminEvents(ctx context.Context, limit int32) (ucModels.AdminListEventsOutput, error) {
+	return ucModels.AdminListEventsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListAdminTransactions(ctx context.Context, input ucModels.AdminListTransactionsInput) (ucModels.AdminListTransactionsOutput, error) {
+	return ucModels.AdminListTransactionsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListAdminBroadcasts(ctx context.Context, input ucModels.AdminListBroadcastsInput) (ucModels.AdminListBroadcastsOutput, error) {
+	return ucModels.AdminListBroadcastsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) GetAdminSettings(ctx context.Context) (ucModels.AdminSettingsOutput, error) {
+	return ucModels.AdminSettingsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) UpdateAdminSettings(ctx context.Context, input ucModels.AdminUpdateSettingsInput) (ucModels.AdminSettingsOutput, error) {
+	return ucModels.AdminSettingsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListAdminModels(ctx context.Context) (ucModels.AdminListModelsOutput, error) {
+	return ucModels.AdminListModelsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) UpdateAdminModel(ctx context.Context, input ucModels.AdminUpdateModelInput) (ucModels.AdminModelItem, error) {
+	return ucModels.AdminModelItem{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error) {
+	return ucModels.ListHomeWidgetsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListAdminHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error) {
+	return ucModels.ListHomeWidgetsOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) CreateAdminHomeWidget(ctx context.Context, input ucModels.AdminCreateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error) {
+	return ucModels.AdminHomeWidgetOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) UpdateAdminHomeWidget(ctx context.Context, input ucModels.AdminUpdateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error) {
+	return ucModels.AdminHomeWidgetOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) DeleteAdminHomeWidget(ctx context.Context, id int64) error {
+	return errors.New("not impl")
 }

@@ -96,25 +96,21 @@ func threeDSourceImage(req ThreeDRequest) string {
 }
 
 func buildTripoV25ImageInput(req ThreeDRequest) map[string]any {
-	input := map[string]any{
-		"image":           threeDSourceImage(req),
-		"texture_quality": defaultString(req.TextureQuality, "detailed"),
-		"face_limit":      defaultInt(req.FaceLimit, 30000),
-		"quad":            req.Quad == nil || *req.Quad,
-		"pbr":             req.PBR == nil || *req.PBR,
-		"output_format":   defaultString(req.OutputFormat, "glb"),
+	return map[string]any{
+		"image": threeDSourceImage(req),
 	}
-	return input
 }
 
 func buildTripoV25MultiviewInput(req ThreeDRequest) map[string]any {
-	return map[string]any{
-		"images":          normalizeThreeDImages(req),
-		"texture_quality": defaultString(req.TextureQuality, "detailed"),
-		"face_limit":      defaultInt(req.FaceLimit, 50000),
-		"quad":            req.Quad == nil || *req.Quad,
-		"pbr":             req.PBR == nil || *req.PBR,
+	images := normalizeThreeDImages(req)
+	input := map[string]any{}
+	viewKeys := []string{"front_image_url", "back_image_url", "left_image_url", "right_image_url"}
+	for i, key := range viewKeys {
+		if i < len(images) && strings.TrimSpace(images[i]) != "" {
+			input[key] = strings.TrimSpace(images[i])
+		}
 	}
+	return input
 }
 
 func buildTripoH31TextInput(prompt string, req ThreeDRequest) map[string]any {
@@ -122,11 +118,13 @@ func buildTripoH31TextInput(prompt string, req ThreeDRequest) map[string]any {
 		"prompt":           strings.TrimSpace(prompt),
 		"texture":          req.Texture == nil || *req.Texture,
 		"pbr":              req.PBR == nil || *req.PBR,
-		"texture_quality":  defaultString(req.TextureQuality, "detailed"),
-		"geometry_quality": defaultString(req.GeometryQuality, "detailed"),
-		"quad":             req.Quad == nil || *req.Quad,
-		"auto_size":        req.AutoSize == nil || *req.AutoSize,
-		"face_limit":       defaultInt(req.FaceLimit, 50000),
+		"texture_quality":  defaultString(req.TextureQuality, "standard"),
+		"geometry_quality": defaultString(req.GeometryQuality, "standard"),
+		"quad":             req.Quad != nil && *req.Quad,
+		"auto_size":        req.AutoSize != nil && *req.AutoSize,
+	}
+	if req.FaceLimit > 0 {
+		input["face_limit"] = req.FaceLimit
 	}
 	if neg := strings.TrimSpace(req.NegativePrompt); neg != "" {
 		input["negative_prompt"] = neg
@@ -135,25 +133,34 @@ func buildTripoH31TextInput(prompt string, req ThreeDRequest) map[string]any {
 }
 
 func buildTripoH31ImageInput(req ThreeDRequest) map[string]any {
-	return map[string]any{
+	input := map[string]any{
 		"image":            threeDSourceImage(req),
 		"texture":          req.Texture == nil || *req.Texture,
 		"pbr":              req.PBR == nil || *req.PBR,
-		"texture_quality":  defaultString(req.TextureQuality, "detailed"),
-		"geometry_quality": defaultString(req.GeometryQuality, "detailed"),
-		"quad":             req.Quad == nil || *req.Quad,
-		"face_limit":       defaultInt(req.FaceLimit, 50000),
+		"texture_quality":  defaultString(req.TextureQuality, "standard"),
+		"geometry_quality": defaultString(req.GeometryQuality, "standard"),
+		"quad":             req.Quad != nil && *req.Quad,
 	}
+	if req.FaceLimit > 0 {
+		input["face_limit"] = req.FaceLimit
+	}
+	return input
 }
 
 func buildHunyuanV3Input(prompt string, req ThreeDRequest) map[string]any {
-	input := map[string]any{
-		"prompt":  strings.TrimSpace(prompt),
-		"texture": req.Texture == nil || *req.Texture,
-		"pbr":     req.PBR == nil || *req.PBR,
+	enablePBR := false
+	if req.EnablePBR != nil {
+		enablePBR = *req.EnablePBR
+	} else if req.PBR != nil {
+		enablePBR = *req.PBR
 	}
-	if neg := strings.TrimSpace(req.NegativePrompt); neg != "" {
-		input["negative_prompt"] = neg
+
+	input := map[string]any{
+		"prompt":        strings.TrimSpace(prompt),
+		"generate_type": "Normal",
+		"enable_pbr":    enablePBR,
+		"face_count":    defaultInt(req.FaceLimit, 500000),
+		"polygon_type":  "triangle",
 	}
 	return input
 }
@@ -176,12 +183,51 @@ func buildMeshy6Input(prompt string, req ThreeDRequest) map[string]any {
 
 func buildRodinV2Input(prompt string, req ThreeDRequest) map[string]any {
 	input := map[string]any{
-		"image":            threeDSourceImage(req),
-		"tier":             defaultString(req.Tier, "Gen-2-Medium"),
-		"quality_and_mesh": defaultString(req.QualityAndMesh, "8K Quad"),
+		"images":           rodinReferenceImages(req),
+		"quality_and_mesh": normalizeRodinV2QualityAndMesh(defaultString(req.QualityAndMesh, "8k_Quad")),
 		"material":         defaultString(req.Material, "PBR"),
-		"ta_pose":          req.TAPose != nil && *req.TAPose,
-		"hd_texture":       req.HDTexture == nil || *req.HDTexture,
+	}
+	if p := strings.TrimSpace(prompt); p != "" {
+		input["prompt"] = p
+	}
+	if format := strings.TrimSpace(req.GeometryFileFormat); format != "" {
+		input["geometry_file_format"] = format
+	}
+	if req.TAPose != nil {
+		input["ta_pose"] = *req.TAPose
+	}
+	if req.PreviewRender != nil {
+		input["preview_render"] = *req.PreviewRender
+	}
+	if addons := strings.TrimSpace(req.Addons); addons != "" {
+		input["addons"] = addons
+	}
+	return input
+}
+
+func buildRodinV25Input(prompt string, req ThreeDRequest) map[string]any {
+	input := map[string]any{
+		"images":                 rodinReferenceImages(req),
+		"tier":                   defaultString(req.Tier, "Gen-2.5-Medium"),
+		"geometry_file_format":   defaultString(req.GeometryFileFormat, "glb"),
+		"material":               defaultString(req.Material, "All"),
+		"quality_and_mesh":       defaultString(req.QualityAndMesh, "500K Triangle"),
+		"geometry_instruct_mode": defaultString(req.GeometryInstructMode, "faithful"),
+		"is_symmetric":           normalizeRodinV25Symmetric(defaultString(req.IsSymmetric, "unknown")),
+		"ta_pose":                req.TAPose != nil && *req.TAPose,
+		"preview_render":         req.PreviewRender != nil && *req.PreviewRender,
+	}
+	if mode := strings.TrimSpace(req.TextureMode); mode != "" {
+		input["texture_mode"] = mode
+	}
+	if req.HDTexture != nil {
+		input["hd_texture"] = *req.HDTexture
+	}
+	if req.TextureDelight != nil {
+		input["texture_delight"] = *req.TextureDelight
+	}
+	if req.IsMicro != nil {
+		input["is_micro"] = *req.IsMicro
 	}
 	if p := strings.TrimSpace(prompt); p != "" {
 		input["prompt"] = p
@@ -192,34 +238,50 @@ func buildRodinV2Input(prompt string, req ThreeDRequest) map[string]any {
 	return input
 }
 
-func buildRodinV25Input(prompt string, req ThreeDRequest) map[string]any {
+func rodinReferenceImages(req ThreeDRequest) []string {
 	images := normalizeThreeDImages(req)
 	source := threeDSourceImage(req)
 	if len(images) == 0 && source != "" {
-		images = []string{source}
+		return []string{source}
 	}
-	input := map[string]any{
-		"images":                 images,
-		"tier":                   defaultString(req.Tier, "Gen-2.5-Medium"),
-		"geometry_file_format":   defaultString(req.GeometryFileFormat, "glb"),
-		"material":               defaultString(req.Material, "All"),
-		"quality_and_mesh":       defaultString(req.QualityAndMesh, "50K Quad"),
-		"texture_mode":           defaultString(req.TextureMode, "medium"),
-		"geometry_instruct_mode": defaultString(req.GeometryInstructMode, "faithful"),
-		"hd_texture":             req.HDTexture == nil || *req.HDTexture,
-		"texture_delight":        req.TextureDelight != nil && *req.TextureDelight,
-		"is_symmetric":           defaultString(req.IsSymmetric, "auto"),
-		"is_micro":               req.IsMicro != nil && *req.IsMicro,
-		"ta_pose":                req.TAPose != nil && *req.TAPose,
-		"preview_render":         req.PreviewRender == nil || *req.PreviewRender,
+	return images
+}
+
+func normalizeRodinV2QualityAndMesh(value string) string {
+	switch strings.ReplaceAll(strings.TrimSpace(value), " ", "_") {
+	case "4K_Quad", "4k_Quad", "4k_quad":
+		return "4k_Quad"
+	case "8K_Quad", "8k_Quad", "8k_quad":
+		return "8k_Quad"
+	case "18K_Quad", "18k_Quad", "18k_quad":
+		return "18k_Quad"
+	case "50K_Quad", "50k_Quad", "50k_quad":
+		return "50k_Quad"
+	case "2K_Triangle", "2k_triangle":
+		return "2K_Triangle"
+	case "20K_Triangle", "20k_triangle":
+		return "20K_Triangle"
+	case "250K_Triangle", "250k_triangle":
+		return "250K_Triangle"
+	case "500K_Triangle", "500k_triangle":
+		return "500K_Triangle"
+	default:
+		if value == "" {
+			return "8k_Quad"
+		}
+		return value
 	}
-	if p := strings.TrimSpace(prompt); p != "" {
-		input["prompt"] = p
+}
+
+func normalizeRodinV25Symmetric(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "auto", "unknown", "":
+		return "unknown"
+	case "symmetric", "balanced", "asymmetric":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return value
 	}
-	if addons := strings.TrimSpace(req.Addons); addons != "" {
-		input["addons"] = addons
-	}
-	return input
 }
 
 func defaultString(value, fallback string) string {

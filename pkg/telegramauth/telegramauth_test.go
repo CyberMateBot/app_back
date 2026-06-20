@@ -47,6 +47,33 @@ func TestVerifyInitData_OK(t *testing.T) {
 	}
 }
 
+func TestExtractUserID_OK(t *testing.T) {
+	values := url.Values{}
+	values.Set("user", `{"id":777000,"first_name":"Dev"}`)
+	raw := values.Encode()
+
+	got, err := ExtractUserID(raw)
+	if err != nil {
+		t.Fatalf("ExtractUserID() err = %v", err)
+	}
+	if got != "777000" {
+		t.Fatalf("telegram id = %q, want 777000", got)
+	}
+}
+
+func TestInitDataMissingHash(t *testing.T) {
+	values := url.Values{}
+	values.Set("user", `{"id":1}`)
+	if !InitDataMissingHash(values.Encode()) {
+		t.Fatal("expected missing hash")
+	}
+
+	values.Set("hash", "abc")
+	if InitDataMissingHash(values.Encode()) {
+		t.Fatal("expected hash present")
+	}
+}
+
 func TestVerifyInitData_WrongToken(t *testing.T) {
 	values := url.Values{}
 	values.Set("auth_date", strconv.FormatInt(time.Now().Unix(), 10))

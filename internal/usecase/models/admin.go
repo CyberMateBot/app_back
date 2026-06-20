@@ -85,6 +85,7 @@ type AdminUpdateUserInput struct {
 }
 
 type AdminBroadcastInput struct {
+	AdminID   int64
 	Message   string
 	Target    string // all | active
 	ParseMode string

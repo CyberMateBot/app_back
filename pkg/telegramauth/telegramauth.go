@@ -91,3 +91,53 @@ func VerifyInitData(initDataRaw, botToken string) (string, error) {
 	}
 	return strconv.FormatInt(user.ID, 10), nil
 }
+
+// ExtractUserID parses telegram user id from init data without signature verification.
+// Used for local development when mock init data has no hash.
+func ExtractUserID(initDataRaw string) (string, error) {
+	initDataRaw = strings.TrimSpace(initDataRaw)
+	if initDataRaw == "" {
+		return "", ErrInitDataMissing
+	}
+
+	raw := initDataRaw
+	if decoded, err := base64.StdEncoding.DecodeString(initDataRaw); err == nil && strings.Contains(string(decoded), "=") {
+		raw = string(decoded)
+	}
+
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return "", ErrInitDataInvalid
+	}
+
+	userJSON := values.Get("user")
+	if userJSON == "" {
+		return "", ErrInitDataInvalid
+	}
+	var user struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(userJSON), &user); err != nil || user.ID <= 0 {
+		return "", ErrInitDataInvalid
+	}
+	return strconv.FormatInt(user.ID, 10), nil
+}
+
+// InitDataMissingHash reports whether init data has no Telegram signature hash.
+func InitDataMissingHash(initDataRaw string) bool {
+	initDataRaw = strings.TrimSpace(initDataRaw)
+	if initDataRaw == "" {
+		return true
+	}
+
+	raw := initDataRaw
+	if decoded, err := base64.StdEncoding.DecodeString(initDataRaw); err == nil && strings.Contains(string(decoded), "=") {
+		raw = string(decoded)
+	}
+
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return true
+	}
+	return strings.TrimSpace(values.Get("hash")) == ""
+}

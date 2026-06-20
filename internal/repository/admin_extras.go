@@ -79,33 +79,6 @@ LIMIT $1`, perSource)
 		return nil, userRows.Err()
 	}
 
-	promptRows, err := qry.Query(ctx, `
-SELECT
-    'prompt_' || h.id::text,
-    h.created_at,
-    COALESCE(NULLIF(p.name, ''), NULLIF(p.username, ''), p.telegram_id),
-    'Сообщение в чате',
-    LEFT(COALESCE(h.prompt, ''), 120)
-FROM prompt_history h
-JOIN profiles p ON p.id = h.profile_id
-ORDER BY h.created_at DESC
-LIMIT $1`, perSource)
-	if err != nil {
-		return nil, err
-	}
-	for promptRows.Next() {
-		var e repoModels.AdminEvent
-		if scanErr := promptRows.Scan(&e.ID, &e.Time, &e.User, &e.Action, &e.Details); scanErr != nil {
-			promptRows.Close()
-			return nil, scanErr
-		}
-		events = append(events, e)
-	}
-	promptRows.Close()
-	if promptRows.Err() != nil {
-		return nil, promptRows.Err()
-	}
-
 	sortEventsDesc(events)
 	if int32(len(events)) > limit {
 		events = events[:limit]
@@ -206,6 +179,9 @@ func (r *Repository) ListAdminBroadcasts(ctx context.Context, tx pgx.Tx, limit, 
 
 	var total int64
 	if err := qry.QueryRow(ctx, `SELECT COUNT(*) FROM admin_broadcasts`).Scan(&total); err != nil {
+		if isMissingRelation(err) {
+			return nil, 0, nil
+		}
 		return nil, 0, err
 	}
 
@@ -234,6 +210,9 @@ func (r *Repository) GetAdminSettings(ctx context.Context, tx pgx.Tx) (map[strin
 	qry := r.getQueryable(tx)
 	rows, err := qry.Query(ctx, `SELECT key, value FROM admin_settings`)
 	if err != nil {
+		if isMissingRelation(err) {
+			return map[string]json.RawMessage{}, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()
@@ -269,6 +248,9 @@ func (r *Repository) ListModelConfigs(ctx context.Context, tx pgx.Tx) (map[strin
 SELECT model_id, category, name, provider, price_coins, enabled
 FROM model_configs`)
 	if err != nil {
+		if isMissingRelation(err) {
+			return map[string]repoModels.ModelConfig{}, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()

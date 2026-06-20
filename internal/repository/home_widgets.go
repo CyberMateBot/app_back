@@ -21,6 +21,9 @@ FROM home_widgets`
 
 	rows, err := qry.Query(ctx, query)
 	if err != nil {
+		if isMissingRelation(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()

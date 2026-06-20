@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/twelvepills-936/tgapp-/internal/bot"
+	"github.com/twelvepills-936/tgapp-/internal/migrations"
 	"github.com/twelvepills-936/tgapp-/pkg/adminapi"
 	"github.com/twelvepills-936/tgapp-/internal/repository"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
@@ -68,6 +69,9 @@ func main() {
 		return
 	}
 	defer pool.Close()
+	if err := migrations.ApplyAdminPanel(ctx, pool); err != nil {
+		slog.WarnContext(ctx, "admin panel schema bootstrap failed", logger.ErrorAttr(err))
+	}
 	repo := repository.NewRepository(pool)
 
 	// Create single instances of usecase and service

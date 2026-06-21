@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twelvepills-936/tgapp-/pkg/billing"
 	"github.com/twelvepills-936/tgapp-/pkg/telegramauth"
 )
 
@@ -43,6 +44,11 @@ func New(db *pgxpool.Pool) *Guard {
 // CheckAccess validates identity and positive token balance (AI generation).
 // Token balance is not required when ENVIRONMENT is development/dev/local.
 func (g *Guard) CheckAccess(ctx context.Context, telegramID, initDataRaw string) error {
+	return g.CheckAccessForModel(ctx, telegramID, initDataRaw, "", "")
+}
+
+// CheckAccessForModel validates identity and sufficient balance for a model operation.
+func (g *Guard) CheckAccessForModel(ctx context.Context, telegramID, initDataRaw, modelID, category string) error {
 	if g == nil || g.db == nil {
 		return nil
 	}
@@ -52,7 +58,120 @@ func (g *Guard) CheckAccess(ctx context.Context, telegramID, initDataRaw string)
 	if isDevelopmentEnv() {
 		return nil
 	}
-	return g.checkBalance(ctx, telegramID)
+
+	price := int64(g.resolveModelPrice(ctx, modelID, category))
+	if price <= 0 {
+		return g.checkBalance(ctx, telegramID)
+	}
+
+	return g.checkBalanceAtLeast(ctx, telegramID, price)
+}
+
+// ChargeForGeneration debits CyberCoins after a successful generation.
+func (g *Guard) ChargeForGeneration(ctx context.Context, telegramID, modelID, category string) error {
+	if g == nil || g.db == nil || isDevelopmentEnv() {
+		return nil
+	}
+
+	telegramID = strings.TrimSpace(telegramID)
+	if telegramID == "" {
+		return ErrTelegramIDRequired
+	}
+
+	price := int64(g.resolveModelPrice(ctx, modelID, category))
+	if price <= 0 {
+		return nil
+	}
+
+	return g.debitProfileByTelegram(ctx, telegramID, price, fmt.Sprintf("generation:%s", strings.TrimSpace(modelID)))
+}
+
+func (g *Guard) resolveModelPrice(ctx context.Context, modelID, category string) int {
+	modelID = strings.TrimSpace(modelID)
+	category = strings.TrimSpace(category)
+	if modelID == "" {
+		return billing.DefaultModelPrice(modelID, category)
+	}
+
+	var price int
+	err := g.db.QueryRow(ctx, `
+SELECT price_coins
+FROM model_configs
+WHERE model_id = $1
+LIMIT 1`, modelID).Scan(&price)
+	if err == nil && price > 0 {
+		return price
+	}
+
+	return billing.DefaultModelPrice(modelID, category)
+}
+
+func (g *Guard) checkBalanceAtLeast(ctx context.Context, telegramID string, amount int64) error {
+	var balanceAvailable int64
+	err := g.db.QueryRow(ctx, `
+SELECT COALESCE((SELECT SUM(w.balance_available) FROM wallets w JOIN profiles p ON p.id = w.profile_id WHERE p.telegram_id = $1), 0)`,
+		telegramID).Scan(&balanceAvailable)
+	if err != nil {
+		return fmt.Errorf("check tokens: %w", err)
+	}
+	if balanceAvailable < amount {
+		return ErrInsufficientTokens
+	}
+	return nil
+}
+
+func (g *Guard) debitProfileByTelegram(ctx context.Context, telegramID string, amount int64, reason string) error {
+	if amount <= 0 {
+		return nil
+	}
+
+	tx, err := g.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin debit tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var profileID int64
+	err = tx.QueryRow(ctx, `SELECT id FROM profiles WHERE telegram_id = $1 LIMIT 1`, telegramID).Scan(&profileID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrProfileNotFound
+		}
+		return fmt.Errorf("resolve profile: %w", err)
+	}
+
+	var balanceAfter int64
+	err = tx.QueryRow(ctx, `
+WITH locked AS (
+  SELECT id FROM wallets WHERE profile_id = $1 ORDER BY id LIMIT 1 FOR UPDATE
+)
+UPDATE wallets w
+SET balance_available = w.balance_available - $2,
+    balance = w.balance - $2
+FROM locked
+WHERE w.id = locked.id
+  AND w.balance_available >= $2
+RETURNING w.balance_available`, profileID, amount).Scan(&balanceAfter)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrInsufficientTokens
+		}
+		return fmt.Errorf("debit wallet: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO token_transactions(profile_id, admin_id, operation, amount, balance_after, reason)
+VALUES($1, NULL, 'debit', $2, $3, $4)`,
+		profileID, amount, balanceAfter, strings.TrimSpace(reason))
+	if err != nil {
+		return fmt.Errorf("log token transaction: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit debit tx: %w", err)
+	}
+
+	return nil
 }
 
 // CheckIdentity validates telegram identity without requiring token balance (history read/delete).

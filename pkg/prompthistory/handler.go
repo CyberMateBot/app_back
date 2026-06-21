@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
 
@@ -99,10 +100,10 @@ func handleDelete(w http.ResponseWriter, r *http.Request, store *Store, tokens *
 }
 
 type deleteTopicRequest struct {
-	TelegramID  string  `json:"telegramId"`
-	InitDataRaw string  `json:"initDataRaw"`
-	SessionID   string  `json:"sessionId"`
-	IDs         []int64 `json:"ids"`
+	TelegramID  flexString `json:"telegramId"`
+	InitDataRaw string          `json:"initDataRaw"`
+	SessionID   string          `json:"sessionId"`
+	IDs         []int64         `json:"ids"`
 }
 
 func handleDeleteTopic(w http.ResponseWriter, r *http.Request, store *Store, tokens *tokenguard.Guard) {
@@ -111,18 +112,18 @@ func handleDeleteTopic(w http.ResponseWriter, r *http.Request, store *Store, tok
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if strings.TrimSpace(req.TelegramID) == "" {
+	if strings.TrimSpace(req.TelegramID.String()) == "" {
 		writeError(w, http.StatusBadRequest, "telegramId is required")
 		return
 	}
-	if err := ensureIdentity(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+	if err := ensureIdentity(w, r, tokens, req.TelegramID.String(), tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
 		return
 	}
 	if strings.TrimSpace(req.SessionID) == "" && len(req.IDs) == 0 {
 		writeError(w, http.StatusBadRequest, "sessionId or ids is required")
 		return
 	}
-	if err := store.DeleteTopic(r.Context(), req.TelegramID, req.SessionID, req.IDs); err != nil {
+	if err := store.DeleteTopic(r.Context(), req.TelegramID.String(), req.SessionID, req.IDs); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete prompt history topic")
 		return
 	}

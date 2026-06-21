@@ -404,9 +404,6 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 			writeJSON(w, http.StatusOK, out)
 			return
 
-			writeJSON(w, http.StatusOK, out)
-			return
-
 		case r.Method == http.MethodGet && path == "billing/subscription-plans":
 			out, err := uc.ListAdminSubscriptionPlans(r.Context())
 			if err != nil {

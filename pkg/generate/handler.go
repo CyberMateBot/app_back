@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -73,7 +74,7 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "text"); err != nil {
 		return
 	}
 
@@ -82,6 +83,8 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 		writeServiceError(w, r, "generate text", err)
 		return
 	}
+
+	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "text")
 
 	resp := textGenerateResponse{
 		Text:   out.Text,
@@ -130,7 +133,7 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "image"); err != nil {
 		return
 	}
 
@@ -141,6 +144,7 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 	}
 
 	finalized := ai.FinalizeImageResponse(out)
+	chargeGeneration(r.Context(), tokens, req.TelegramID, finalized.Model, "image")
 	resp := imageGenerateResponse{
 		ImageURL:    finalized.ImageURL,
 		ImageURLs:   finalized.ImageURLs,
@@ -194,7 +198,7 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "video"); err != nil {
 		return
 	}
 
@@ -203,6 +207,8 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		writeServiceError(w, r, "generate video", err)
 		return
 	}
+
+	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "video")
 
 	resp := videoGenerateResponse{
 		VideoURL: out.VideoURL,
@@ -249,7 +255,7 @@ func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service, tokens
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "audio"); err != nil {
 		return
 	}
 
@@ -258,6 +264,8 @@ func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service, tokens
 		writeServiceError(w, r, "generate audio", err)
 		return
 	}
+
+	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "audio")
 
 	writeJSON(w, http.StatusOK, out)
 }
@@ -274,7 +282,7 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureTokens(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw)); err != nil {
+	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "3d"); err != nil {
 		return
 	}
 
@@ -283,6 +291,8 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 		writeServiceError(w, r, "generate 3d", err)
 		return
 	}
+
+	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "3d")
 
 	resp := threeDGenerateResponse{
 		ModelURL: out.ModelURL,
@@ -367,14 +377,36 @@ func formatDecodeError(err error) string {
 }
 
 func ensureTokens(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, telegramID, initDataRaw string) error {
+	return ensureGenerationAccess(w, r, tokens, telegramID, initDataRaw, "", "")
+}
+
+func ensureGenerationAccess(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, telegramID, initDataRaw, modelID, category string) error {
 	if tokens == nil {
 		return nil
 	}
-	err := tokens.CheckAccess(r.Context(), telegramID, initDataRaw)
+	err := tokens.CheckAccessForModel(r.Context(), telegramID, initDataRaw, modelID, category)
 	if tokenguard.WriteHTTPError(w, r, err) {
 		return err
 	}
 	return nil
+}
+
+func chargeGeneration(ctx context.Context, tokens *tokenguard.Guard, telegramID, modelID, category string) {
+	if tokens == nil {
+		return
+	}
+	model := strings.TrimSpace(modelID)
+	if model == "" {
+		model = strings.TrimSpace(category)
+	}
+	if err := tokens.ChargeForGeneration(ctx, telegramID, model, category); err != nil {
+		slog.WarnContext(ctx, "failed to charge generation",
+			slog.String("telegram_id", telegramID),
+			slog.String("model", model),
+			slog.String("category", category),
+			slog.Any("error", err),
+		)
+	}
 }
 
 func writeServiceError(w http.ResponseWriter, r *http.Request, op string, err error) {

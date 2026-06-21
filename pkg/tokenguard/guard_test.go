@@ -35,10 +35,22 @@ func TestDevelopmentMockInitData(t *testing.T) {
 	}
 }
 
-func TestCheckAccessSkipsBalanceInDevelopment(t *testing.T) {
-	t.Setenv("ENVIRONMENT", "development")
+func TestCheckAccessSkipsBalanceWhenBillingDisabled(t *testing.T) {
+	t.Setenv("BILLING_DISABLED", "true")
 	g := &Guard{db: nil}
 	if err := g.CheckAccess(t.Context(), "777000", ""); err != nil {
 		t.Fatalf("CheckAccess() err = %v, want nil when db is nil", err)
+	}
+}
+
+func TestIsBillingDisabled(t *testing.T) {
+	t.Setenv("BILLING_DISABLED", "")
+	if isBillingDisabled() {
+		t.Fatal("expected billing enabled by default")
+	}
+
+	t.Setenv("BILLING_DISABLED", "true")
+	if !isBillingDisabled() {
+		t.Fatal("expected billing disabled")
 	}
 }

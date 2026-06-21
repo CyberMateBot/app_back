@@ -42,7 +42,7 @@ func New(db *pgxpool.Pool) *Guard {
 }
 
 // CheckAccess validates identity and positive token balance (AI generation).
-// Token balance is not required when ENVIRONMENT is development/dev/local.
+// Billing is skipped only when BILLING_DISABLED=true.
 func (g *Guard) CheckAccess(ctx context.Context, telegramID, initDataRaw string) error {
 	return g.CheckAccessForModel(ctx, telegramID, initDataRaw, "", "")
 }
@@ -55,7 +55,7 @@ func (g *Guard) CheckAccessForModel(ctx context.Context, telegramID, initDataRaw
 	if err := g.CheckIdentity(ctx, telegramID, initDataRaw); err != nil {
 		return err
 	}
-	if isDevelopmentEnv() {
+	if isBillingDisabled() {
 		return nil
 	}
 
@@ -69,7 +69,7 @@ func (g *Guard) CheckAccessForModel(ctx context.Context, telegramID, initDataRaw
 
 // ChargeForGeneration debits CyberCoins after a successful generation.
 func (g *Guard) ChargeForGeneration(ctx context.Context, telegramID, modelID, category string) error {
-	if g == nil || g.db == nil || isDevelopmentEnv() {
+	if g == nil || g.db == nil || isBillingDisabled() {
 		return nil
 	}
 
@@ -271,6 +271,15 @@ func WriteHTTPError(w http.ResponseWriter, r *http.Request, err error) bool {
 func isDevelopmentEnv() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("ENVIRONMENT"))) {
 	case "", "development", "dev", "local":
+		return true
+	default:
+		return false
+	}
+}
+
+func isBillingDisabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("BILLING_DISABLED"))) {
+	case "1", "true", "yes", "on":
 		return true
 	default:
 		return false

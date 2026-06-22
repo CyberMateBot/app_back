@@ -9,6 +9,16 @@ func NormalizeBotUsername(username string) string {
 	return strings.TrimPrefix(strings.TrimSpace(username), "@")
 }
 
+// MainMiniAppFullscreenURL opens the Main Mini App in fullscreen on Telegram Desktop.
+// See https://core.telegram.org/api/bots/webapps#main-mini-apps
+func MainMiniAppFullscreenURL(botUsername string) string {
+	u := NormalizeBotUsername(botUsername)
+	if u == "" {
+		return ""
+	}
+	return "https://t.me/" + u + "?startapp&mode=fullscreen"
+}
+
 // ReferralLinkBase returns https://t.me/{bot}?startapp={prefix} for Mini App referral links.
 func ReferralLinkBase(botUsername, paramPrefix string) string {
 	u := NormalizeBotUsername(botUsername)

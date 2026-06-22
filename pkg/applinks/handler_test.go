@@ -37,6 +37,9 @@ func TestWrap_AppLinks(t *testing.T) {
 	if body.ReferralLinkBase != "https://t.me/CyberMate_bot?startapp=ref_" {
 		t.Fatalf("referral_link_base = %q", body.ReferralLinkBase)
 	}
+	if body.MiniAppFullscreenURL != "https://t.me/CyberMate_bot?startapp&mode=fullscreen" {
+		t.Fatalf("mini_app_fullscreen_url = %q", body.MiniAppFullscreenURL)
+	}
 }
 
 func TestWrap_ReferralLink(t *testing.T) {

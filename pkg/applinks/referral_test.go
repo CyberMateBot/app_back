@@ -33,3 +33,14 @@ func TestParseReferralStartParam(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestMainMiniAppFullscreenURL(t *testing.T) {
+	t.Parallel()
+
+	if got := MainMiniAppFullscreenURL("CyberMate_bot"); got != "https://t.me/CyberMate_bot?startapp&mode=fullscreen" {
+		t.Fatalf("got %q", got)
+	}
+	if got := MainMiniAppFullscreenURL(""); got != "" {
+		t.Fatalf("got %q", got)
+	}
+}

@@ -13,9 +13,10 @@ import (
 
 // linksResponse is returned by GET /v1/app/links for the frontend (Support button, referral links).
 type linksResponse struct {
-	SupportChatURL   string `json:"support_chat_url"`
-	BotUsername      string `json:"bot_username,omitempty"`
-	ReferralLinkBase string `json:"referral_link_base,omitempty"`
+	SupportChatURL        string `json:"support_chat_url"`
+	BotUsername           string `json:"bot_username,omitempty"`
+	ReferralLinkBase      string `json:"referral_link_base,omitempty"`
+	MiniAppFullscreenURL  string `json:"mini_app_fullscreen_url,omitempty"`
 }
 
 type referralLinkResponse struct {
@@ -102,9 +103,10 @@ func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Han
 		case r.URL.Path == "/v1/app/links":
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			_ = json.NewEncoder(w).Encode(linksResponse{
-				SupportChatURL:   app.SupportTelegramInviteURL,
-				BotUsername:      botUsername,
-				ReferralLinkBase: ReferralLinkBase(botUsername, app.TelegramReferralParamPrefix),
+				SupportChatURL:       app.SupportTelegramInviteURL,
+				BotUsername:          botUsername,
+				ReferralLinkBase:     ReferralLinkBase(botUsername, app.TelegramReferralParamPrefix),
+				MiniAppFullscreenURL: MainMiniAppFullscreenURL(botUsername),
 			})
 			return
 

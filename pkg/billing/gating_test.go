@@ -21,6 +21,17 @@ func TestPlanUnlocksModel(t *testing.T) {
 		{PlanMax, "kling-v3-4k", "video", true},
 		{PlanFree, "flux-dev", "image", true},
 		{PlanFree, "nano-banana", "image", false},
+		{PlanBasic, "nano-banana", "image", true},
+		{PlanBasic, "seedream-v4.5", "image", true},
+		{PlanBasic, "grok-imagine-edit", "image", false},
+		{PlanPro, "grok-imagine-edit", "image", true},
+		{PlanBasic, "hailuo-2.3-t2v", "video", true},
+		{PlanBasic, "wan-2.7-t2v", "video", false},
+		{PlanPro, "wan-2.7-t2v", "video", true},
+		{PlanPro, "sora-2-t2v", "video", false},
+		{PlanMax, "sora-2-t2v", "video", true},
+		{PlanMax, "sora-2-t2v-pro", "video", false},
+		{PlanUltra, "sora-2-t2v-pro", "video", true},
 		{PlanFree, "kling-v3-std", "video", false},
 	}
 

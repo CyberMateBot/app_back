@@ -110,10 +110,16 @@ func (f *fakeAdminUC) ListAdminSubscriptionPlans(ctx context.Context) (ucModels.
 func (f *fakeAdminUC) UpdateAdminSubscriptionPlans(ctx context.Context, input ucModels.AdminUpdateSubscriptionPlansInput) (ucModels.AdminListSubscriptionPlansOutput, error) {
 	return ucModels.AdminListSubscriptionPlansOutput{}, errors.New("not impl")
 }
+func (f *fakeAdminUC) ResetAdminSubscriptionPlans(ctx context.Context) (ucModels.AdminListSubscriptionPlansOutput, error) {
+	return ucModels.AdminListSubscriptionPlansOutput{}, errors.New("not impl")
+}
 func (f *fakeAdminUC) ListAdminCoinPacks(ctx context.Context) (ucModels.AdminListCoinPacksOutput, error) {
 	return ucModels.AdminListCoinPacksOutput{}, errors.New("not impl")
 }
 func (f *fakeAdminUC) UpdateAdminCoinPacks(ctx context.Context, input ucModels.AdminUpdateCoinPacksInput) (ucModels.AdminListCoinPacksOutput, error) {
+	return ucModels.AdminListCoinPacksOutput{}, errors.New("not impl")
+}
+func (f *fakeAdminUC) ResetAdminCoinPacks(ctx context.Context) (ucModels.AdminListCoinPacksOutput, error) {
 	return ucModels.AdminListCoinPacksOutput{}, errors.New("not impl")
 }
 func (f *fakeAdminUC) GetPublicBillingCatalog(ctx context.Context) (ucModels.PublicBillingCatalogOutput, error) {

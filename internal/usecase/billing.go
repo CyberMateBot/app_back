@@ -52,6 +52,22 @@ func (uc *useCase) UpdateAdminCoinPacks(ctx context.Context, input ucModels.Admi
 	return ucModels.AdminListCoinPacksOutput{Data: items}, nil
 }
 
+func (uc *useCase) ResetAdminSubscriptionPlans(ctx context.Context) (ucModels.AdminListSubscriptionPlansOutput, error) {
+	items := normalizeLoadedPlans(billing.DefaultSubscriptionPlans())
+	if err := uc.saveSubscriptionPlans(ctx, items); err != nil {
+		return ucModels.AdminListSubscriptionPlansOutput{}, err
+	}
+	return ucModels.AdminListSubscriptionPlansOutput{Data: items}, nil
+}
+
+func (uc *useCase) ResetAdminCoinPacks(ctx context.Context) (ucModels.AdminListCoinPacksOutput, error) {
+	items := billing.DefaultCoinPacks()
+	if err := uc.saveCoinPacks(ctx, items); err != nil {
+		return ucModels.AdminListCoinPacksOutput{}, err
+	}
+	return ucModels.AdminListCoinPacksOutput{Data: items}, nil
+}
+
 func (uc *useCase) GetPublicBillingCatalog(ctx context.Context) (ucModels.PublicBillingCatalogOutput, error) {
 	settings, err := uc.GetAdminSettings(ctx)
 	if err != nil {
@@ -81,6 +97,7 @@ func (uc *useCase) loadSubscriptionPlans(ctx context.Context) ([]ucModels.Subscr
 	if !ok || len(items) == 0 {
 		return billing.DefaultSubscriptionPlans(), nil
 	}
+	items = normalizeLoadedPlans(items)
 	sortPlans(items)
 	return items, nil
 }
@@ -136,4 +153,27 @@ func sortCoinPacks(items []ucModels.CoinPackItem) {
 		}
 		return items[i].SortOrder < items[j].SortOrder
 	})
+}
+
+// normalizeLoadedPlans fixes legacy admin_settings rows saved before the enabled
+// flag existed (json omitempty → false → all plans filtered from public catalog).
+func normalizeLoadedPlans(items []ucModels.SubscriptionPlanItem) []ucModels.SubscriptionPlanItem {
+	if len(items) == 0 {
+		return items
+	}
+	enabled := 0
+	for _, item := range items {
+		if item.Enabled {
+			enabled++
+		}
+	}
+	if enabled == 0 {
+		out := make([]ucModels.SubscriptionPlanItem, len(items))
+		copy(out, items)
+		for i := range out {
+			out[i].Enabled = true
+		}
+		return out
+	}
+	return items
 }

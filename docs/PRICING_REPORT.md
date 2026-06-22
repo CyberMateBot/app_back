@@ -67,17 +67,18 @@
 | Min rank | План | Модели |
 |----------|------|--------|
 | 0 | free | flux-dev |
-| 1 | basic | alice-ai-art, nano-banana |
-| 2 | pro | gpt-image-1.5, gpt-image-2, nano-banana-2 |
+| 1 | basic | alice-ai-art, nano-banana, seedream-*, qwen-image*, z-image-* |
+| 2 | pro | gpt-image-1.5, gpt-image-2, nano-banana-2, grok-imagine-edit, qwen-image-2.0-pro |
 | 3 | max | nano-banana-pro |
 
 ### Video (free недоступен)
 
 | Min rank | План | Модели |
 |----------|------|--------|
-| 1 | basic | kling-v3-std |
-| 2 | pro | kling-v3-pro, seedance-v1-* |
-| 3 | max | kling-v3-4k, seedance-v2-* |
+| 1 | basic | kling-v3-std, hailuo-2.3-t2v |
+| 2 | pro | kling-v3-pro, seedance-v1-*, wan-2.*, vidu-*, happyhorse-* (кроме edit/extend) |
+| 3 | max | kling-v3-4k, seedance-v2-*, sora-2-t2v/i2v, veo-3.1-extend, wan-2.7 edit/grid/flf |
+| 4 | ultra | sora-2-t2v-pro |
 
 ### Audio
 

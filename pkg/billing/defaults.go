@@ -38,29 +38,29 @@ func DefaultSubscriptionPlans() []SubscriptionPlan {
 		{
 			ID: "free", Name: "Старт", Badge: "Бесплатно", BadgeClass: "free",
 			PriceRub: 0, PriceSub: "навсегда", Coins: 10, SortOrder: 1, Enabled: true,
-			Features: []string{"10 монет / месяц", "3 базовые чат-модели", "FLUX (картинки)", "Озвучка (базовая)"},
+			Features: []string{"10 монет / месяц", "YandexGPT, GPT OSS 20B, DeepSeek Chat", "FLUX (изображения)", "Qwen3 TTS, OmniVoice, MiniMax Speech"},
 			Locked:   []string{"Видео — нет", "3D — нет", "Премиум модели — нет"},
 		},
 		{
 			ID: "basic", Name: "Базовый", Badge: "Доступный", BadgeClass: "basic",
 			PriceRub: 149, PriceSub: "/ месяц", Coins: 40, SortOrder: 2, Enabled: true,
-			Features: []string{"40 монет / месяц", "Fast-модели чата + GPT-4o mini", "Alice AI, Nano Banana", "Видео Kling Standard", "ElevenLabs, 3D rapid"},
+			Features: []string{"40 монет / месяц", "Claude Haiku, Gemini Flash, GPT-4o mini, DeepSeek Flash", "Nano Banana, Alice AI, Seedream, Qwen Image, Z-Image", "Kling Standard, Hailuo T2V", "ElevenLabs, Hunyuan 3D rapid"},
 			Locked:   []string{"Pro/Max видео и 3D — нет"},
 		},
 		{
 			ID: "pro", Name: "Про", Badge: "Популярный", BadgeClass: "popular",
 			PriceRub: 349, PriceSub: "/ месяц", Coins: 100, SortOrder: 3, Enabled: true, Popular: true,
-			Features: []string{"100 монет / месяц", "Claude Sonnet, GPT-5.4", "GPT Image 2, Nano Banana 2", "Kling Pro, Seedance", "Mureka, ACE-Step", "Tripo, Meshy 3D"},
+			Features: []string{"100 монет / месяц", "Claude Sonnet, GPT-5.4, DeepSeek R1, Qwen 3.6", "GPT Image 2, Nano Banana 2, Grok Imagine", "Kling Pro, Seedance, WAN, Vidu, HappyHorse", "Mureka, ACE-Step, Tripo, Meshy 3D"},
 		},
 		{
 			ID: "max", Name: "Максимум", Badge: "Выгодный", BadgeClass: "max",
 			PriceRub: 799, PriceSub: "/ месяц", Coins: 250, SortOrder: 4, Enabled: true,
-			Features: []string{"250 монет / месяц", "GPT-4o, Gemini 2.5 Pro, o3", "Claude Opus 4.7", "Nano Banana Pro", "Kling 4K, Seedance 2.0", "Tripo H3.1, Rodin 3D"},
+			Features: []string{"250 монет / месяц", "GPT-4o, Gemini 2.5 Pro, Claude Opus 4.7, o3", "Nano Banana Pro", "Kling 4K, Seedance 2.0, Sora, Veo", "Tripo H3.1, Rodin 3D"},
 		},
 		{
 			ID: "ultra", Name: "Бизнес", Badge: "Для бизнеса", BadgeClass: "biz",
 			PriceRub: 1999, PriceSub: "/ месяц", Coins: 600, SortOrder: 5, Enabled: true,
-			Features: []string{"600 монет / месяц", "Все модели без ограничений", "Claude Opus 4.8, o1, GPT-5.5", "Максимальный приоритет", "Все видео, 3D и аудио"},
+			Features: []string{"600 монет / месяц", "Claude Opus 4.8, o1, GPT-5.5, Sora Pro", "Все модели без ограничений", "Максимальный приоритет", "Все видео, 3D и аудио"},
 		},
 	}
 }

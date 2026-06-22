@@ -473,6 +473,19 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 			writeJSON(w, http.StatusOK, subscriptionPlansListResp{Data: items})
 			return
 
+		case r.Method == http.MethodPost && path == "billing/subscription-plans/reset-defaults":
+			out, err := uc.ResetAdminSubscriptionPlans(r.Context())
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]subscriptionPlanItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, subscriptionPlanItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, subscriptionPlansListResp{Data: items})
+			return
+
 		case r.Method == http.MethodGet && path == "billing/coin-packs":
 			out, err := uc.ListAdminCoinPacks(r.Context())
 			if err != nil {
@@ -497,6 +510,19 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 				packs = append(packs, ucModels.CoinPackItem(item))
 			}
 			out, err := uc.UpdateAdminCoinPacks(r.Context(), ucModels.AdminUpdateCoinPacksInput{Data: packs})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]coinPackItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, coinPackItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, coinPacksListResp{Data: items})
+			return
+
+		case r.Method == http.MethodPost && path == "billing/coin-packs/reset-defaults":
+			out, err := uc.ResetAdminCoinPacks(r.Context())
 			if err != nil {
 				writeUsecaseErr(w, err)
 				return

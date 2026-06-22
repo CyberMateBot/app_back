@@ -117,6 +117,9 @@ func FilterEnabledPlans(items []SubscriptionPlanItem) []SubscriptionPlanItem {
 			out = append(out, item)
 		}
 	}
+	if len(out) == 0 && len(items) > 0 {
+		return items
+	}
 	return out
 }
 
@@ -126,6 +129,9 @@ func FilterEnabledCoinPacks(items []CoinPackItem) []CoinPackItem {
 		if item.Enabled {
 			out = append(out, item)
 		}
+	}
+	if len(out) == 0 && len(items) > 0 {
+		return items
 	}
 	return out
 }

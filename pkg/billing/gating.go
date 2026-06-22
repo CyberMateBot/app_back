@@ -82,11 +82,27 @@ var modelMinPlanRank = map[string]int{
 	"gpt-image-1.5": 2, "gpt-image-2": 2, "nano-banana-2": 2,
 	"nano-banana-pro": 3,
 
+	// Image (extended catalog)
+	"seedream-v4.5": 1, "seedream-v5.0-lite": 1,
+	"qwen-image": 1, "qwen-image-2512": 1, "qwen-image-2.0": 1,
+	"qwen-image-2.0-pro": 2,
+	"z-image-base": 1, "z-image-turbo": 1,
+	"grok-imagine-edit": 2,
+
 	// ---- Video (no free tier) ----
 	"kling-v3-std": 1,
 	"kling-v3-pro": 2, "seedance-v1-pro-i2v": 2, "seedance-v1.5-i2v-fast": 2,
 	"seedance-v1.5-t2v-fast": 2, "seedance-v1.5-i2v-spicy": 2,
 	"kling-v3-4k": 3, "seedance-v2-video-edit": 3, "seedance-v2-video-extend": 3,
+	// Video (extended catalog)
+	"wan-2.5-t2v": 2, "wan-2.6-i2v": 2, "wan-2.7-t2v": 2, "wan-2.2-spicy-i2v": 2,
+	"wan-2.7-flf": 3, "wan-2.7-grid": 3, "wan-2.7-edit": 3,
+	"happyhorse-t2v": 2, "happyhorse-i2v": 2, "happyhorse-ref2v": 2,
+	"happyhorse-video-edit": 3, "happyhorse-video-extend": 3,
+	"sora-2-t2v": 3, "sora-2-i2v": 3, "sora-2-t2v-pro": 4,
+	"veo-3.1-extend": 3,
+	"vidu-q3-i2v-spicy": 2,
+	"hailuo-2.3-t2v": 1, "hailuo-2.3-i2v-fast": 2, "hailuo-2.3-i2v-pro": 3,
 
 	// ---- Audio ----
 	"omnivoice": 0, "minimax-speech-2.6": 0, "qwen3-tts": 0,

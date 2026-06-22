@@ -47,7 +47,7 @@ func TestWalletResponseJSON(t *testing.T) {
 			Tokens:           100,
 			TotalEarned:      0,
 		},
-		Transactions: []any{},
+        Transactions: []walletTransactionDTO{},
 	})
 	if err != nil {
 		t.Fatal(err)

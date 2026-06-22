@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,9 +21,19 @@ type walletDTO struct {
 	TotalEarned      int64 `json:"total_earned"`
 }
 
+type walletTransactionDTO struct {
+	ID          int64  `json:"id"`
+	Type        string `json:"type"`
+	Operation   string `json:"operation"`
+	Amount      int64  `json:"amount"`
+	Description string `json:"description"`
+	Reason      string `json:"reason,omitempty"`
+	CreatedAt   string `json:"created_at"`
+}
+
 type walletResponse struct {
-	Wallet       walletDTO `json:"wallet"`
-	Transactions []any     `json:"transactions"`
+	Wallet       walletDTO              `json:"wallet"`
+	Transactions []walletTransactionDTO `json:"transactions"`
 }
 
 // Wrap serves GET /v1/wallet/telegram/{telegramId} with token balances from wallets table.
@@ -60,12 +71,14 @@ func Wrap(next http.Handler, db *pgxpool.Pool) http.Handler {
 }
 
 func loadWallet(ctx context.Context, db *pgxpool.Pool, telegramID string) (walletResponse, error) {
+	var profileID int64
 	var balance int64
 	var balanceAvailable int64
 	var totalEarned int64
 
 	err := db.QueryRow(ctx, `
 SELECT
+	p.id,
 	COALESCE(w.balance, 0),
 	COALESCE(w.balance_available, 0),
 	COALESCE(w.total_earned, 0)
@@ -73,7 +86,12 @@ FROM profiles p
 LEFT JOIN wallets w ON w.profile_id = p.id
 WHERE p.telegram_id = $1
 ORDER BY w.id NULLS LAST
-LIMIT 1`, telegramID).Scan(&balance, &balanceAvailable, &totalEarned)
+LIMIT 1`, telegramID).Scan(&profileID, &balance, &balanceAvailable, &totalEarned)
+	if err != nil {
+		return walletResponse{}, err
+	}
+
+	transactions, err := loadWalletTransactions(ctx, db, profileID)
 	if err != nil {
 		return walletResponse{}, err
 	}
@@ -85,6 +103,73 @@ LIMIT 1`, telegramID).Scan(&balance, &balanceAvailable, &totalEarned)
 			Tokens:           balanceAvailable,
 			TotalEarned:      totalEarned,
 		},
-		Transactions: []any{},
+		Transactions: transactions,
 	}, nil
+}
+
+func loadWalletTransactions(ctx context.Context, db *pgxpool.Pool, profileID int64) ([]walletTransactionDTO, error) {
+	rows, err := db.Query(ctx, `
+SELECT id, operation, amount, COALESCE(reason, ''), created_at
+FROM token_transactions
+WHERE profile_id = $1
+ORDER BY created_at DESC
+LIMIT 50`, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]walletTransactionDTO, 0)
+	for rows.Next() {
+		var item walletTransactionDTO
+		var operation string
+		var amount int64
+		var reason string
+		var createdAt any
+
+		if scanErr := rows.Scan(&item.ID, &operation, &amount, &reason, &createdAt); scanErr != nil {
+			return nil, scanErr
+		}
+
+		item.Operation = operation
+		item.Type = operation
+		item.Reason = strings.TrimSpace(reason)
+		item.Description = item.Reason
+		if createdAt != nil {
+			item.CreatedAt = formatTimestamp(createdAt)
+		}
+
+		switch strings.ToLower(strings.TrimSpace(operation)) {
+		case "debit":
+			item.Amount = -amount
+		default:
+			item.Amount = amount
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if items == nil {
+		items = []walletTransactionDTO{}
+	}
+
+	return items, nil
+}
+
+func formatTimestamp(value any) string {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC().Format(time.RFC3339)
+	case *time.Time:
+		if v != nil {
+			return v.UTC().Format(time.RFC3339)
+		}
+	case string:
+		return v
+	}
+	return ""
 }

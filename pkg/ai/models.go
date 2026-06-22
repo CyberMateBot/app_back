@@ -1,6 +1,10 @@
 package ai
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/twelvepills-936/tgapp-/pkg/billing"
+)
 
 // TextModel describes a selectable text generation model for the frontend.
 type TextModel struct {
@@ -11,6 +15,7 @@ type TextModel struct {
 	Tier          string `json:"tier"` // fast | standard | pro
 	Provider      string `json:"provider"` // yandex | wavespeed
 	SupportsImage bool   `json:"supports_image,omitempty"`
+	MinPlan       string `json:"min_plan,omitempty"` // minimum subscription plan to use this model
 }
 
 type textModelDef struct {
@@ -233,6 +238,7 @@ func toTextModel(m textModelDef, provider string) TextModel {
 		ID: m.ID, Label: m.Label, Group: m.Group,
 		Description: m.Description, Tier: m.Tier, Provider: provider,
 		SupportsImage: m.SupportsImage,
+		MinPlan:       billing.MinPlanForModel(m.ID, "text"),
 	}
 }
 

@@ -85,9 +85,25 @@ type billingCatalogResponse struct {
 	CoinPacks   []billingCoinPackResponse `json:"coin_packs"`
 }
 
+type subscriptionStateResponse struct {
+	PlanID       string `json:"plan_id"`
+	PlanName     string `json:"plan_name"`
+	PlanRank     int    `json:"plan_rank"`
+	IsPaid       bool   `json:"is_paid"`
+	Coins        int64  `json:"coins"`
+	StartedAt    string `json:"started_at,omitempty"`
+	ExpiresAt    string `json:"expires_at,omitempty"`
+	DaysLeft     int    `json:"days_left"`
+	HoursLeft    int    `json:"hours_left"`
+	IsActive     bool   `json:"is_active"`
+	ExpiringSoon bool   `json:"expiring_soon"`
+	Expired      bool   `json:"expired"`
+}
+
 const referralLinkPathPrefix = "/v1/users/telegram/"
 const referralLinkPathSuffix = "/referral-link"
 const referralsPathSuffix = "/referrals"
+const subscriptionPathSuffix = "/subscription"
 
 // Wrap adds app link endpoints with Telegram deep links from config.
 func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Handler {
@@ -184,6 +200,49 @@ func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Han
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			_ = json.NewEncoder(w).Encode(referralLinkResponse{
 				ReferralLink: ReferralLink(botUsername, telegramID, app.TelegramReferralParamPrefix),
+			})
+			return
+
+		case strings.HasPrefix(r.URL.Path, referralLinkPathPrefix) &&
+			strings.HasSuffix(r.URL.Path, subscriptionPathSuffix):
+			telegramID := strings.TrimSuffix(
+				strings.TrimPrefix(r.URL.Path, referralLinkPathPrefix),
+				subscriptionPathSuffix,
+			)
+			if telegramID == "" {
+				http.Error(w, "telegram_id required", http.StatusBadRequest)
+				return
+			}
+			if uc == nil {
+				http.Error(w, "subscriptions are not configured", http.StatusServiceUnavailable)
+				return
+			}
+			out, err := uc.GetSubscriptionByTelegramID(r.Context(), telegramID)
+			if err != nil {
+				switch {
+				case errors.Is(err, ucModels.ErrProfileNotFound):
+					http.Error(w, "profile not found", http.StatusNotFound)
+				case errors.Is(err, ucModels.ErrInvalidInput):
+					http.Error(w, err.Error(), http.StatusBadRequest)
+				default:
+					http.Error(w, "internal error", http.StatusInternalServerError)
+				}
+				return
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			_ = json.NewEncoder(w).Encode(subscriptionStateResponse{
+				PlanID:       out.PlanID,
+				PlanName:     out.PlanName,
+				PlanRank:     out.PlanRank,
+				IsPaid:       out.IsPaid,
+				Coins:        out.Coins,
+				StartedAt:    out.StartedAt,
+				ExpiresAt:    out.ExpiresAt,
+				DaysLeft:     out.DaysLeft,
+				HoursLeft:    out.HoursLeft,
+				IsActive:     out.IsActive,
+				ExpiringSoon: out.ExpiringSoon,
+				Expired:      out.Expired,
 			})
 			return
 

@@ -100,9 +100,11 @@ func (r *Repository) ListAdminProfiles(ctx context.Context, tx pgx.Tx, search st
 			return nil, 0, err
 		}
 		const listQ = `
-SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at
+SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at,
+       COALESCE(us.plan_id, ''), us.started_at, us.expires_at
 FROM profiles p
 LEFT JOIN wallets w ON w.profile_id = p.id
+LEFT JOIN user_subscriptions us ON us.profile_id = p.id
 WHERE (
 	COALESCE(p.username, '') ILIKE $1
 	OR p.name ILIKE $1
@@ -117,9 +119,11 @@ LIMIT $2 OFFSET $3`
 			return nil, 0, err
 		}
 		const listQ = `
-SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at
+SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at,
+       COALESCE(us.plan_id, ''), us.started_at, us.expires_at
 FROM profiles p
 LEFT JOIN wallets w ON w.profile_id = p.id
+LEFT JOIN user_subscriptions us ON us.profile_id = p.id
 ORDER BY p.created_at DESC
 LIMIT $1 OFFSET $2`
 		rows, err = qry.Query(ctx, listQ, limit, offset)
@@ -132,7 +136,8 @@ LIMIT $1 OFFSET $2`
 	items := make([]repoModels.AdminProfile, 0)
 	for rows.Next() {
 		var p repoModels.AdminProfile
-		if scanErr := rows.Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.Tokens, &p.CreatedAt); scanErr != nil {
+		if scanErr := rows.Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.Tokens, &p.CreatedAt,
+			&p.SubscriptionPlanID, &p.SubscriptionStarted, &p.SubscriptionExpires); scanErr != nil {
 			return nil, 0, scanErr
 		}
 		items = append(items, p)
@@ -142,14 +147,17 @@ LIMIT $1 OFFSET $2`
 
 func (r *Repository) GetAdminProfileByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.AdminProfile, error) {
 	const q = `
-SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at
+SELECT p.id, p.telegram_id, p.name, COALESCE(p.username, ''), p.is_active, COALESCE(w.balance_available, 0), p.created_at,
+       COALESCE(us.plan_id, ''), us.started_at, us.expires_at
 FROM profiles p
 LEFT JOIN wallets w ON w.profile_id = p.id
+LEFT JOIN user_subscriptions us ON us.profile_id = p.id
 WHERE p.id = $1 LIMIT 1`
 
 	var p repoModels.AdminProfile
 	qry := r.getQueryable(tx)
-	err := qry.QueryRow(ctx, q, id).Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.Tokens, &p.CreatedAt)
+	err := qry.QueryRow(ctx, q, id).Scan(&p.ID, &p.TelegramID, &p.Name, &p.Username, &p.IsActive, &p.Tokens, &p.CreatedAt,
+		&p.SubscriptionPlanID, &p.SubscriptionStarted, &p.SubscriptionExpires)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return p, pgx.ErrNoRows

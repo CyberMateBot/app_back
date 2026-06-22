@@ -118,6 +118,15 @@ func (f *fakeReferralsUC) UpdateAdminCoinPacks(ctx context.Context, input ucMode
 func (f *fakeReferralsUC) GetPublicBillingCatalog(ctx context.Context) (ucModels.PublicBillingCatalogOutput, error) {
 	return ucModels.PublicBillingCatalogOutput{}, errors.New("not impl")
 }
+func (f *fakeReferralsUC) GetSubscriptionByTelegramID(ctx context.Context, telegramID string) (ucModels.SubscriptionStateOutput, error) {
+	return ucModels.SubscriptionStateOutput{}, errors.New("not impl")
+}
+func (f *fakeReferralsUC) AdminSetUserSubscription(ctx context.Context, input ucModels.AdminSetSubscriptionInput) (ucModels.AdminSubscriptionOutput, error) {
+	return ucModels.AdminSubscriptionOutput{}, errors.New("not impl")
+}
+func (f *fakeReferralsUC) AdminClearUserSubscription(ctx context.Context, userID int64) (ucModels.AdminSubscriptionOutput, error) {
+	return ucModels.AdminSubscriptionOutput{}, errors.New("not impl")
+}
 func (f *fakeReferralsUC) ListHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error) {
 	return ucModels.ListHomeWidgetsOutput{}, errors.New("not impl")
 }

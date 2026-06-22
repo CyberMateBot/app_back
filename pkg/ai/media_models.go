@@ -1,6 +1,10 @@
 package ai
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/twelvepills-936/tgapp-/pkg/billing"
+)
 
 // MediaModel describes a selectable image or video generation model.
 type MediaModel struct {
@@ -10,6 +14,7 @@ type MediaModel struct {
 	Description   string        `json:"description,omitempty"`
 	Provider      string        `json:"provider"` // wavespeed | yandex
 	Kind          string        `json:"kind"`     // image | video | audio | 3d
+	MinPlan       string        `json:"min_plan,omitempty"` // minimum subscription plan to use this model
 	SupportsEdit   bool          `json:"supports_edit,omitempty"`
 	SupportsMulti  bool          `json:"supports_multi,omitempty"`
 	RequiresImage  bool          `json:"requires_image,omitempty"`
@@ -239,6 +244,7 @@ func ListImageModels() []MediaModel {
 		ID: "alice-ai-art", Label: "Alice AI ART", Group: "Yandex",
 		Description: "Художественные изображения через Yandex ART",
 		Provider: "yandex", Kind: "image",
+		MinPlan: billing.MinPlanForModel("alice-ai-art", "image"),
 	})
 	return out
 }
@@ -280,6 +286,7 @@ func toMediaModel(m mediaModelDef) MediaModel {
 	return MediaModel{
 		ID: m.ID, Label: m.Label, Group: m.Group,
 		Description: m.Description, Provider: m.Provider, Kind: m.Kind,
+		MinPlan:            billing.MinPlanForModel(m.ID, m.Kind),
 		SupportsEdit:       m.EditSlug != "" || m.RequiresVideo,
 		SupportsMulti:      m.MultiSlug != "" || m.EditSequentialSlug != "",
 		RequiresImage:      m.RequiresImage,

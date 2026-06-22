@@ -112,12 +112,17 @@ func (uc *useCase) ListAdminUsers(ctx context.Context, input ucModels.AdminListU
 		return ucModels.AdminListUsersOutput{}, err
 	}
 
+	plans, planErr := uc.loadSubscriptionPlans(ctx)
+	if planErr != nil {
+		plans = nil
+	}
+
 	out := ucModels.AdminListUsersOutput{
 		Data:  make([]ucModels.AdminUserItem, 0, len(items)),
 		Total: total,
 	}
 	for _, p := range items {
-		out.Data = append(out.Data, mapAdminProfile(p))
+		out.Data = append(out.Data, uc.mapAdminProfile(p, plans))
 	}
 	return out, nil
 }
@@ -133,7 +138,11 @@ func (uc *useCase) GetAdminUser(ctx context.Context, userID int64) (ucModels.Adm
 		}
 		return ucModels.AdminUserItem{}, err
 	}
-	return mapAdminProfile(p), nil
+	plans, planErr := uc.loadSubscriptionPlans(ctx)
+	if planErr != nil {
+		plans = nil
+	}
+	return uc.mapAdminProfile(p, plans), nil
 }
 
 func (uc *useCase) UpdateAdminUserActive(ctx context.Context, input ucModels.AdminUpdateUserInput) (ucModels.AdminUserItem, error) {
@@ -271,9 +280,9 @@ func (uc *useCase) AdminBroadcast(ctx context.Context, input ucModels.AdminBroad
 	return out, nil
 }
 
-func mapAdminProfile(p repoModels.AdminProfile) ucModels.AdminUserItem {
+func (uc *useCase) mapAdminProfile(p repoModels.AdminProfile, plans []ucModels.SubscriptionPlanItem) ucModels.AdminUserItem {
 	tgID, _ := strconv.ParseInt(p.TelegramID, 10, 64)
-	return ucModels.AdminUserItem{
+	item := ucModels.AdminUserItem{
 		ID:         p.ID,
 		TelegramID: tgID,
 		Username:   p.Username,
@@ -283,4 +292,11 @@ func mapAdminProfile(p repoModels.AdminProfile) ucModels.AdminUserItem {
 		Tokens:     p.Tokens,
 		CreatedAt:  p.CreatedAt.UTC().Format(time.RFC3339),
 	}
+
+	state := uc.buildSubscriptionState(p.SubscriptionPlanID, p.SubscriptionStarted, p.SubscriptionExpires, plans)
+	item.SubscriptionPlanID = state.PlanID
+	item.SubscriptionPlan = state.PlanName
+	item.SubscriptionExpires = state.ExpiresAt
+	item.SubscriptionDaysLeft = state.DaysLeft
+	return item
 }

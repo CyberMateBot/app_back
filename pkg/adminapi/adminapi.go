@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/twelvepills-936/tgapp-/internal"
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
@@ -44,14 +45,47 @@ type statsResp struct {
 }
 
 type userResp struct {
-	ID         int64  `json:"id"`
-	TelegramID int64  `json:"telegram_id"`
-	Username   string `json:"username"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	IsActive   bool   `json:"is_active"`
-	Tokens     int64  `json:"tokens"`
-	CreatedAt  string `json:"created_at"`
+	ID                   int64  `json:"id"`
+	TelegramID           int64  `json:"telegram_id"`
+	Username             string `json:"username"`
+	FirstName            string `json:"first_name"`
+	LastName             string `json:"last_name"`
+	IsActive             bool   `json:"is_active"`
+	Tokens               int64  `json:"tokens"`
+	CreatedAt            string `json:"created_at"`
+	SubscriptionPlanID   string `json:"subscription_plan_id"`
+	SubscriptionPlan     string `json:"subscription_plan"`
+	SubscriptionExpires  string `json:"subscription_expires,omitempty"`
+	SubscriptionDaysLeft int    `json:"subscription_days_left"`
+}
+
+type subscriptionStateResp struct {
+	PlanID       string `json:"plan_id"`
+	PlanName     string `json:"plan_name"`
+	PlanRank     int    `json:"plan_rank"`
+	IsPaid       bool   `json:"is_paid"`
+	Coins        int64  `json:"coins"`
+	StartedAt    string `json:"started_at,omitempty"`
+	ExpiresAt    string `json:"expires_at,omitempty"`
+	DaysLeft     int    `json:"days_left"`
+	HoursLeft    int    `json:"hours_left"`
+	IsActive     bool   `json:"is_active"`
+	ExpiringSoon bool   `json:"expiring_soon"`
+	Expired      bool   `json:"expired"`
+}
+
+type setSubscriptionReq struct {
+	PlanID       string  `json:"plan_id"`
+	DurationDays int     `json:"duration_days"`
+	ExpiresAt    *string `json:"expires_at"`
+	NoExpiry     bool    `json:"no_expiry"`
+	GrantCoins   bool    `json:"grant_coins"`
+}
+
+type subscriptionChangeResp struct {
+	User         userResp              `json:"user"`
+	Subscription subscriptionStateResp `json:"subscription"`
+	CoinsGranted int64                 `json:"coins_granted"`
 }
 
 type tokenChangeReq struct {
@@ -699,6 +733,57 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 				writeJSON(w, http.StatusOK, mapTokenChange(out))
 				return
 
+			case "subscription":
+				switch r.Method {
+				case http.MethodPost:
+					var req setSubscriptionReq
+					if decErr := json.NewDecoder(r.Body).Decode(&req); decErr != nil {
+						writeErr(w, http.StatusBadRequest, "invalid json")
+						return
+					}
+					input := ucModels.AdminSetSubscriptionInput{
+						UserID:       userID,
+						AdminID:      adminID,
+						PlanID:       req.PlanID,
+						DurationDays: req.DurationDays,
+						NoExpiry:     req.NoExpiry,
+						GrantCoins:   req.GrantCoins,
+					}
+					if req.ExpiresAt != nil && strings.TrimSpace(*req.ExpiresAt) != "" {
+						parsed, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(*req.ExpiresAt))
+						if parseErr != nil {
+							writeErr(w, http.StatusUnprocessableEntity, "expires_at must be RFC3339")
+							return
+						}
+						input.ExpiresAt = &parsed
+					}
+					out, setErr := uc.AdminSetUserSubscription(r.Context(), input)
+					if setErr != nil {
+						writeUsecaseErr(w, setErr)
+						return
+					}
+					writeJSON(w, http.StatusOK, subscriptionChangeResp{
+						User:         mapUser(out.User),
+						Subscription: mapSubscriptionState(out.Subscription),
+						CoinsGranted: out.CoinsGranted,
+					})
+					return
+				case http.MethodDelete:
+					out, clearErr := uc.AdminClearUserSubscription(r.Context(), userID)
+					if clearErr != nil {
+						writeUsecaseErr(w, clearErr)
+						return
+					}
+					writeJSON(w, http.StatusOK, subscriptionChangeResp{
+						User:         mapUser(out.User),
+						Subscription: mapSubscriptionState(out.Subscription),
+					})
+					return
+				default:
+					writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
+					return
+				}
+
 			case "":
 				switch r.Method {
 				case http.MethodGet:
@@ -775,14 +860,35 @@ func parseUserPath(path string) (userID int64, tail string, err error) {
 
 func mapUser(u ucModels.AdminUserItem) userResp {
 	return userResp{
-		ID:         u.ID,
-		TelegramID: u.TelegramID,
-		Username:   u.Username,
-		FirstName:  u.FirstName,
-		LastName:   u.LastName,
-		IsActive:   u.IsActive,
-		Tokens:     u.Tokens,
-		CreatedAt:  u.CreatedAt,
+		ID:                   u.ID,
+		TelegramID:           u.TelegramID,
+		Username:             u.Username,
+		FirstName:            u.FirstName,
+		LastName:             u.LastName,
+		IsActive:             u.IsActive,
+		Tokens:               u.Tokens,
+		CreatedAt:            u.CreatedAt,
+		SubscriptionPlanID:   u.SubscriptionPlanID,
+		SubscriptionPlan:     u.SubscriptionPlan,
+		SubscriptionExpires:  u.SubscriptionExpires,
+		SubscriptionDaysLeft: u.SubscriptionDaysLeft,
+	}
+}
+
+func mapSubscriptionState(s ucModels.SubscriptionStateOutput) subscriptionStateResp {
+	return subscriptionStateResp{
+		PlanID:       s.PlanID,
+		PlanName:     s.PlanName,
+		PlanRank:     s.PlanRank,
+		IsPaid:       s.IsPaid,
+		Coins:        s.Coins,
+		StartedAt:    s.StartedAt,
+		ExpiresAt:    s.ExpiresAt,
+		DaysLeft:     s.DaysLeft,
+		HoursLeft:    s.HoursLeft,
+		IsActive:     s.IsActive,
+		ExpiringSoon: s.ExpiringSoon,
+		Expired:      s.Expired,
 	}
 }
 

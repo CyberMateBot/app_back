@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	rcModels "github.com/twelvepills-936/tgapp-/internal/rest/client/models"
@@ -52,6 +53,10 @@ type Repository interface {
 	UpsertAdminSetting(ctx context.Context, tx pgx.Tx, key string, value any) error
 	ListModelConfigs(ctx context.Context, tx pgx.Tx) (map[string]repoModels.ModelConfig, error)
 	UpsertModelConfig(ctx context.Context, tx pgx.Tx, cfg repoModels.ModelConfig) error
+	GetUserSubscription(ctx context.Context, tx pgx.Tx, profileID int64) (repoModels.UserSubscription, error)
+	GetUserSubscriptionByTelegramID(ctx context.Context, tx pgx.Tx, telegramID string) (repoModels.UserSubscription, error)
+	UpsertUserSubscription(ctx context.Context, tx pgx.Tx, profileID int64, planID string, startedAt time.Time, expiresAt *time.Time, grantedBy *int64) error
+	DeleteUserSubscription(ctx context.Context, tx pgx.Tx, profileID int64) error
 	ListHomeWidgets(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]repoModels.HomeWidget, error)
 	GetHomeWidgetByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.HomeWidget, error)
 	CreateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) (int64, error)
@@ -102,6 +107,9 @@ type UseCase interface {
 	ListAdminCoinPacks(ctx context.Context) (ucModels.AdminListCoinPacksOutput, error)
 	UpdateAdminCoinPacks(ctx context.Context, input ucModels.AdminUpdateCoinPacksInput) (ucModels.AdminListCoinPacksOutput, error)
 	GetPublicBillingCatalog(ctx context.Context) (ucModels.PublicBillingCatalogOutput, error)
+	GetSubscriptionByTelegramID(ctx context.Context, telegramID string) (ucModels.SubscriptionStateOutput, error)
+	AdminSetUserSubscription(ctx context.Context, input ucModels.AdminSetSubscriptionInput) (ucModels.AdminSubscriptionOutput, error)
+	AdminClearUserSubscription(ctx context.Context, userID int64) (ucModels.AdminSubscriptionOutput, error)
 	ListHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error)
 	ListAdminHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error)
 	CreateAdminHomeWidget(ctx context.Context, input ucModels.AdminCreateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
@@ -74,6 +75,18 @@ func (fakeAdminRepoStubs) ListModelConfigs(ctx context.Context, tx pgx.Tx) (map[
 	return nil, errors.New("not impl")
 }
 func (fakeAdminRepoStubs) UpsertModelConfig(ctx context.Context, tx pgx.Tx, cfg repoModels.ModelConfig) error {
+	return errors.New("not impl")
+}
+func (fakeAdminRepoStubs) GetUserSubscription(ctx context.Context, tx pgx.Tx, profileID int64) (repoModels.UserSubscription, error) {
+	return repoModels.UserSubscription{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) GetUserSubscriptionByTelegramID(ctx context.Context, tx pgx.Tx, telegramID string) (repoModels.UserSubscription, error) {
+	return repoModels.UserSubscription{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) UpsertUserSubscription(ctx context.Context, tx pgx.Tx, profileID int64, planID string, startedAt time.Time, expiresAt *time.Time, grantedBy *int64) error {
+	return errors.New("not impl")
+}
+func (fakeAdminRepoStubs) DeleteUserSubscription(ctx context.Context, tx pgx.Tx, profileID int64) error {
 	return errors.New("not impl")
 }
 func (fakeAdminRepoStubs) ListHomeWidgets(ctx context.Context, tx pgx.Tx, activeOnly bool) ([]repoModels.HomeWidget, error) {
@@ -164,6 +177,15 @@ func (fakeAdminUCStubs) UpdateAdminCoinPacks(ctx context.Context, input ucModels
 }
 func (fakeAdminUCStubs) GetPublicBillingCatalog(ctx context.Context) (ucModels.PublicBillingCatalogOutput, error) {
 	return ucModels.PublicBillingCatalogOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) GetSubscriptionByTelegramID(ctx context.Context, telegramID string) (ucModels.SubscriptionStateOutput, error) {
+	return ucModels.SubscriptionStateOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) AdminSetUserSubscription(ctx context.Context, input ucModels.AdminSetSubscriptionInput) (ucModels.AdminSubscriptionOutput, error) {
+	return ucModels.AdminSubscriptionOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) AdminClearUserSubscription(ctx context.Context, userID int64) (ucModels.AdminSubscriptionOutput, error) {
+	return ucModels.AdminSubscriptionOutput{}, errors.New("not impl")
 }
 func (fakeAdminUCStubs) ListHomeWidgets(ctx context.Context) (ucModels.ListHomeWidgetsOutput, error) {
 	return ucModels.ListHomeWidgetsOutput{}, errors.New("not impl")

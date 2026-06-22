@@ -28,33 +28,39 @@ type CoinPack struct {
 }
 
 // DefaultSubscriptionPlans are seeded when admin has not configured plans yet.
+//
+// Coins are granted once per billing period (on purchase / admin grant) and were
+// rebalanced down to better match per-model prices. Each tier also unlocks a wider
+// set of AI models (see gating.go): free gets only the cheapest text/image/audio
+// models, paid tiers progressively unlock video, 3D and premium models.
 func DefaultSubscriptionPlans() []SubscriptionPlan {
 	return []SubscriptionPlan{
 		{
 			ID: "free", Name: "Старт", Badge: "Бесплатно", BadgeClass: "free",
-			PriceRub: 0, PriceSub: "навсегда", Coins: 50, SortOrder: 1, Enabled: true,
-			Features: []string{"50 монет / месяц", "Базовые чат-модели", "10 изображений (FLUX)", "TTS (базовый)"},
-			Locked:   []string{"Видео и музыка — нет", "Премиум модели — нет"},
+			PriceRub: 0, PriceSub: "навсегда", Coins: 10, SortOrder: 1, Enabled: true,
+			Features: []string{"10 монет / месяц", "3 базовые чат-модели", "FLUX (картинки)", "Озвучка (базовая)"},
+			Locked:   []string{"Видео — нет", "3D — нет", "Премиум модели — нет"},
 		},
 		{
 			ID: "basic", Name: "Базовый", Badge: "Доступный", BadgeClass: "basic",
-			PriceRub: 149, PriceSub: "/ месяц", Coins: 250, SortOrder: 2, Enabled: true,
-			Features: []string{"250 монет / месяц", "Все fast-модели", "25 изображений HD", "3 видео (Kling Std)", "Музыка и озвучка"},
+			PriceRub: 149, PriceSub: "/ месяц", Coins: 40, SortOrder: 2, Enabled: true,
+			Features: []string{"40 монет / месяц", "Fast-модели чата + GPT-4o mini", "Alice AI, Nano Banana", "Видео Kling Standard", "ElevenLabs, 3D rapid"},
+			Locked:   []string{"Pro/Max видео и 3D — нет"},
 		},
 		{
 			ID: "pro", Name: "Про", Badge: "Популярный", BadgeClass: "popular",
-			PriceRub: 349, PriceSub: "/ месяц", Coins: 700, SortOrder: 3, Enabled: true, Popular: true,
-			Features: []string{"700 монет / месяц", "Claude, Gemini, GPT-5.4", "35 изображений (GPT Image 2)", "8 видео (Kling/Seedance)", "Музыка + 3D", "Приоритетная очередь"},
+			PriceRub: 349, PriceSub: "/ месяц", Coins: 100, SortOrder: 3, Enabled: true, Popular: true,
+			Features: []string{"100 монет / месяц", "Claude Sonnet, GPT-5.4", "GPT Image 2, Nano Banana 2", "Kling Pro, Seedance", "Mureka, ACE-Step", "Tripo, Meshy 3D"},
 		},
 		{
 			ID: "max", Name: "Максимум", Badge: "Выгодный", BadgeClass: "max",
-			PriceRub: 799, PriceSub: "/ месяц", Coins: 2000, SortOrder: 4, Enabled: true,
-			Features: []string{"2000 монет / месяц", "Все PRO модели", "100 изображений (4K)", "25 видео HD", "Все инструменты", "Перенос 20% монет"},
+			PriceRub: 799, PriceSub: "/ месяц", Coins: 250, SortOrder: 4, Enabled: true,
+			Features: []string{"250 монет / месяц", "GPT-4o, Gemini 2.5 Pro, o3", "Claude Opus 4.7", "Nano Banana Pro", "Kling 4K, Seedance 2.0", "Tripo H3.1, Rodin 3D"},
 		},
 		{
 			ID: "ultra", Name: "Бизнес", Badge: "Для бизнеса", BadgeClass: "biz",
-			PriceRub: 1999, PriceSub: "/ месяц", Coins: 6000, SortOrder: 5, Enabled: true,
-			Features: []string{"6000 монет / месяц", "Claude Opus, o3 и всё", "300+ изображений", "75 видео 4K", "API доступ", "Перенос 50% монет"},
+			PriceRub: 1999, PriceSub: "/ месяц", Coins: 600, SortOrder: 5, Enabled: true,
+			Features: []string{"600 монет / месяц", "Все модели без ограничений", "Claude Opus 4.8, o1, GPT-5.5", "Максимальный приоритет", "Все видео, 3D и аудио"},
 		},
 	}
 }

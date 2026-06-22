@@ -64,14 +64,18 @@ func (i *AdminListUsersInput) Normalize() {
 }
 
 type AdminUserItem struct {
-	ID         int64
-	TelegramID int64
-	Username   string
-	FirstName  string
-	LastName   string
-	IsActive   bool
-	Tokens     int64
-	CreatedAt  string
+	ID                  int64
+	TelegramID          int64
+	Username            string
+	FirstName           string
+	LastName            string
+	IsActive            bool
+	Tokens              int64
+	CreatedAt           string
+	SubscriptionPlanID  string
+	SubscriptionPlan    string // localized/display name
+	SubscriptionExpires string // RFC3339, empty when free/no expiry
+	SubscriptionDaysLeft int
 }
 
 type AdminListUsersOutput struct {

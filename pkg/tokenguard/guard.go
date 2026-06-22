@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,7 +24,21 @@ var (
 	ErrProfileNotFound    = errors.New("profile not found")
 	ErrProfileInactive    = errors.New("profile is inactive")
 	ErrInsufficientTokens = errors.New("insufficient tokens")
+	// ErrModelLocked is returned when the user's plan does not unlock the model.
+	ErrModelLocked = errors.New("model requires a higher subscription plan")
 )
+
+// ModelLockedError carries the plan required to unlock a gated model.
+type ModelLockedError struct {
+	ModelID      string
+	RequiredPlan string
+}
+
+func (e *ModelLockedError) Error() string {
+	return fmt.Sprintf("this model requires the \"%s\" subscription plan or higher", e.RequiredPlan)
+}
+
+func (e *ModelLockedError) Unwrap() error { return ErrModelLocked }
 
 // Guard blocks AI chat usage when the profile wallet has no available tokens.
 type Guard struct {
@@ -59,12 +74,44 @@ func (g *Guard) CheckAccessForModel(ctx context.Context, telegramID, initDataRaw
 		return nil
 	}
 
+	// Subscription-tier gating: a model may require a paid plan regardless of balance.
+	if strings.TrimSpace(modelID) != "" {
+		requiredRank := billing.MinPlanRankForModel(modelID, category)
+		if requiredRank > 0 {
+			if g.resolveUserPlanRank(ctx, telegramID) < requiredRank {
+				return &ModelLockedError{
+					ModelID:      strings.TrimSpace(modelID),
+					RequiredPlan: billing.PlanIDForRank(requiredRank),
+				}
+			}
+		}
+	}
+
 	price := int64(g.resolveModelPrice(ctx, modelID, category))
 	if price <= 0 {
 		return g.checkBalance(ctx, telegramID)
 	}
 
 	return g.checkBalanceAtLeast(ctx, telegramID, price)
+}
+
+// resolveUserPlanRank returns the user's effective plan rank (expiry applied; free=0).
+func (g *Guard) resolveUserPlanRank(ctx context.Context, telegramID string) int {
+	var planID string
+	var expiresAt *time.Time
+	err := g.db.QueryRow(ctx, `
+SELECT us.plan_id, us.expires_at
+FROM user_subscriptions us
+JOIN profiles p ON p.id = us.profile_id
+WHERE p.telegram_id = $1
+LIMIT 1`, telegramID).Scan(&planID, &expiresAt)
+	if err != nil {
+		return 0
+	}
+	if expiresAt != nil && !expiresAt.After(time.Now()) {
+		return 0
+	}
+	return billing.PlanRank(planID)
 }
 
 // ChargeForGeneration debits CyberCoins after a successful generation.
@@ -258,6 +305,8 @@ func WriteHTTPError(w http.ResponseWriter, r *http.Request, err error) bool {
 	case errors.Is(err, ErrProfileNotFound):
 		writeJSON(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, ErrProfileInactive):
+		writeJSON(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, ErrModelLocked):
 		writeJSON(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, ErrInsufficientTokens):
 		writeJSON(w, http.StatusPaymentRequired, err.Error())

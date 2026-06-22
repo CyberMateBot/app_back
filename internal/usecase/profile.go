@@ -105,6 +105,11 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 		return output, err
 	}
 
+	if bonusErr := uc.grantRegistrationBonus(ctx, tx, pid); bonusErr != nil {
+		err = bonusErr
+		return output, err
+	}
+
 	if startParam != "" {
 		if linkErr := uc.linkReferral(ctx, tx, pid, refereeTelegramID, startParam); linkErr != nil {
 			err = linkErr
@@ -118,6 +123,28 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 	}
 
 	return ucModels.RegisterByTelegramOutput{ProfileID: pid}, nil
+}
+
+func (uc *useCase) grantRegistrationBonus(ctx context.Context, tx pgx.Tx, profileID int64) error {
+	raw, err := uc.repo.GetAdminSettings(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	settings := mergeAdminSettings(raw)
+	if settings.RegistrationBonus <= 0 {
+		return nil
+	}
+
+	_, err = uc.repo.CreditProfileTokens(
+		ctx,
+		tx,
+		profileID,
+		0,
+		settings.RegistrationBonus,
+		"registration_bonus",
+	)
+	return err
 }
 
 func (uc *useCase) GetUserByTelegramID(ctx context.Context, telegramID string) (ucModels.GetProfileOutput, error) {

@@ -275,7 +275,7 @@ RETURNING w.balance_available`, profileID, amount).Scan(&out.BalanceAfter)
 	_, err = qry.Exec(ctx, `
 INSERT INTO token_transactions(profile_id, admin_id, operation, amount, balance_after, reason)
 VALUES($1, $2, 'credit', $3, $4, $5)`,
-		profileID, adminID, amount, out.BalanceAfter, strings.TrimSpace(reason))
+		profileID, nullableAdminID(adminID), amount, out.BalanceAfter, strings.TrimSpace(reason))
 	if err != nil {
 		return out, err
 	}
@@ -317,11 +317,19 @@ RETURNING w.balance_available`, profileID, amount).Scan(&out.BalanceAfter)
 	_, err = qry.Exec(ctx, `
 INSERT INTO token_transactions(profile_id, admin_id, operation, amount, balance_after, reason)
 VALUES($1, $2, 'debit', $3, $4, $5)`,
-		profileID, adminID, amount, out.BalanceAfter, strings.TrimSpace(reason))
+		profileID, nullableAdminID(adminID), amount, out.BalanceAfter, strings.TrimSpace(reason))
 	if err != nil {
 		return out, err
 	}
 
 	out.ProfileID = profileID
 	return out, nil
+}
+
+// nullableAdminID maps non-positive admin IDs to SQL NULL (system credits/debits).
+func nullableAdminID(adminID int64) any {
+	if adminID > 0 {
+		return adminID
+	}
+	return nil
 }

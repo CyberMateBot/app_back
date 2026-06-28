@@ -20,7 +20,8 @@ type MediaModel struct {
 	RequiresImage  bool          `json:"requires_image,omitempty"`
 	RequiresVideo  bool          `json:"requires_video,omitempty"`
 	RequiresMultiImage bool      `json:"requires_multi_image,omitempty"`
-	Options        []MediaOption `json:"options,omitempty"`
+	Price              int           `json:"price,omitempty"` // base CyberCoins at default options
+	Options            []MediaOption `json:"options,omitempty"`
 }
 
 type mediaModelDef struct {
@@ -287,6 +288,7 @@ func toMediaModel(m mediaModelDef) MediaModel {
 		ID: m.ID, Label: m.Label, Group: m.Group,
 		Description: m.Description, Provider: m.Provider, Kind: m.Kind,
 		MinPlan:            billing.MinPlanForModel(m.ID, m.Kind),
+		Price:              billing.DefaultModelPrice(m.ID, m.Kind),
 		SupportsEdit:       m.EditSlug != "" || m.RequiresVideo,
 		SupportsMulti:      m.MultiSlug != "" || m.EditSequentialSlug != "",
 		RequiresImage:      m.RequiresImage,

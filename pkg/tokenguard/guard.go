@@ -64,6 +64,12 @@ func (g *Guard) CheckAccess(ctx context.Context, telegramID, initDataRaw string)
 
 // CheckAccessForModel validates identity and sufficient balance for a model operation.
 func (g *Guard) CheckAccessForModel(ctx context.Context, telegramID, initDataRaw, modelID, category string) error {
+	return g.CheckAccessForModelPrice(ctx, telegramID, initDataRaw, modelID, category, 0)
+}
+
+// CheckAccessForModelPrice validates identity and sufficient balance for a priced operation.
+// When priceCoins > 0 it is used instead of the default model price from the catalog.
+func (g *Guard) CheckAccessForModelPrice(ctx context.Context, telegramID, initDataRaw, modelID, category string, priceCoins int) error {
 	if g == nil || g.db == nil {
 		return nil
 	}
@@ -87,12 +93,78 @@ func (g *Guard) CheckAccessForModel(ctx context.Context, telegramID, initDataRaw
 		}
 	}
 
-	price := int64(g.resolveModelPrice(ctx, modelID, category))
+	price := int64(priceCoins)
+	if price <= 0 {
+		price = int64(g.resolveModelPrice(ctx, modelID, category))
+	}
 	if price <= 0 {
 		return g.checkBalance(ctx, telegramID)
 	}
 
 	return g.checkBalanceAtLeast(ctx, telegramID, price)
+}
+
+// ResolveAudioGenerationPrice returns the CyberCoin cost for an audio generation with options.
+func (g *Guard) ResolveAudioGenerationPrice(ctx context.Context, modelID string, params billing.AudioGenerationParams) int {
+	params.ModelID = modelID
+	effectiveID := billing.AudioBillingModelID(params)
+	base := g.resolveModelPrice(ctx, modelID, "audio")
+	if effectiveID != strings.ToLower(strings.TrimSpace(modelID)) {
+		base = g.resolveModelPrice(ctx, effectiveID, "audio")
+	}
+	return billing.AudioGenerationPrice(base, params)
+}
+
+// ResolveThreeDGenerationPrice returns the CyberCoin cost for a 3D generation with options.
+func (g *Guard) ResolveThreeDGenerationPrice(ctx context.Context, modelID string, params billing.ThreeDGenerationParams) int {
+	base := g.resolveModelPrice(ctx, modelID, "3d")
+	params.ModelID = modelID
+	return billing.ThreeDGenerationPrice(base, params)
+}
+
+// ResolveVideoGenerationPrice returns the CyberCoin cost for a video generation with options.
+func (g *Guard) ResolveVideoGenerationPrice(ctx context.Context, modelID string, params billing.VideoGenerationParams) int {
+	params.ModelID = modelID
+	effectiveID := billing.VideoBillingModelID(params)
+	base := g.resolveModelPrice(ctx, modelID, "video")
+	if effectiveID != strings.ToLower(strings.TrimSpace(modelID)) {
+		base = g.resolveModelPrice(ctx, effectiveID, "video")
+	}
+	return billing.VideoGenerationPrice(base, params)
+}
+
+// ResolveImageGenerationPrice returns the CyberCoin cost for an image generation with options.
+func (g *Guard) ResolveImageGenerationPrice(ctx context.Context, modelID string, params billing.ImageGenerationParams) int {
+	base := g.resolveModelPrice(ctx, modelID, "image")
+	params.ModelID = modelID
+	return billing.ImageGenerationPrice(base, params)
+}
+
+// ChargeForGeneration debits CyberCoins after a successful generation.
+func (g *Guard) ChargeForGeneration(ctx context.Context, telegramID, modelID, category string) error {
+	return g.ChargeForGenerationPrice(ctx, telegramID, modelID, category, 0)
+}
+
+// ChargeForGenerationPrice debits a specific CyberCoin amount after a successful generation.
+func (g *Guard) ChargeForGenerationPrice(ctx context.Context, telegramID, modelID, category string, priceCoins int) error {
+	if g == nil || g.db == nil || isBillingDisabled() {
+		return nil
+	}
+
+	telegramID = strings.TrimSpace(telegramID)
+	if telegramID == "" {
+		return ErrTelegramIDRequired
+	}
+
+	price := int64(priceCoins)
+	if price <= 0 {
+		price = int64(g.resolveModelPrice(ctx, modelID, category))
+	}
+	if price <= 0 {
+		return nil
+	}
+
+	return g.debitProfileByTelegram(ctx, telegramID, price, fmt.Sprintf("generation:%s", strings.TrimSpace(modelID)))
 }
 
 // resolveUserPlanRank returns the user's effective plan rank (expiry applied; free=0).
@@ -112,25 +184,6 @@ LIMIT 1`, telegramID).Scan(&planID, &expiresAt)
 		return 0
 	}
 	return billing.PlanRank(planID)
-}
-
-// ChargeForGeneration debits CyberCoins after a successful generation.
-func (g *Guard) ChargeForGeneration(ctx context.Context, telegramID, modelID, category string) error {
-	if g == nil || g.db == nil || isBillingDisabled() {
-		return nil
-	}
-
-	telegramID = strings.TrimSpace(telegramID)
-	if telegramID == "" {
-		return ErrTelegramIDRequired
-	}
-
-	price := int64(g.resolveModelPrice(ctx, modelID, category))
-	if price <= 0 {
-		return nil
-	}
-
-	return g.debitProfileByTelegram(ctx, telegramID, price, fmt.Sprintf("generation:%s", strings.TrimSpace(modelID)))
 }
 
 func (g *Guard) resolveModelPrice(ctx context.Context, modelID, category string) int {

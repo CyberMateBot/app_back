@@ -157,7 +157,7 @@ func buildHunyuanV3Input(prompt string, req ThreeDRequest) map[string]any {
 
 	input := map[string]any{
 		"prompt":        strings.TrimSpace(prompt),
-		"generate_type": "Normal",
+		"generate_type": defaultString(req.GenerateType, "Normal"),
 		"enable_pbr":    enablePBR,
 		"face_count":    defaultInt(req.FaceLimit, 500000),
 		"polygon_type":  "triangle",

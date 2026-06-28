@@ -253,8 +253,18 @@ func TestListMediaModels(t *testing.T) {
 		if m.Group == "Nano Banana" {
 			nanoCount++
 		}
-		if m.ID == "nano-banana" && !m.SupportsEdit {
-			t.Fatalf("nano-banana should support edit")
+		if m.ID == "nano-banana-2" {
+			if len(m.Options) < 5 {
+				t.Fatalf("nano-banana-2 should expose web/image search options, got %d", len(m.Options))
+			}
+			for _, opt := range m.Options {
+				if opt.Key == "resolution" && len(opt.ValuePrices) == 0 {
+					t.Fatalf("nano-banana-2 resolution should have value_prices")
+				}
+			}
+			if m.Price != 22 {
+				t.Fatalf("nano-banana-2 price: got %d, want 22", m.Price)
+			}
 		}
 	}
 	if nanoCount < 3 {

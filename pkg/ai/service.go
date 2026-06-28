@@ -64,6 +64,8 @@ type ImageRequest struct {
 	ImageURL       string        `json:"image_url"`
 	ImageBase64    string        `json:"imageBase64"`
 	ImageMimeType  string        `json:"imageMimeType"`
+	WebSearch      bool          `json:"web_search"`
+	ImageSearch    bool          `json:"image_search"`
 	Messages       []ChatMessage `json:"messages"`
 	TelegramID     string        `json:"telegramId"`
 	InitDataRaw    string        `json:"initDataRaw"`
@@ -97,38 +99,38 @@ type CameraControl struct {
 
 // VideoRequest is the body for POST /v1/generate/video.
 type VideoRequest struct {
-	Prompt          string        `json:"prompt"`
-	Text            string        `json:"text"`
-	Model           string        `json:"model"`
-	AspectRatio     string        `json:"aspect_ratio"`
-	Duration        int           `json:"duration"`
-	Resolution      string        `json:"resolution"`
-	Quality         string        `json:"quality"`
-	NegativePrompt  string        `json:"negative_prompt"`
-	SourceImageURL  string        `json:"sourceImageUrl"`
-	SourceVideoURL  string        `json:"sourceVideoUrl"`
-	ImageURL        string        `json:"image_url"`
-	VideoURL        string        `json:"video_url"`
-	LastImageURL    string        `json:"last_image"`
-	ReferenceImages []string      `json:"reference_images"`
-	GenerateAudio   *bool         `json:"generate_audio"`
-	Sound           *bool         `json:"sound"`
-	CameraControl   *CameraControl `json:"camera_control"`
-	CameraFixed     *bool         `json:"camera_fixed"`
-	TurboMode       *bool         `json:"turbo_mode"`
-	Seed              int           `json:"seed"`
-	ExtendBy          int           `json:"extend_by"`
-	EditInstruction   string        `json:"edit_instruction"`
-	FirstFrameURL     string        `json:"first_frame_url"`
-	LastFrameURL      string        `json:"last_frame_url"`
-	ImageGridURL      string        `json:"image_grid_url"`
-	BGM               *bool         `json:"bgm"`
-	MovementAmplitude string        `json:"movement_amplitude"`
-	Messages        []ChatMessage `json:"messages"`
-	TelegramID      string        `json:"telegramId"`
-	InitDataRaw     string        `json:"initDataRaw"`
-	SessionID       string        `json:"sessionId"`
-	Category        string        `json:"category"`
+	Prompt            string         `json:"prompt"`
+	Text              string         `json:"text"`
+	Model             string         `json:"model"`
+	AspectRatio       string         `json:"aspect_ratio"`
+	Duration          int            `json:"duration"`
+	Resolution        string         `json:"resolution"`
+	Quality           string         `json:"quality"`
+	NegativePrompt    string         `json:"negative_prompt"`
+	SourceImageURL    string         `json:"sourceImageUrl"`
+	SourceVideoURL    string         `json:"sourceVideoUrl"`
+	ImageURL          string         `json:"image_url"`
+	VideoURL          string         `json:"video_url"`
+	LastImageURL      string         `json:"last_image"`
+	ReferenceImages   []string       `json:"reference_images"`
+	GenerateAudio     *bool          `json:"generate_audio"`
+	Sound             *bool          `json:"sound"`
+	CameraControl     *CameraControl `json:"camera_control"`
+	CameraFixed       *bool          `json:"camera_fixed"`
+	TurboMode         *bool          `json:"turbo_mode"`
+	Seed              int            `json:"seed"`
+	ExtendBy          int            `json:"extend_by"`
+	EditInstruction   string         `json:"edit_instruction"`
+	FirstFrameURL     string         `json:"first_frame_url"`
+	LastFrameURL      string         `json:"last_frame_url"`
+	ImageGridURL      string         `json:"image_grid_url"`
+	BGM               *bool          `json:"bgm"`
+	MovementAmplitude string         `json:"movement_amplitude"`
+	Messages          []ChatMessage  `json:"messages"`
+	TelegramID        string         `json:"telegramId"`
+	InitDataRaw       string         `json:"initDataRaw"`
+	SessionID         string         `json:"sessionId"`
+	Category          string         `json:"category"`
 }
 
 // VideoResponse is returned by POST /v1/generate/video.
@@ -208,6 +210,7 @@ type ThreeDRequest struct {
 	TAPose                *bool    `json:"ta_pose"`
 	SymmetryMode          string   `json:"symmetry_mode"`
 	ShouldRemesh          *bool    `json:"should_remesh"`
+	GenerateType          string   `json:"generate_type"`
 	Tier                  string   `json:"tier"`
 	QualityAndMesh        string   `json:"quality_and_mesh"`
 	Material              string   `json:"material"`

@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/twelvepills-936/tgapp-/pkg/ai"
+	"github.com/twelvepills-936/tgapp-/pkg/billing"
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
@@ -133,7 +135,7 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "image"); err != nil {
+	if err := ensureImageGenerationAccess(w, r, tokens, req); err != nil {
 		return
 	}
 
@@ -144,7 +146,7 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 	}
 
 	finalized := ai.FinalizeImageResponse(out)
-	chargeGeneration(r.Context(), tokens, req.TelegramID, finalized.Model, "image")
+	chargeImageGeneration(r.Context(), tokens, req, finalized.Model)
 	resp := imageGenerateResponse{
 		ImageURL:    finalized.ImageURL,
 		ImageURLs:   finalized.ImageURLs,
@@ -198,7 +200,7 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "video"); err != nil {
+	if err := ensureVideoGenerationAccess(w, r, tokens, req); err != nil {
 		return
 	}
 
@@ -208,7 +210,7 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		return
 	}
 
-	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "video")
+	chargeVideoGeneration(r.Context(), tokens, req, out.Model)
 
 	resp := videoGenerateResponse{
 		VideoURL: out.VideoURL,
@@ -255,7 +257,7 @@ func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service, tokens
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "audio"); err != nil {
+	if err := ensureAudioGenerationAccess(w, r, tokens, req.AudioRequest); err != nil {
 		return
 	}
 
@@ -265,7 +267,7 @@ func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service, tokens
 		return
 	}
 
-	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "audio")
+	chargeAudioGeneration(r.Context(), tokens, req.AudioRequest, out.Model)
 
 	writeJSON(w, http.StatusOK, out)
 }
@@ -282,7 +284,7 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 		writeError(w, http.StatusBadRequest, formatDecodeError(err))
 		return
 	}
-	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "3d"); err != nil {
+	if err := ensureThreeDGenerationAccess(w, r, tokens, req); err != nil {
 		return
 	}
 
@@ -292,7 +294,7 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 		return
 	}
 
-	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "3d")
+	chargeThreeDGeneration(r.Context(), tokens, req, out.Model)
 
 	resp := threeDGenerateResponse{
 		ModelURL: out.ModelURL,
@@ -330,11 +332,11 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 }
 
 const (
-	maxJSONBodyDefault = 1 << 20       // 1 MiB — text / small payloads
-	maxJSONBodyImage   = 12 << 20      // 12 MiB — imageBase64 (до ~8 MiB binary)
-	maxJSONBodyVideo   = 2 << 20       // 2 MiB — video metadata
-	maxJSONBodyAudio   = 12 << 20      // 12 MiB — audioBase64 for voice clone
-	maxJSONBody3D      = 24 << 20      // 24 MiB — multiview image uploads
+	maxJSONBodyDefault = 1 << 20  // 1 MiB — text / small payloads
+	maxJSONBodyImage   = 12 << 20 // 12 MiB — imageBase64 (до ~8 MiB binary)
+	maxJSONBodyVideo   = 2 << 20  // 2 MiB — video metadata
+	maxJSONBodyAudio   = 12 << 20 // 12 MiB — audioBase64 for voice clone
+	maxJSONBody3D      = 24 << 20 // 24 MiB — multiview image uploads
 )
 
 func decodeJSON(r *http.Request, dst any) error {
@@ -389,6 +391,284 @@ func ensureGenerationAccess(w http.ResponseWriter, r *http.Request, tokens *toke
 		return err
 	}
 	return nil
+}
+
+func ensureImageGenerationAccess(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, req ai.ImageRequest) error {
+	if tokens == nil {
+		return nil
+	}
+	price := tokens.ResolveImageGenerationPrice(r.Context(), req.Model, billing.ImageGenerationParams{
+		ModelID:     req.Model,
+		Resolution:  req.Resolution,
+		Quality:     req.Quality,
+		Size:        req.Size,
+		AspectRatio: req.AspectRatio,
+		NumImages:   req.NumImages,
+		WebSearch:   req.WebSearch,
+		ImageSearch: req.ImageSearch,
+	})
+	err := tokens.CheckAccessForModelPrice(
+		r.Context(),
+		req.TelegramID,
+		tokenguard.InitDataFromRequest(r, req.InitDataRaw),
+		req.Model,
+		"image",
+		price,
+	)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
+}
+
+func ensureVideoGenerationAccess(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, req ai.VideoRequest) error {
+	if tokens == nil {
+		return nil
+	}
+	params := videoBillingParams(req, req.Model)
+	price := tokens.ResolveVideoGenerationPrice(r.Context(), req.Model, params)
+	err := tokens.CheckAccessForModelPrice(
+		r.Context(),
+		req.TelegramID,
+		tokenguard.InitDataFromRequest(r, req.InitDataRaw),
+		req.Model,
+		"video",
+		price,
+	)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
+}
+
+func videoBillingParams(req ai.VideoRequest, modelID string) billing.VideoGenerationParams {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		modelID = strings.TrimSpace(req.Model)
+	}
+	p := billing.VideoGenerationParams{
+		ModelID:    modelID,
+		Duration:   req.Duration,
+		ExtendBy:   req.ExtendBy,
+		Resolution: req.Resolution,
+	}
+	if req.Sound != nil {
+		p.Sound = *req.Sound
+	}
+	if req.GenerateAudio != nil {
+		p.GenerateAudio = *req.GenerateAudio
+	} else if strings.HasPrefix(modelID, "seedance-v1.5") {
+		p.GenerateAudio = true
+	}
+	if req.TurboMode != nil {
+		p.TurboMode = *req.TurboMode
+	} else if modelID == "seedance-v2-video-edit" {
+		switch strings.ToLower(strings.TrimSpace(req.Resolution)) {
+		case "720p", "1080p":
+			p.TurboMode = true
+		}
+	}
+	return p
+}
+
+func ensureAudioGenerationAccess(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, req ai.AudioRequest) error {
+	if tokens == nil {
+		return nil
+	}
+	params := audioBillingParams(req, req.Model)
+	price := tokens.ResolveAudioGenerationPrice(r.Context(), req.Model, params)
+	err := tokens.CheckAccessForModelPrice(
+		r.Context(),
+		req.TelegramID,
+		tokenguard.InitDataFromRequest(r, req.InitDataRaw),
+		req.Model,
+		"audio",
+		price,
+	)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
+}
+
+func audioBillingParams(req ai.AudioRequest, modelID string) billing.AudioGenerationParams {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		modelID = strings.TrimSpace(req.Model)
+	}
+	voiceClone := isQwen3TTSVoiceClone(req, modelID)
+	billingModel := modelID
+	if modelID == "qwen3-tts-clone" {
+		billingModel = "qwen3-tts"
+		voiceClone = true
+	}
+	songs := req.NumberOfSongs
+	if songs < 1 {
+		songs = 1
+	}
+	return billing.AudioGenerationParams{
+		ModelID:       billingModel,
+		TextLength:    audioPromptLength(req),
+		VoiceClone:    voiceClone,
+		Duration:      req.Duration,
+		NumberOfSongs: songs,
+	}
+}
+
+func audioPromptLength(req ai.AudioRequest) int {
+	text := strings.TrimSpace(req.Prompt)
+	if text == "" {
+		text = strings.TrimSpace(req.Text)
+	}
+	return utf8.RuneCountInString(text)
+}
+
+func isQwen3TTSVoiceClone(req ai.AudioRequest, modelID string) bool {
+	if strings.TrimSpace(modelID) != "qwen3-tts" {
+		return false
+	}
+	if strings.TrimSpace(req.AudioBase64) != "" {
+		return true
+	}
+	if strings.TrimSpace(req.SourceAudioURL) != "" || strings.TrimSpace(req.AudioURL) != "" {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(req.Mode), "clone")
+}
+
+func ensureThreeDGenerationAccess(w http.ResponseWriter, r *http.Request, tokens *tokenguard.Guard, req ai.ThreeDRequest) error {
+	if tokens == nil {
+		return nil
+	}
+	params := threeDBillingParams(req, req.Model)
+	price := tokens.ResolveThreeDGenerationPrice(r.Context(), req.Model, params)
+	err := tokens.CheckAccessForModelPrice(
+		r.Context(),
+		req.TelegramID,
+		tokenguard.InitDataFromRequest(r, req.InitDataRaw),
+		req.Model,
+		"3d",
+		price,
+	)
+	if tokenguard.WriteHTTPError(w, r, err) {
+		return err
+	}
+	return nil
+}
+
+func threeDBillingParams(req ai.ThreeDRequest, modelID string) billing.ThreeDGenerationParams {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		modelID = strings.TrimSpace(req.Model)
+	}
+	p := billing.ThreeDGenerationParams{
+		ModelID:         modelID,
+		TextureQuality:  req.TextureQuality,
+		GeometryQuality: req.GeometryQuality,
+		GenerateType:    req.GenerateType,
+		Tier:            req.Tier,
+		Addons:          req.Addons,
+	}
+	if req.Texture != nil {
+		p.Texture = *req.Texture
+		p.TextureSet = true
+	}
+	if req.Quad != nil {
+		p.Quad = *req.Quad
+	}
+	return p
+}
+
+func chargeImageGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.ImageRequest, modelID string) {
+	if tokens == nil {
+		return
+	}
+	model := strings.TrimSpace(modelID)
+	if model == "" {
+		model = strings.TrimSpace(req.Model)
+	}
+	price := tokens.ResolveImageGenerationPrice(ctx, model, billing.ImageGenerationParams{
+		ModelID:     model,
+		Resolution:  req.Resolution,
+		Quality:     req.Quality,
+		Size:        req.Size,
+		AspectRatio: req.AspectRatio,
+		NumImages:   req.NumImages,
+		WebSearch:   req.WebSearch,
+		ImageSearch: req.ImageSearch,
+	})
+	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "image", price); err != nil {
+		slog.WarnContext(ctx, "failed to charge generation",
+			slog.String("telegram_id", req.TelegramID),
+			slog.String("model", model),
+			slog.String("category", "image"),
+			slog.Int("price", price),
+			slog.Any("error", err),
+		)
+	}
+}
+
+func chargeAudioGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.AudioRequest, modelID string) {
+	if tokens == nil {
+		return
+	}
+	model := strings.TrimSpace(modelID)
+	if model == "" {
+		model = strings.TrimSpace(req.Model)
+	}
+	params := audioBillingParams(req, model)
+	price := tokens.ResolveAudioGenerationPrice(ctx, model, params)
+	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "audio", price); err != nil {
+		slog.WarnContext(ctx, "failed to charge generation",
+			slog.String("telegram_id", req.TelegramID),
+			slog.String("model", model),
+			slog.String("category", "audio"),
+			slog.Int("price", price),
+			slog.Any("error", err),
+		)
+	}
+}
+
+func chargeVideoGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.VideoRequest, modelID string) {
+	if tokens == nil {
+		return
+	}
+	model := strings.TrimSpace(modelID)
+	if model == "" {
+		model = strings.TrimSpace(req.Model)
+	}
+	params := videoBillingParams(req, model)
+	price := tokens.ResolveVideoGenerationPrice(ctx, model, params)
+	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "video", price); err != nil {
+		slog.WarnContext(ctx, "failed to charge generation",
+			slog.String("telegram_id", req.TelegramID),
+			slog.String("model", model),
+			slog.String("category", "video"),
+			slog.Int("price", price),
+			slog.Any("error", err),
+		)
+	}
+}
+
+func chargeThreeDGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.ThreeDRequest, modelID string) {
+	if tokens == nil {
+		return
+	}
+	model := strings.TrimSpace(modelID)
+	if model == "" {
+		model = strings.TrimSpace(req.Model)
+	}
+	params := threeDBillingParams(req, model)
+	price := tokens.ResolveThreeDGenerationPrice(ctx, model, params)
+	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "3d", price); err != nil {
+		slog.WarnContext(ctx, "failed to charge generation",
+			slog.String("telegram_id", req.TelegramID),
+			slog.String("model", model),
+			slog.String("category", "3d"),
+			slog.Int("price", price),
+			slog.Any("error", err),
+		)
+	}
 }
 
 func chargeGeneration(ctx context.Context, tokens *tokenguard.Guard, telegramID, modelID, category string) {

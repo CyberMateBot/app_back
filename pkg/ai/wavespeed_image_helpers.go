@@ -84,6 +84,15 @@ func applyWavespeedImageExtraFields(input map[string]any, modelID string, req Im
 		input["size"] = size
 	}
 
+	if modelID == "nano-banana-2" {
+		if req.WebSearch {
+			input["enable_web_search"] = true
+		}
+		if req.ImageSearch {
+			input["enable_image_search"] = true
+		}
+	}
+
 	if modelID == "grok-imagine-edit" {
 		if ar := strings.TrimSpace(req.AspectRatio); ar != "" {
 			input["aspect_ratio"] = ar

@@ -110,7 +110,7 @@ var modelMinPlanRank = map[string]int{
 	"mureka-v9": 2, "mureka": 2, "ace-step-1.5": 2,
 
 	// ---- 3D (no free tier) ----
-	"hunyuan3d-v3.1-rapid": 1, "hunyuan3d-v3-t2d": 1,
+	"hunyuan3d-v3.1-rapid": 1, "hunyuan3d-v3.1-rapid-i2d": 1, "hunyuan3d-v3-t2d": 1,
 	"tripo3d-v2.5-i2d": 2, "tripo3d-v2.5-multiview": 2, "meshy6-t2d": 2,
 	"tripo3d-h3.1-t2d": 3, "tripo3d-h3.1-i2d": 3, "rodin-v2-i2d": 3, "rodin-v2.5-i2d": 3,
 }

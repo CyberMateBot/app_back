@@ -8,7 +8,7 @@ import (
 func wavespeedImageUsesSingularImage(modelID string) bool {
 	switch modelID {
 	case "seedream-v4.5", "seedream-v5.0-lite", "qwen-image", "qwen-image-2512",
-		"z-image-base", "z-image-turbo", "grok-imagine-edit":
+		"z-image-base", "z-image-turbo", "grok-imagine-edit", "flux-dev":
 		return true
 	default:
 		return false
@@ -22,7 +22,7 @@ func wavespeedImageUsesPluralImages(modelID string) bool {
 func wavespeedImageUsesSizeField(modelID string) bool {
 	switch modelID {
 	case "qwen-image", "qwen-image-2512", "qwen-image-2.0", "z-image-base", "z-image-turbo",
-		"seedream-v5.0-lite":
+		"seedream-v5.0-lite", "flux-dev":
 		return true
 	default:
 		return false
@@ -108,6 +108,31 @@ func applyWavespeedImageExtraFields(input map[string]any, modelID string, req Im
 			input["num_images"] = req.NumImages
 		} else {
 			input["num_images"] = 1
+		}
+	}
+
+	if modelID == "flux-dev" {
+		size := wavespeedImageSizeFromRequest(modelID, req)
+		if size == "" {
+			if req.Width > 0 && req.Height > 0 {
+				size = formatPixelSize(req.Width, req.Height)
+			} else {
+				size = "1024*1024"
+			}
+		}
+		input["size"] = size
+		delete(input, "aspect_ratio")
+
+		if req.Seed != 0 {
+			input["seed"] = req.Seed
+		} else {
+			input["seed"] = -1
+		}
+
+		if req.Strength > 0 {
+			input["strength"] = req.Strength
+		} else if strings.TrimSpace(req.SourceImageURL) != "" || strings.TrimSpace(req.ImageURL) != "" {
+			input["strength"] = 0.8
 		}
 	}
 }

@@ -75,7 +75,9 @@ func buildWavespeedThreeDInput(def mediaModelDef, prompt string, req ThreeDReque
 	case "hunyuan3d-v3-t2d":
 		return buildHunyuanV3Input(prompt, req)
 	case "hunyuan3d-v3.1-rapid":
-		return map[string]any{"prompt": strings.TrimSpace(prompt)}
+		return buildHunyuanRapidT2DInput(prompt, req)
+	case "hunyuan3d-v3.1-rapid-i2d":
+		return buildHunyuanRapidI2DInput(req)
 	case "meshy6-t2d":
 		return buildMeshy6Input(prompt, req)
 	case "rodin-v2-i2d":
@@ -163,6 +165,38 @@ func buildHunyuanV3Input(prompt string, req ThreeDRequest) map[string]any {
 		"polygon_type":  "triangle",
 	}
 	return input
+}
+
+func buildHunyuanRapidT2DInput(prompt string, req ThreeDRequest) map[string]any {
+	enablePBR := false
+	if req.EnablePBR != nil {
+		enablePBR = *req.EnablePBR
+	} else if req.PBR != nil {
+		enablePBR = *req.PBR
+	}
+
+	return map[string]any{
+		"prompt":        strings.TrimSpace(prompt),
+		"generate_type": defaultString(req.GenerateType, "Normal"),
+		"enable_pbr":    enablePBR,
+		"face_count":    defaultInt(req.FaceLimit, 500000),
+	}
+}
+
+func buildHunyuanRapidI2DInput(req ThreeDRequest) map[string]any {
+	enablePBR := false
+	if req.EnablePBR != nil {
+		enablePBR = *req.EnablePBR
+	} else if req.PBR != nil {
+		enablePBR = *req.PBR
+	}
+	enableGeometry := req.EnableGeometry != nil && *req.EnableGeometry
+
+	return map[string]any{
+		"image":            threeDSourceImage(req),
+		"enable_pbr":       enablePBR,
+		"enable_geometry":  enableGeometry,
+	}
 }
 
 func buildMeshy6Input(prompt string, req ThreeDRequest) map[string]any {

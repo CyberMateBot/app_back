@@ -334,7 +334,7 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 const (
 	maxJSONBodyDefault = 1 << 20  // 1 MiB — text / small payloads
 	maxJSONBodyImage   = 12 << 20 // 12 MiB — imageBase64 (до ~8 MiB binary)
-	maxJSONBodyVideo   = 2 << 20  // 2 MiB — video metadata
+	maxJSONBodyVideo   = 24 << 20 // 24 MiB — videoBase64 (до ~16 MiB binary)
 	maxJSONBodyAudio   = 12 << 20 // 12 MiB — audioBase64 for voice clone
 	maxJSONBody3D      = 24 << 20 // 24 MiB — multiview image uploads
 )
@@ -575,6 +575,10 @@ func threeDBillingParams(req ai.ThreeDRequest, modelID string) billing.ThreeDGen
 	}
 	if req.Quad != nil {
 		p.Quad = *req.Quad
+	}
+	if req.EnablePBR != nil {
+		p.EnablePBR = *req.EnablePBR
+		p.EnablePBRSet = true
 	}
 	return p
 }

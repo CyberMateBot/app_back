@@ -38,14 +38,33 @@ func TestThreeDGenerationPrice_HunyuanV3(t *testing.T) {
 	}
 }
 
+func TestThreeDGenerationPrice_HunyuanRapid(t *testing.T) {
+	t.Parallel()
+
+	baseT2D := DefaultModelPrice("hunyuan3d-v3.1-rapid", "3d")
+	if got := ThreeDGenerationPrice(baseT2D, ThreeDGenerationParams{ModelID: "hunyuan3d-v3.1-rapid"}); got != 25 {
+		t.Fatalf("rapid t2d base: got %d, want 25", got)
+	}
+	if got := ThreeDGenerationPrice(baseT2D, ThreeDGenerationParams{ModelID: "hunyuan3d-v3.1-rapid", EnablePBR: true, EnablePBRSet: true}); got != 192 {
+		t.Fatalf("rapid t2d pbr: got %d, want 192", got)
+	}
+
+	baseI2D := DefaultModelPrice("hunyuan3d-v3.1-rapid-i2d", "3d")
+	if got := ThreeDGenerationPrice(baseI2D, ThreeDGenerationParams{ModelID: "hunyuan3d-v3.1-rapid-i2d"}); got != 250 {
+		t.Fatalf("rapid i2d base: got %d, want 250", got)
+	}
+	if got := ThreeDGenerationPrice(baseI2D, ThreeDGenerationParams{ModelID: "hunyuan3d-v3.1-rapid-i2d", EnablePBR: true, EnablePBRSet: true}); got != 417 {
+		t.Fatalf("rapid i2d pbr: got %d, want 417", got)
+	}
+}
+
 func TestThreeDGenerationPrice_FlatModels(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]int{
-		"tripo3d-v2.5-i2d":     48,
-		"hunyuan3d-v3.1-rapid": 25,
-		"meshy6-t2d":           48,
-		"rodin-v2-i2d":         55,
+		"tripo3d-v2.5-i2d": 48,
+		"meshy6-t2d":       48,
+		"rodin-v2-i2d":     55,
 	}
 	for modelID, want := range cases {
 		base := DefaultModelPrice(modelID, "3d")

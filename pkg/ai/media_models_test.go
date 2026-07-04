@@ -176,8 +176,15 @@ func TestResolveWavespeedThreeDModel(t *testing.T) {
 func TestBuildWavespeedThreeDInput(t *testing.T) {
 	rapid, _ := resolveWavespeedThreeDModel("hunyuan3d-v3.1-rapid")
 	input := buildWavespeedThreeDInput(rapid, "cute fox", ThreeDRequest{})
-	if input["prompt"] != "cute fox" {
-		t.Fatalf("rapid input: %+v", input)
+	if input["prompt"] != "cute fox" || input["generate_type"] != "Normal" || input["enable_pbr"] != false || input["face_count"] != 500000 {
+		t.Fatalf("rapid t2d input: %+v", input)
+	}
+
+	rapidI2D, _ := resolveWavespeedThreeDModel("hunyuan3d-v3.1-rapid-i2d")
+	enablePBR := true
+	input = buildWavespeedThreeDInput(rapidI2D, "", ThreeDRequest{SourceImageURL: "https://cdn.example.com/cat.png", EnablePBR: &enablePBR})
+	if input["image"] != "https://cdn.example.com/cat.png" || input["enable_pbr"] != true || input["enable_geometry"] != false {
+		t.Fatalf("rapid i2d input: %+v", input)
 	}
 
 	meshy, _ := resolveWavespeedThreeDModel("meshy6-t2d")

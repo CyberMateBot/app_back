@@ -71,6 +71,9 @@ func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt str
 	if def.ID == "seedream-v5.0-lite" && outputFmt == "" {
 		outputFmt = "jpeg"
 	}
+	if def.ID == "flux-dev" && outputFmt == "" {
+		outputFmt = "jpeg"
+	}
 	input["output_format"] = normalizeImageOutputFormat(def.ID, outputFmt)
 
 	if ar := strings.TrimSpace(req.AspectRatio); ar != "" && !wavespeedImageUsesSizeField(def.ID) {

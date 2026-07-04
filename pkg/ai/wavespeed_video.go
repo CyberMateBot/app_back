@@ -8,6 +8,10 @@ import (
 )
 
 func generateWavespeedVideo(ctx context.Context, cfg config.ConfigAI, prompt string, req VideoRequest, def mediaModelDef) (VideoResponse, error) {
+	if err := prepareWavespeedVideoSource(ctx, cfg, &req); err != nil {
+		return VideoResponse{}, err
+	}
+
 	slug, err := resolveWavespeedVideoSlug(def, req)
 	if err != nil {
 		return VideoResponse{}, err
@@ -50,6 +54,8 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		if sourceImage == "" {
 			sourceImage = strings.TrimSpace(req.ImageURL)
 		}
+		input["image"] = sourceImage
+	} else if sourceImage := optionalVideoStartImage(req); sourceImage != "" && videoModelSupportsOptionalStartImage(def.ID) {
 		input["image"] = sourceImage
 	}
 
@@ -114,6 +120,21 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		}
 	}
 
+	if strings.HasPrefix(def.ID, "hailuo-2.3") {
+		if req.EnablePromptExpansion != nil {
+			input["enable_prompt_expansion"] = *req.EnablePromptExpansion
+		} else {
+			input["enable_prompt_expansion"] = true
+		}
+		if def.ID == "hailuo-2.3-i2v-fast" {
+			if req.GoFast != nil {
+				input["go_fast"] = *req.GoFast
+			} else {
+				input["go_fast"] = true
+			}
+		}
+	}
+
 	if def.ID == "vidu-q3-i2v-spicy" {
 		if req.BGM != nil {
 			input["bgm"] = *req.BGM
@@ -147,7 +168,7 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 
 	if req.Seed != 0 {
 		input["seed"] = req.Seed
-	} else if seedanceUsesSeed(def.ID) {
+	} else if seedanceUsesSeed(def.ID) || def.ID == "veo-3.1-extend" {
 		input["seed"] = -1
 	}
 
@@ -190,12 +211,14 @@ func defaultVideoDuration(modelID string) int {
 		return 5
 	case strings.HasPrefix(modelID, "sora-"):
 		return 5
+	case modelID == "hailuo-2.3-i2v-pro":
+		return 5
 	case strings.HasPrefix(modelID, "hailuo-"):
 		return 6
 	case strings.HasPrefix(modelID, "vidu-"):
 		return 5
 	case strings.HasPrefix(modelID, "veo-"):
-		return 5
+		return 4
 	case strings.HasPrefix(modelID, "seedance-v1-pro"):
 		return 5
 	case strings.HasPrefix(modelID, "seedance-v1.5"):
@@ -256,7 +279,7 @@ func normalizeVideoResolution(modelID, resolution string) string {
 }
 
 func modelSupportsGenerateAudio(modelID string) bool {
-	return strings.HasPrefix(modelID, "seedance-v1.5") || modelID == "vidu-q3-i2v-spicy"
+	return strings.HasPrefix(modelID, "seedance-v1.5") || modelID == "vidu-q3-i2v-spicy" || modelID == "veo-3.1-extend"
 }
 
 func seedanceUsesCameraFixed(modelID string) bool {
@@ -265,4 +288,23 @@ func seedanceUsesCameraFixed(modelID string) bool {
 
 func seedanceUsesSeed(modelID string) bool {
 	return strings.HasPrefix(modelID, "seedance-v1")
+}
+
+func optionalVideoStartImage(req VideoRequest) string {
+	sourceImage := strings.TrimSpace(req.SourceImageURL)
+	if sourceImage == "" {
+		sourceImage = strings.TrimSpace(req.ImageURL)
+	}
+	return sourceImage
+}
+
+func videoModelSupportsOptionalStartImage(modelID string) bool {
+	switch modelID {
+	case "kling-v3-std", "kling-v3-pro", "kling-v3-4k",
+		"seedance-v1.5-t2v-fast", "wan-2.5-t2v", "wan-2.7-t2v",
+		"happyhorse-t2v", "sora-2-t2v", "sora-2-t2v-pro":
+		return true
+	default:
+		return false
+	}
 }

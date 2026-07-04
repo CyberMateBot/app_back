@@ -58,6 +58,8 @@ type ImageRequest struct {
 	Seed           int           `json:"seed"`
 	PromptExtend   *bool         `json:"prompt_extend"`
 	Strength       float64       `json:"strength"`
+	GuidanceScale  float64       `json:"guidance_scale"`
+	NumInferenceSteps int        `json:"num_inference_steps"`
 	Width          int           `json:"width"`
 	Height         int           `json:"height"`
 	SourceImageURL string        `json:"sourceImageUrl"`
@@ -111,6 +113,10 @@ type VideoRequest struct {
 	SourceVideoURL    string         `json:"sourceVideoUrl"`
 	ImageURL          string         `json:"image_url"`
 	VideoURL          string         `json:"video_url"`
+	ImageBase64       string         `json:"imageBase64"`
+	ImageMimeType     string         `json:"imageMimeType"`
+	VideoBase64       string         `json:"videoBase64"`
+	VideoMimeType     string         `json:"videoMimeType"`
 	LastImageURL      string         `json:"last_image"`
 	ReferenceImages   []string       `json:"reference_images"`
 	GenerateAudio     *bool          `json:"generate_audio"`
@@ -120,9 +126,15 @@ type VideoRequest struct {
 	TurboMode         *bool          `json:"turbo_mode"`
 	Seed              int            `json:"seed"`
 	ExtendBy          int            `json:"extend_by"`
+	EnablePromptExpansion *bool        `json:"enable_prompt_expansion"`
+	GoFast            *bool          `json:"go_fast"`
 	EditInstruction   string         `json:"edit_instruction"`
 	FirstFrameURL     string         `json:"first_frame_url"`
 	LastFrameURL      string         `json:"last_frame_url"`
+	FirstFrameBase64  string         `json:"firstFrameBase64"`
+	FirstFrameMimeType string        `json:"firstFrameMimeType"`
+	LastFrameBase64   string         `json:"lastFrameBase64"`
+	LastFrameMimeType string         `json:"lastFrameMimeType"`
 	ImageGridURL      string         `json:"image_grid_url"`
 	BGM               *bool          `json:"bgm"`
 	MovementAmplitude string         `json:"movement_amplitude"`
@@ -206,6 +218,7 @@ type ThreeDRequest struct {
 	Topology              string   `json:"topology"`
 	TargetPolycount       int      `json:"target_polycount"`
 	EnablePBR             *bool    `json:"enable_pbr"`
+	EnableGeometry        *bool    `json:"enable_geometry"`
 	EnablePromptExpansion *bool    `json:"enable_prompt_expansion"`
 	TAPose                *bool    `json:"ta_pose"`
 	SymmetryMode          string   `json:"symmetry_mode"`
@@ -369,9 +382,6 @@ func (s *Service) GenerateVideo(ctx context.Context, req VideoRequest) (VideoRes
 	if prompt == "" {
 		prompt = strings.TrimSpace(req.Text)
 	}
-	if prompt == "" {
-		return VideoResponse{}, ErrPromptEmpty
-	}
 
 	if !s.cfg.WavespeedImageEnabled() {
 		return VideoResponse{}, &ProviderError{
@@ -393,6 +403,10 @@ func (s *Service) GenerateVideo(ctx context.Context, req VideoRequest) (VideoRes
 		if resolvedDef, resolvedOK := resolveWavespeedVideoModel(resolvedID); resolvedOK {
 			def = resolvedDef
 		}
+	}
+
+	if err := validateVideoRequest(prompt, req, def); err != nil {
+		return VideoResponse{}, err
 	}
 
 	return generateWavespeedVideo(ctx, s.cfg, prompt, req, def)
@@ -428,6 +442,23 @@ func (s *Service) GenerateAudio(ctx context.Context, req AudioRequest) (AudioRes
 	}
 
 	return generateWavespeedAudio(ctx, s.cfg, prompt, req, def)
+}
+
+func validateVideoRequest(prompt string, req VideoRequest, def mediaModelDef) error {
+	if def.RequiresImage {
+		sourceImage := strings.TrimSpace(req.SourceImageURL)
+		if sourceImage == "" {
+			sourceImage = strings.TrimSpace(req.ImageURL)
+		}
+		if sourceImage == "" && strings.TrimSpace(req.ImageBase64) == "" {
+			return &ProviderError{Provider: "wavespeed", Message: "source image is required for this model"}
+		}
+		return nil
+	}
+	if prompt == "" {
+		return ErrPromptEmpty
+	}
+	return nil
 }
 
 func validateAudioRequest(prompt string, req AudioRequest, def mediaModelDef) error {

@@ -74,34 +74,69 @@ func imageModelOptions(id string) []MediaOption {
 		})
 	case "flux-dev":
 		return []MediaOption{
-			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16"}, Default: "1:1"},
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "1:1"},
+			{Key: "width", Type: "number", Values: []string{"256", "2048"}, Default: "1024"},
+			{Key: "height", Type: "number", Values: []string{"256", "2048"}, Default: "1024"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		}
 	case "seedream-v4.5", "seedream-v5.0-lite":
 		return []MediaOption{
-			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4"}, Default: "1:1"},
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "1:1"},
+			{Key: "width", Type: "number", Values: []string{"512", "8192"}, Default: "2048"},
+			{Key: "height", Type: "number", Values: []string{"512", "8192"}, Default: "2048"},
 			{Key: "output_format", Type: "select", Values: []string{"jpeg", "png", "webp"}, Default: "jpeg"},
 		}
-	case "qwen-image", "qwen-image-2512":
-		return withOptionPrices(id, []MediaOption{
-			{Key: "size", Type: "select", Values: []string{"1024*1024", "1024x1024", "1328*1328"}, Default: "1024*1024"},
+	case "qwen-image-2512":
+		return []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "auto"},
+			{Key: "width", Type: "number", Values: []string{"384", "2048"}, Default: "1024"},
+			{Key: "height", Type: "number", Values: []string{"384", "2048"}, Default: "1024"},
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
-		})
+		}
+	case "qwen-image":
+		return []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "auto"},
+			{Key: "width", Type: "number", Values: []string{"384", "2048"}, Default: "1024"},
+			{Key: "height", Type: "number", Values: []string{"384", "2048"}, Default: "1024"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		}
 	case "qwen-image-2.0":
 		return []MediaOption{
-			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"}, Default: "16:9"},
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "16:9"},
+			{Key: "width", Type: "number", Values: []string{"384", "2048"}, Default: "1280"},
+			{Key: "height", Type: "number", Values: []string{"384", "2048"}, Default: "720"},
 			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		}
 	case "qwen-image-2.0-pro":
 		return []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "auto"},
+			{Key: "width", Type: "number", Values: []string{"384", "2048"}, Default: "1024"},
+			{Key: "height", Type: "number", Values: []string{"384", "2048"}, Default: "1024"},
 			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		}
 	case "z-image-base", "z-image-turbo":
-		return withOptionPrices(id, []MediaOption{
-			{Key: "size", Type: "select", Values: []string{"1024*1024", "1024x1024"}, Default: "1024*1024"},
-			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+		return []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{
+				"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+			}, Default: "1:1"},
+			{Key: "width", Type: "number", Values: []string{"256", "1536"}, Default: "1024"},
+			{Key: "height", Type: "number", Values: []string{"256", "1536"}, Default: "1024"},
 			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
-		})
+			{Key: "output_format", Type: "select", Values: []string{"jpeg", "png", "webp"}, Default: "jpeg"},
+		}
 	case "grok-imagine-edit":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"}, Default: "auto"},
@@ -198,8 +233,11 @@ func videoModelOptions(id string) []MediaOption {
 		}
 	case "veo-3.1-extend":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"4", "7"}, Default: "4"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "1080p"},
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+			{Key: "generate_audio", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 		})
 	case "vidu-q3-i2v-spicy":
 		return withOptionPrices(id, []MediaOption{
@@ -208,9 +246,21 @@ func videoModelOptions(id string) []MediaOption {
 			{Key: "generate_audio", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 			{Key: "movement_amplitude", Type: "select", Values: []string{"auto", "small", "medium", "large"}, Default: "auto"},
 		})
-	case "hailuo-2.3-t2v", "hailuo-2.3-i2v-fast", "hailuo-2.3-i2v-pro":
+	case "hailuo-2.3-t2v":
 		return withOptionPrices(id, []MediaOption{
-			{Key: "duration", Type: "select", Values: []string{"6"}, Default: "6"},
+			{Key: "duration", Type: "select", Values: []string{"6", "10"}, Default: "6"},
+			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
+		})
+	case "hailuo-2.3-i2v-fast":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"6", "10"}, Default: "6"},
+			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
+			{Key: "go_fast", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
+		})
+	case "hailuo-2.3-i2v-pro":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"5"}, Default: "5"},
+			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 		})
 	default:
 		return nil
@@ -288,7 +338,20 @@ func threeDModelOptions(id string) []MediaOption {
 		})
 	case "hunyuan3d-v3-t2d":
 		return withOptionPrices(id, []MediaOption{
-			{Key: "generate_type", Type: "select", Values: []string{"Geometry", "Normal", "LowPoly"}, Default: "Normal"},
+			{Key: "generate_type", Type: "select", Values: []string{"Normal", "LowPoly", "Geometry"}, Default: "Normal"},
+			{Key: "face_limit", Type: "range", Values: []string{"40000", "1500000"}, Default: "500000"},
+			{Key: "enable_pbr", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
+		})
+	case "hunyuan3d-v3.1-rapid":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "generate_type", Type: "select", Values: []string{"Normal", "Geometry"}, Default: "Normal"},
+			{Key: "face_limit", Type: "range", Values: []string{"40000", "1500000"}, Default: "500000"},
+			{Key: "enable_pbr", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
+		})
+	case "hunyuan3d-v3.1-rapid-i2d":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "enable_pbr", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
+			{Key: "enable_geometry", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
 		})
 	case "meshy6-t2d":
 		return withOptionPrices(id, []MediaOption{

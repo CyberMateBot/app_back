@@ -68,6 +68,9 @@ func VideoOptionValuePrices(modelID, optionKey string) map[string]int {
 		if isSeedance15Model(modelID) {
 			return seedance15AudioDeltas(modelID, base)
 		}
+		if modelID == "veo-3.1-extend" {
+			return veoExtendAudioDeltas(modelID, base)
+		}
 	case "turbo_mode":
 		if modelID == "seedance-v2-video-edit" {
 			return seedanceV2TurboDeltas(modelID, base)
@@ -87,6 +90,7 @@ func VideoBillingModelID(p VideoGenerationParams) string {
 
 // VideoGenerationPrice returns total CyberCoins for a video generation with the given options.
 func VideoGenerationPrice(basePrice int, p VideoGenerationParams) int {
+	p = normalizeVideoBillingParams(p)
 	modelID := strings.ToLower(strings.TrimSpace(p.ModelID))
 	effectiveID := videoBillingModelID(p)
 	if basePrice <= 0 || effectiveID != modelID {
@@ -104,6 +108,21 @@ func VideoGenerationPrice(basePrice int, p VideoGenerationParams) int {
 		return 1
 	}
 	return price
+}
+
+func normalizeVideoBillingParams(p VideoGenerationParams) VideoGenerationParams {
+	modelID := strings.ToLower(strings.TrimSpace(p.ModelID))
+	empty := p.Duration <= 0 && strings.TrimSpace(p.Resolution) == "" && !p.GenerateAudio && !p.Sound && p.ExtendBy <= 0
+	if p.Duration <= 0 {
+		p.Duration = defaultVideoDuration(modelID)
+	}
+	if strings.TrimSpace(p.Resolution) == "" {
+		p.Resolution = defaultVideoResolution(modelID)
+	}
+	if modelID == "veo-3.1-extend" && empty {
+		p.GenerateAudio = true
+	}
+	return p
 }
 
 func videoBillingModelID(p VideoGenerationParams) string {
@@ -153,7 +172,11 @@ func videoGenerationUSD(p VideoGenerationParams) float64 {
 		}
 		return happyHorseUSD(p.Resolution, duration)
 	case modelID == "veo-3.1-extend":
-		return 1.05
+		res := strings.TrimSpace(p.Resolution)
+		if res == "" {
+			res = defaultVideoResolution(modelID)
+		}
+		return veoExtendUSD(duration, res, p.GenerateAudio)
 	case modelID == "vidu-q3-i2v-spicy":
 		res := normalizeViduResolution(p.Resolution)
 		return viduPerSecondUSD[res] * float64(duration)
@@ -188,7 +211,7 @@ func defaultVideoUSD(modelID string, p VideoGenerationParams) float64 {
 		}
 		return happyHorseUSD(defaultVideoResolution(modelID), duration)
 	case modelID == "veo-3.1-extend":
-		return 1.05
+		return veoExtendUSD(defaultVideoDuration(modelID), defaultVideoResolution(modelID), true)
 	case modelID == "vidu-q3-i2v-spicy":
 		return viduPerSecondUSD["720p"] * float64(duration)
 	case strings.HasPrefix(modelID, "hailuo-2.3"):
@@ -204,7 +227,9 @@ func videoDurationDeltas(modelID string, base int) map[string]int {
 		return nil
 	}
 	defaultDur := defaultVideoDuration(modelID)
-	refUSD := videoGenerationUSD(VideoGenerationParams{ModelID: modelID, Duration: defaultDur, Resolution: defaultVideoResolution(modelID)})
+	refUSD := videoGenerationUSD(VideoGenerationParams{
+		ModelID: modelID, Duration: defaultDur, Resolution: defaultVideoResolution(modelID), GenerateAudio: defaultVideoGenerateAudio(modelID),
+	})
 	deltas := make(map[string]int, len(durations))
 	for _, dStr := range durations {
 		d, err := strconv.Atoi(dStr)
@@ -215,7 +240,7 @@ func videoDurationDeltas(modelID string, base int) map[string]int {
 			ModelID:       modelID,
 			Duration:      d,
 			Resolution:    defaultVideoResolution(modelID),
-			GenerateAudio: defaultSeedance15Audio(modelID),
+			GenerateAudio: defaultVideoGenerateAudio(modelID),
 		})
 		deltas[dStr] = usdToCoinsFromBase(modelID, base, refUSD, usd) - base
 	}
@@ -231,7 +256,7 @@ func videoResolutionDeltas(modelID string, base int) map[string]int {
 	defaultRes := defaultVideoResolution(modelID)
 	defaultDur := defaultVideoDuration(modelID)
 	refUSD := videoGenerationUSD(VideoGenerationParams{
-		ModelID: modelID, Duration: defaultDur, Resolution: defaultRes, GenerateAudio: defaultSeedance15Audio(modelID),
+		ModelID: modelID, Duration: defaultDur, Resolution: defaultRes, GenerateAudio: defaultVideoGenerateAudio(modelID),
 	})
 	deltas := make(map[string]int, len(resolutions))
 	for _, res := range resolutions {
@@ -239,7 +264,7 @@ func videoResolutionDeltas(modelID string, base int) map[string]int {
 			ModelID:       modelID,
 			Duration:      defaultDur,
 			Resolution:    res,
-			GenerateAudio: defaultSeedance15Audio(modelID),
+			GenerateAudio: defaultVideoGenerateAudio(modelID),
 		})
 		deltas[res] = usdToCoinsFromBase(modelID, base, refUSD, usd) - base
 	}
@@ -270,6 +295,17 @@ func seedance15AudioDeltas(modelID string, base int) map[string]int {
 	}
 }
 
+func veoExtendAudioDeltas(modelID string, base int) map[string]int {
+	dur := defaultVideoDuration(modelID)
+	res := defaultVideoResolution(modelID)
+	ref := veoExtendUSD(dur, res, true)
+	without := veoExtendUSD(dur, res, false)
+	return map[string]int{
+		"true":  0,
+		"false": usdToCoinsFromBase(modelID, base, ref, without) - base,
+	}
+}
+
 func seedanceV2TurboDeltas(modelID string, base int) map[string]int {
 	dur := defaultVideoDuration(modelID)
 	ref := videoGenerationUSD(VideoGenerationParams{ModelID: modelID, Duration: dur, Resolution: "720p", TurboMode: true})
@@ -293,6 +329,25 @@ func videoExtendByDeltas(modelID string, base int) map[string]int {
 	}
 	deltas["5"] = 0
 	return deltas
+}
+
+const (
+	veoExtendBaseUSD          = 1.05
+	veoExtendDefaultDuration  = 4
+)
+
+func veoExtendUSD(duration int, resolution string, generateAudio bool) float64 {
+	if duration <= 0 {
+		duration = veoExtendDefaultDuration
+	}
+	usd := veoExtendBaseUSD * float64(duration) / float64(veoExtendDefaultDuration)
+	if strings.EqualFold(resolution, "720p") {
+		usd *= 0.85
+	}
+	if !generateAudio {
+		usd *= 0.67
+	}
+	return usd
 }
 
 func seedance15PerSecond(resolution string, generateAudio bool) float64 {
@@ -327,6 +382,9 @@ func hailuoUSD(modelID string, duration int) float64 {
 		}
 		return 0.23
 	case "hailuo-2.3-i2v-fast":
+		if duration >= 10 {
+			return 0.32
+		}
 		return 0.19
 	case "hailuo-2.3-i2v-pro":
 		return 0.49
@@ -439,10 +497,16 @@ func defaultVideoDuration(modelID string) int {
 	switch {
 	case strings.HasPrefix(modelID, "hailuo-2.3-t2v"):
 		return 6
+	case modelID == "hailuo-2.3-i2v-pro":
+		return 5
+	case strings.HasPrefix(modelID, "hailuo-2.3-i2v-fast"):
+		return 6
 	case strings.HasPrefix(modelID, "vidu-"):
 		return 5
 	case strings.HasPrefix(modelID, "wan-2.7-flf"), strings.HasPrefix(modelID, "wan-2.7-grid"):
 		return 5
+	case modelID == "veo-3.1-extend":
+		return veoExtendDefaultDuration
 	default:
 		return 5
 	}
@@ -475,6 +539,10 @@ func defaultSeedance15Audio(modelID string) bool {
 	return isSeedance15Model(modelID)
 }
 
+func defaultVideoGenerateAudio(modelID string) bool {
+	return modelID == "veo-3.1-extend" || isSeedance15Model(modelID)
+}
+
 func videoDurationOptions(modelID string) []string {
 	switch {
 	case isKlingModel(modelID):
@@ -495,6 +563,12 @@ func videoDurationOptions(modelID string) []string {
 		return []string{"3", "5", "10", "15"}
 	case modelID == "vidu-q3-i2v-spicy":
 		return []string{"1", "5", "10", "16"}
+	case modelID == "veo-3.1-extend":
+		return []string{"4", "7"}
+	case modelID == "hailuo-2.3-t2v", modelID == "hailuo-2.3-i2v-fast":
+		return []string{"6", "10"}
+	case modelID == "hailuo-2.3-i2v-pro":
+		return []string{"5"}
 	default:
 		return nil
 	}

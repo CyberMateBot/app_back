@@ -78,7 +78,22 @@ func TestVideoGenerationPrice_VeoExtend(t *testing.T) {
 
 	base := DefaultModelPrice("veo-3.1-extend", "video")
 	if got := VideoGenerationPrice(base, VideoGenerationParams{ModelID: "veo-3.1-extend"}); got != 105 {
-		t.Fatalf("flat extend: got %d, want 105", got)
+		t.Fatalf("default 4s 1080p audio: got %d, want 105", got)
+	}
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "veo-3.1-extend", Duration: 7, Resolution: "1080p", GenerateAudio: true,
+	}); got != 184 {
+		t.Fatalf("7s 1080p audio: got %d, want 184", got)
+	}
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "veo-3.1-extend", Duration: 4, Resolution: "720p", GenerateAudio: true,
+	}); got != 89 {
+		t.Fatalf("4s 720p audio: got %d, want 89", got)
+	}
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "veo-3.1-extend", Duration: 4, Resolution: "1080p", GenerateAudio: false,
+	}); got != 70 {
+		t.Fatalf("4s 1080p no audio: got %d, want 70", got)
 	}
 }
 
@@ -99,10 +114,16 @@ func TestVideoGenerationPrice_Hailuo(t *testing.T) {
 	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-t2v", Duration: 6}); got != 44 {
 		t.Fatalf("t2v 6s: got %d, want 44", got)
 	}
-	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-fast", Duration: 6}); got != 36 {
-		t.Fatalf("fast i2v: got %d, want 36", got)
+	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-t2v", Duration: 10}); got != 107 {
+		t.Fatalf("t2v 10s: got %d, want 107", got)
 	}
-	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-pro", Duration: 6}); got != 93 {
-		t.Fatalf("pro i2v: got %d, want 93", got)
+	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-fast", Duration: 6}); got != 36 {
+		t.Fatalf("fast i2v 6s: got %d, want 36", got)
+	}
+	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-fast", Duration: 10}); got != 61 {
+		t.Fatalf("fast i2v 10s: got %d, want 61", got)
+	}
+	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-pro", Duration: 5}); got != 93 {
+		t.Fatalf("pro i2v 5s: got %d, want 93", got)
 	}
 }

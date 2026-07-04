@@ -43,7 +43,7 @@ var defaultModelPrices = map[string]int{
 	"hailuo-2.3-t2v": 44, "hailuo-2.3-i2v-fast": 36, "hailuo-2.3-i2v-pro": 93,
 	"qwen3-tts": 4, "qwen3-tts-clone": 4, "omnivoice": 3, "elevenlabs-v3": 8, "minimax-speech-2.6": 3, "mureka": 50,
 	"mureka-v9": 50, "ace-step-1.5": 40,
-	"hunyuan3d-v3.1-rapid": 25, "hunyuan3d-v3-t2d": 30, "tripo3d-v2.5-i2d": 48,
+	"hunyuan3d-v3.1-rapid": 25, "hunyuan3d-v3.1-rapid-i2d": 250, "hunyuan3d-v3-t2d": 30, "tripo3d-v2.5-i2d": 48,
 	"tripo3d-v2.5-multiview": 48, "tripo3d-h3.1-t2d": 55, "tripo3d-h3.1-i2d": 55,
 	"meshy6-t2d": 48, "rodin-v2-i2d": 55, "rodin-v2.5-i2d": 55,
 }

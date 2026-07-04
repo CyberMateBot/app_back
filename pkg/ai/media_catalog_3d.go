@@ -41,10 +41,16 @@ var extendedThreeDModels = []mediaModelDef{
 		Provider: "wavespeed", Kind: "3d",
 	},
 	{
-		ID: "hunyuan3d-v3.1-rapid", Label: "Hunyuan3D V3.1 Rapid", Group: "Hunyuan3D",
-		Description: "Быстрая и экономичная 3D-генерация",
+		ID: "hunyuan3d-v3.1-rapid", Label: "Hunyuan3D V3.1 Rapid T2D", Group: "Hunyuan3D",
+		Description: "Быстрая text-to-3D генерация",
 		TextSlug: "wavespeed-ai/hunyuan-3d-v3.1/text-to-3d-rapid",
 		Provider: "wavespeed", Kind: "3d",
+	},
+	{
+		ID: "hunyuan3d-v3.1-rapid-i2d", Label: "Hunyuan3D V3.1 Rapid I2D", Group: "Hunyuan3D",
+		Description: "Быстрая image-to-3D генерация",
+		TextSlug: "wavespeed-ai/hunyuan-3d-v3.1/image-to-3d-rapid",
+		Provider: "wavespeed", Kind: "3d", RequiresImage: true,
 	},
 	{
 		ID: "meshy6-t2d", Label: "Meshy 6", Group: "Meshy",
@@ -83,6 +89,8 @@ var extendedThreeDAliases = map[string]string{
 	"wavespeed-ai/hunyuan3d-v3/text-to-3d":     "hunyuan3d-v3-t2d",
 	"hunyuan3d-v3.1-rapid":                     "hunyuan3d-v3.1-rapid",
 	"wavespeed-ai/hunyuan-3d-v3.1/text-to-3d-rapid": "hunyuan3d-v3.1-rapid",
+	"hunyuan3d-v3.1-rapid-i2d":                 "hunyuan3d-v3.1-rapid-i2d",
+	"wavespeed-ai/hunyuan-3d-v3.1/image-to-3d-rapid": "hunyuan3d-v3.1-rapid-i2d",
 	"meshy6-t2d":                               "meshy6-t2d",
 	"wavespeed-ai/meshy6/text-to-3d":           "meshy6-t2d",
 	"rodin-v2-i2d":                             "rodin-v2-i2d",

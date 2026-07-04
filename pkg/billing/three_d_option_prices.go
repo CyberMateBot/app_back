@@ -11,6 +11,8 @@ type ThreeDGenerationParams struct {
 	GeometryQuality string
 	Quad            bool
 	GenerateType    string
+	EnablePBR       bool
+	EnablePBRSet    bool
 	Tier            string
 	Addons          string
 }
@@ -24,6 +26,8 @@ const (
 	tripoH31QuadUSD      = 0.05
 
 	hunyuanRapidUSD    = 0.0225
+	hunyuanRapidI2DBaseUSD = 0.225
+	hunyuanRapidPBRUSD = 0.15
 	hunyuanGeometryUSD = 0.25
 	hunyuanNormalUSD   = 0.375
 	hunyuanLowPolyUSD  = 0.45
@@ -55,6 +59,10 @@ func ThreeDOptionValuePrices(modelID, optionKey string) map[string]int {
 	case "hunyuan3d-v3-t2d":
 		if optionKey == "generate_type" {
 			return hunyuanGenerateTypeDeltas(modelID, base)
+		}
+	case "hunyuan3d-v3.1-rapid", "hunyuan3d-v3.1-rapid-i2d":
+		if optionKey == "enable_pbr" {
+			return hunyuanRapidPBRDeltas(modelID, base)
 		}
 	case "rodin-v2.5-i2d":
 		switch optionKey {
@@ -95,7 +103,9 @@ func threeDGenerationUSD(p ThreeDGenerationParams) float64 {
 	case "tripo3d-h3.1-t2d", "tripo3d-h3.1-i2d":
 		return tripoH31USD(p)
 	case "hunyuan3d-v3.1-rapid":
-		return hunyuanRapidUSD
+		return hunyuanRapidT2DUSD(p)
+	case "hunyuan3d-v3.1-rapid-i2d":
+		return hunyuanRapidI2DUSD(p)
 	case "hunyuan3d-v3-t2d":
 		return hunyuanV3USD(p.GenerateType)
 	case "meshy6-t2d":
@@ -117,6 +127,8 @@ func defaultThreeDUSD(modelID string) float64 {
 		return tripoH31USD(ThreeDGenerationParams{ModelID: modelID, Texture: true, TextureSet: true, TextureQuality: "standard", GeometryQuality: "standard"})
 	case "hunyuan3d-v3.1-rapid":
 		return hunyuanRapidUSD
+	case "hunyuan3d-v3.1-rapid-i2d":
+		return hunyuanRapidI2DBaseUSD
 	case "hunyuan3d-v3-t2d":
 		return hunyuanNormalUSD
 	case "meshy6-t2d":
@@ -162,6 +174,22 @@ func hunyuanV3USD(generateType string) float64 {
 	default:
 		return hunyuanNormalUSD
 	}
+}
+
+func hunyuanRapidT2DUSD(p ThreeDGenerationParams) float64 {
+	usd := hunyuanRapidUSD
+	if p.EnablePBRSet && p.EnablePBR {
+		usd += hunyuanRapidPBRUSD
+	}
+	return usd
+}
+
+func hunyuanRapidI2DUSD(p ThreeDGenerationParams) float64 {
+	usd := hunyuanRapidI2DBaseUSD
+	if p.EnablePBRSet && p.EnablePBR {
+		usd += hunyuanRapidPBRUSD
+	}
+	return usd
 }
 
 func rodinV25USD(tier, addons string) float64 {
@@ -213,6 +241,15 @@ func hunyuanGenerateTypeDeltas(modelID string, base int) map[string]int {
 		"Geometry": usdToCoinsFromBase(modelID, base, ref, hunyuanGeometryUSD) - base,
 		"Normal":   0,
 		"LowPoly":  usdToCoinsFromBase(modelID, base, ref, hunyuanLowPolyUSD) - base,
+	}
+}
+
+func hunyuanRapidPBRDeltas(modelID string, base int) map[string]int {
+	ref := defaultThreeDUSD(modelID)
+	withPBR := ref + hunyuanRapidPBRUSD
+	return map[string]int{
+		"false": 0,
+		"true":  usdToCoinsFromBase(modelID, base, ref, withPBR) - base,
 	}
 }
 

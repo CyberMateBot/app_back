@@ -19,6 +19,9 @@ func generateWavespeedImage(ctx context.Context, cfg config.ConfigAI, prompt str
 
 	enrichedPrompt := enrichMediaPrompt(prompt, req.Messages)
 	input := buildWavespeedImageInput(cfg, def, enrichedPrompt, req, slug)
+	if err := validateWavespeedImageInput(slug, input); err != nil {
+		return ImageResponse{}, err
+	}
 	urls, err := runWavespeedModel(ctx, cfg, slug, input)
 	if err != nil {
 		return ImageResponse{}, err

@@ -5,10 +5,11 @@ import (
 	"strings"
 )
 
+// wavespeedImageUsesSingularImage lists models whose text-to-image / img2img endpoint
+// accepts a single "image" string (not "images" array). Edit slugs may still require "images".
 func wavespeedImageUsesSingularImage(modelID string) bool {
 	switch modelID {
-	case "seedream-v4.5", "seedream-v5.0-lite", "qwen-image", "qwen-image-2512",
-		"z-image-base", "z-image-turbo", "grok-imagine-edit", "flux-dev":
+	case "qwen-image", "qwen-image-2512", "z-image-base", "z-image-turbo", "flux-dev":
 		return true
 	default:
 		return false
@@ -46,23 +47,54 @@ func formatPixelSize(width, height int) string {
 	return strconv.Itoa(width) + "*" + strconv.Itoa(height)
 }
 
+func wavespeedImageSlugUsesImagesArray(slug string) bool {
+	s := strings.ToLower(strings.TrimSpace(slug))
+	if s == "" {
+		return false
+	}
+	if strings.Contains(s, "/edit") || strings.Contains(s, "/edit-") {
+		// Same slug for t2i + img2img with singular image field.
+		if strings.Contains(s, "z-image/base") {
+			return false
+		}
+		return true
+	}
+	return strings.Contains(s, "sequential") || strings.Contains(s, "multi")
+}
+
+func wavespeedImageSourceUsesPluralField(modelID, slug string) bool {
+	if wavespeedImageUsesPluralImages(modelID) || wavespeedImageSlugUsesImagesArray(slug) {
+		return true
+	}
+	return !wavespeedImageUsesSingularImage(modelID)
+}
+
 func applyWavespeedImageSourceInput(input map[string]any, modelID, slug, sourceURL string, req ImageRequest) {
 	if sourceURL == "" {
 		return
 	}
 
-	switch {
-	case wavespeedImageUsesPluralImages(modelID):
+	if wavespeedImageSourceUsesPluralField(modelID, slug) {
 		input["images"] = []string{sourceURL}
-	case wavespeedImageUsesSingularImage(modelID):
+		delete(input, "image")
+	} else {
 		input["image"] = sourceURL
-	default:
-		input["images"] = []string{sourceURL}
+		delete(input, "images")
 	}
 
 	if modelID == "z-image-base" && !strings.HasSuffix(slug, "/edit") && req.Strength > 0 {
 		input["strength"] = req.Strength
 	}
+}
+
+func validateWavespeedImageInput(slug string, input map[string]any) error {
+	if !wavespeedImageSlugUsesImagesArray(slug) {
+		return nil
+	}
+	if images, ok := input["images"].([]string); ok && len(images) > 0 && strings.TrimSpace(images[0]) != "" {
+		return nil
+	}
+	return &ProviderError{Provider: "wavespeed", Message: "source image is required for this model"}
 }
 
 func applyWavespeedImageExtraFields(input map[string]any, modelID string, req ImageRequest) {

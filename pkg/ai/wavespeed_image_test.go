@@ -33,6 +33,62 @@ func TestBuildWavespeedImageInput_NanoBanana2Text(t *testing.T) {
 	}
 }
 
+func TestBuildWavespeedImageInput_SeedreamEdit(t *testing.T) {
+	def, ok := resolveWavespeedImageModel("seedream-v4.5")
+	if !ok {
+		t.Fatal("model not found")
+	}
+
+	cfg := config.ConfigAI{}
+	input := buildWavespeedImageInput(cfg, def, "make it sunset", ImageRequest{
+		SourceImageURL: "https://cdn.example.com/source.png",
+	}, def.EditSlug)
+
+	images, ok := input["images"].([]string)
+	if !ok || len(images) != 1 || images[0] != "https://cdn.example.com/source.png" {
+		t.Fatalf("images: got %v", input["images"])
+	}
+	if _, ok := input["image"]; ok {
+		t.Fatalf("seedream edit must use images, not image")
+	}
+}
+
+func TestBuildWavespeedImageInput_GrokEdit(t *testing.T) {
+	def, ok := resolveWavespeedImageModel("grok-imagine-edit")
+	if !ok {
+		t.Fatal("model not found")
+	}
+
+	cfg := config.ConfigAI{}
+	input := buildWavespeedImageInput(cfg, def, "add glasses", ImageRequest{
+		SourceImageURL: "https://cdn.example.com/face.png",
+	}, def.EditSlug)
+
+	images, ok := input["images"].([]string)
+	if !ok || len(images) != 1 {
+		t.Fatalf("images: got %v", input["images"])
+	}
+}
+
+func TestBuildWavespeedImageInput_FluxDevImg2Img(t *testing.T) {
+	def, ok := resolveWavespeedImageModel("flux-dev")
+	if !ok {
+		t.Fatal("model not found")
+	}
+
+	cfg := config.ConfigAI{}
+	input := buildWavespeedImageInput(cfg, def, "oil painting", ImageRequest{
+		SourceImageURL: "https://cdn.example.com/source.png",
+	}, def.TextSlug)
+
+	if input["image"] != "https://cdn.example.com/source.png" {
+		t.Fatalf("image: got %v", input["image"])
+	}
+	if _, ok := input["images"]; ok {
+		t.Fatalf("flux-dev img2img must use image, not images")
+	}
+}
+
 func TestBuildWavespeedImageInput_NanoBanana2Edit(t *testing.T) {
 	def, ok := resolveWavespeedImageModel("nano-banana-2")
 	if !ok {

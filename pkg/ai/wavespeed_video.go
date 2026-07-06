@@ -104,19 +104,11 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		}
 	}
 
-	if def.ID == "happyhorse-ref2v" {
-		refs := normalizeReferenceImages(req.ReferenceImages)
-		if len(refs) == 0 {
-			sourceImage := strings.TrimSpace(req.SourceImageURL)
-			if sourceImage == "" {
-				sourceImage = strings.TrimSpace(req.ImageURL)
-			}
-			if sourceImage != "" {
-				refs = []string{sourceImage}
-			}
-		}
-		if len(refs) > 0 {
-			input["reference_images"] = refs
+	if refs := normalizeReferenceImages(req.ReferenceImages); len(refs) > 0 {
+		input["reference_images"] = refs
+	} else if isUnifiedSeedanceVideoEdit(def) || def.ID == "happyhorse-ref2v" {
+		if img := optionalVideoStartImage(req); img != "" {
+			input["reference_images"] = []string{img}
 		}
 	}
 
@@ -174,10 +166,6 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 
 	if lastImage := strings.TrimSpace(req.LastImageURL); lastImage != "" {
 		input["last_image"] = lastImage
-	}
-
-	if refs := normalizeReferenceImages(req.ReferenceImages); len(refs) > 0 {
-		input["reference_images"] = refs
 	}
 
 	if isUnifiedSeedanceVideoEdit(def) {

@@ -111,8 +111,9 @@ func (a *App) Init(ctx context.Context) error {
 		return fmt.Errorf("gRPC server failed to start in time")
 	}
 
-	// Setup HTTP server
-	httpAddr := fmt.Sprintf(":%d", a.httpPort)
+	// Bind on all interfaces (required by Timeweb/Railway proxies; ":port" is fine,
+	// but an explicit 0.0.0.0 makes port discovery/logs unambiguous).
+	httpAddr := fmt.Sprintf("0.0.0.0:%d", a.httpPort)
 	a.httpServer = &http.Server{
 		Addr:    httpAddr,
 		Handler: a.ServeMux,
@@ -147,7 +148,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
-	fmt.Printf("HTTP API listening on http://127.0.0.1:%d\n", a.httpPort)
+	fmt.Printf("HTTP API listening on http://0.0.0.0:%d\n", a.httpPort)
 	if err := a.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("failed to serve HTTP: %w", err)
 	}

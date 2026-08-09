@@ -17,8 +17,44 @@ func getenvFirst(keys ...string) string {
 	return ""
 }
 
-// postgresFromDatabaseURL parses Railway/Heroku-style DATABASE_URL into ConfigPostgres.
-func postgresFromDatabaseURL(raw string) (ConfigPostgres, bool) {
+// normalizeDatabaseURL trims whitespace/quotes and common `psql '...'` wrappers
+// that users paste from cloud panel connection snippets.
+func normalizeDatabaseURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	raw = strings.Trim(raw, `"'`)
+	if strings.HasPrefix(strings.ToLower(raw), "psql ") {
+		raw = strings.TrimSpace(raw[4:])
+		raw = strings.Trim(raw, `"'`)
+	}
+	return raw
+}
+
+// encodePostgresURLUserinfo percent-encodes user/password when the panel pasted
+// a raw password with reserved characters (e.g. `}`), which makes url.Parse fail
+// with "invalid userinfo" and previously caused a silent fallback to localhost.
+func encodePostgresURLUserinfo(raw string) (string, bool) {
+	schemeIdx := strings.Index(raw, "://")
+	if schemeIdx < 0 {
+		return "", false
+	}
+	rest := raw[schemeIdx+3:]
+	at := strings.Index(rest, "@")
+	if at <= 0 {
+		return "", false
+	}
+	userinfo := rest[:at]
+	hostAndRest := rest[at+1:]
+	colon := strings.Index(userinfo, ":")
+	if colon < 0 {
+		return "", false
+	}
+	user := userinfo[:colon]
+	pass := userinfo[colon+1:]
+	escaped := url.UserPassword(user, pass).String()
+	return raw[:schemeIdx+3] + escaped + "@" + hostAndRest, true
+}
+
+func parsePostgresURL(raw string) (ConfigPostgres, bool) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" {
 		return ConfigPostgres{}, false
@@ -47,6 +83,9 @@ func postgresFromDatabaseURL(raw string) (ConfigPostgres, bool) {
 	cfg.Port = port
 
 	dbName := strings.TrimPrefix(u.Path, "/")
+	if i := strings.Index(dbName, "?"); i >= 0 {
+		dbName = dbName[:i]
+	}
 	if dbName != "" {
 		cfg.DBName = dbName
 	}
@@ -58,24 +97,43 @@ func postgresFromDatabaseURL(raw string) (ConfigPostgres, bool) {
 	return cfg, true
 }
 
+// postgresFromDatabaseURL parses Railway/Heroku/Timeweb-style DATABASE_URL into ConfigPostgres.
+func postgresFromDatabaseURL(raw string) (ConfigPostgres, bool) {
+	raw = normalizeDatabaseURL(raw)
+	if raw == "" {
+		return ConfigPostgres{}, false
+	}
+	if cfg, ok := parsePostgresURL(raw); ok {
+		return cfg, true
+	}
+	if fixed, ok := encodePostgresURLUserinfo(raw); ok {
+		if cfg, ok := parsePostgresURL(fixed); ok {
+			return cfg, true
+		}
+	}
+	return ConfigPostgres{}, false
+}
+
 func mergePostgresFromEnv(cfg ConfigPostgres) ConfigPostgres {
-	if cfg.Host == "" {
-		cfg.Host = getenvFirst("PG_HOST", "PGHOST")
+	// Explicit PG_* always win over DATABASE_URL so a wrong/mangled URL password
+	// can be overridden without removing DATABASE_URL entirely.
+	if v := getenvFirst("PG_HOST", "PGHOST"); v != "" {
+		cfg.Host = v
 	}
-	if cfg.Port == "" {
-		cfg.Port = getenvFirst("PG_PORT", "PGPORT")
+	if v := getenvFirst("PG_PORT", "PGPORT"); v != "" {
+		cfg.Port = v
 	}
-	if cfg.User == "" {
-		cfg.User = getenvFirst("PG_USER", "PGUSER")
+	if v := getenvFirst("PG_USER", "PGUSER"); v != "" {
+		cfg.User = v
 	}
-	if cfg.Pass == "" {
-		cfg.Pass = getenvFirst("PG_PASS", "PG_PASSWORD", "PGPASSWORD")
+	if v := getenvFirst("PG_PASS", "PG_PASSWORD", "PGPASSWORD"); v != "" {
+		cfg.Pass = v
 	}
-	if cfg.DBName == "" {
-		cfg.DBName = getenvFirst("PG_DBNAME", "PGDATABASE")
+	if v := getenvFirst("PG_DBNAME", "PGDATABASE"); v != "" {
+		cfg.DBName = v
 	}
-	if cfg.SSLMode == "" {
-		cfg.SSLMode = os.Getenv("PG_SSLMODE")
+	if v := os.Getenv("PG_SSLMODE"); v != "" {
+		cfg.SSLMode = v
 	}
 	if cfg.SSLRootCert == "" {
 		cfg.SSLRootCert = os.Getenv("PG_SSLROOTCERT")

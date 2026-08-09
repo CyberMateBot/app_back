@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -218,6 +219,10 @@ func LoadPostgresConfig() ConfigPostgres {
 	if raw := os.Getenv("DATABASE_URL"); raw != "" {
 		if parsed, ok := postgresFromDatabaseURL(raw); ok {
 			cfg = parsed
+		} else {
+			slog.Warn("DATABASE_URL is set but could not be parsed; falling back to PG_* / defaults",
+				slog.Int("length", len(strings.TrimSpace(raw))),
+			)
 		}
 	}
 

@@ -49,7 +49,9 @@ $migrations = @(
     "V20260608000200__wallets_profile_unique.sql",
     "V20260620000100__admin_panel_extras.sql",
     "V20260616000100__home_widgets.sql",
-    "V20260621000100__nullable_token_tx_admin.sql"
+    "V20260621000100__nullable_token_tx_admin.sql",
+    "V20260622000100__user_subscriptions.sql",
+    "V20260724000100__rebalance_billing_catalog.sql"
 )
 
 function Resolve-PsqlExecutable {

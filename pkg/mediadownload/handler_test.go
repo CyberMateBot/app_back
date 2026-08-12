@@ -133,6 +133,92 @@ func TestHandlePreparedDownload_servesAttachment(t *testing.T) {
 	}
 }
 
+func TestHandleDownload_sniffsRealTypeWhenUpstreamIsGeneric(t *testing.T) {
+	pngMagic := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0}
+
+	client := &http.Client{
+		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			rec := httptest.NewRecorder()
+			rec.Header().Set("Content-Type", "application/octet-stream")
+			rec.WriteHeader(http.StatusOK)
+			_, _ = rec.Write(pngMagic)
+			return rec.Result(), nil
+		}),
+	}
+
+	mux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleDownload(w, r, client)
+	})
+
+	rec := httptest.NewRecorder()
+	// Simulates the frontend bug: a fallback name like "image.png" with a
+	// second (wrong) extension appended, and a CDN url without an extension.
+	req := httptest.NewRequest(
+		http.MethodGet,
+		pathMediaDownload+"?url="+url.QueryEscape("https://cdn.example.com/output/abc123")+"&filename="+url.QueryEscape("image.png.bin"),
+		nil,
+	)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("content-type %q, want image/png (sniffed)", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="image.png"` {
+		t.Fatalf("disposition %q, want a single .png extension", got)
+	}
+}
+
+func TestHandleDownload_rejectsErrorPageServedAsMedia(t *testing.T) {
+	client := &http.Client{
+		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			rec := httptest.NewRecorder()
+			rec.Header().Set("Content-Type", "application/json")
+			rec.WriteHeader(http.StatusOK)
+			_, _ = rec.Write([]byte(`{"error":"expired"}`))
+			return rec.Result(), nil
+		}),
+	}
+
+	mux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleDownload(w, r, client)
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodGet,
+		pathMediaDownload+"?url="+url.QueryEscape("https://cdn.example.com/out.png")+"&filename=test.png",
+		nil,
+	)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status %d, want 502 body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestNormalizeFilenameExtension(t *testing.T) {
+	cases := []struct {
+		filename    string
+		contentType string
+		want        string
+	}{
+		{"image.png.bin", "image/png", "image.png"},
+		{"image.png", "image/webp", "image.webp"},
+		{"video.mp4.mp4", "video/mp4", "video.mp4"},
+		{"cybermate-media.bin", "video/mp4", "cybermate-media.mp4"},
+		{"already-correct.jpeg", "image/jpeg", "already-correct.jpeg"},
+	}
+
+	for _, tc := range cases {
+		if got := normalizeFilenameExtension(tc.filename, tc.contentType); got != tc.want {
+			t.Fatalf("normalizeFilenameExtension(%q, %q) = %q, want %q", tc.filename, tc.contentType, got, tc.want)
+		}
+	}
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {

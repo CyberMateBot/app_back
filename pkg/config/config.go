@@ -17,6 +17,7 @@ type Config struct {
 	Redis    ConfigRedis
 	CORS     ConfigCORS
 	Server   ConfigServer
+	YooKassa ConfigYooKassa
 }
 
 type ConfigApp struct {
@@ -78,6 +79,17 @@ type ConfigCORS struct {
 	AllowedOrigins []string
 	AllowedMethods []string
 	AllowedHeaders []string
+}
+
+// ConfigYooKassa holds merchant credentials from the YooKassa personal cabinet
+// (Настройки → API ключи) plus where to send buyers back after paying.
+type ConfigYooKassa struct {
+	ShopID    string
+	SecretKey string
+	// ReturnURL is where YooKassa redirects the buyer after checkout. Since the
+	// app only runs inside Telegram, this should point at a small static page
+	// that immediately bounces back into the bot (see /payment/return.html).
+	ReturnURL string
 }
 
 func getenv(key, def string) string {
@@ -184,6 +196,7 @@ func LoadConfig() Config {
 		Redis:    LoadRedisConfig(),
 		CORS:     LoadCORSConfig(),
 		Server:   LoadServerConfig(),
+		YooKassa: LoadYooKassaConfig(),
 	}
 }
 
@@ -256,6 +269,14 @@ func LoadJWTConfig() ConfigJWT {
 		Secret:          getenv("JWT_SECRET", "your-super-secret-jwt-key-change-this"),
 		AccessTokenTTL:  getenvDuration("JWT_ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL: getenvDuration("JWT_REFRESH_TOKEN_TTL", 168*time.Hour), // 7 days
+	}
+}
+
+func LoadYooKassaConfig() ConfigYooKassa {
+	return ConfigYooKassa{
+		ShopID:    getenv("YOOKASSA_SHOP_ID", ""),
+		SecretKey: getenv("YOOKASSA_SECRET_KEY", ""),
+		ReturnURL: getenv("YOOKASSA_RETURN_URL", ""),
 	}
 }
 

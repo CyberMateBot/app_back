@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	rcModels "github.com/twelvepills-936/tgapp-/internal/rest/client/models"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
+	rcModels "github.com/twelvepills-936/tgapp-/internal/rest/client/models"
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
 )
 
@@ -62,6 +62,13 @@ type Repository interface {
 	CreateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) (int64, error)
 	UpdateHomeWidget(ctx context.Context, tx pgx.Tx, w repoModels.HomeWidget) error
 	DeleteHomeWidget(ctx context.Context, tx pgx.Tx, id int64) error
+
+	// Payments (YooKassa)
+	CreatePayment(ctx context.Context, tx pgx.Tx, p repoModels.Payment) (int64, error)
+	UpdatePaymentProvider(ctx context.Context, tx pgx.Tx, id int64, providerPaymentID, confirmationURL string) error
+	GetPaymentByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.Payment, error)
+	LockPaymentByProviderID(ctx context.Context, tx pgx.Tx, providerPaymentID string) (repoModels.Payment, error)
+	UpdatePaymentStatus(ctx context.Context, tx pgx.Tx, id int64, status string) error
 }
 
 type UseCase interface {
@@ -117,6 +124,10 @@ type UseCase interface {
 	CreateAdminHomeWidget(ctx context.Context, input ucModels.AdminCreateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error)
 	UpdateAdminHomeWidget(ctx context.Context, input ucModels.AdminUpdateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error)
 	DeleteAdminHomeWidget(ctx context.Context, id int64) error
+
+	// Payments (YooKassa)
+	StartCheckout(ctx context.Context, input ucModels.StartCheckoutInput) (ucModels.StartCheckoutOutput, error)
+	HandleYooKassaWebhookNotification(ctx context.Context, providerPaymentID string) error
 }
 
 type Client interface {

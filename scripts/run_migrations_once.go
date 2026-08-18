@@ -65,6 +65,7 @@ func main() {
 		"V20260621000100__nullable_token_tx_admin.sql",
 		"V20260622000100__user_subscriptions.sql",
 		"V20260724000100__rebalance_billing_catalog.sql",
+		"V20260813000100__payments.sql",
 	}
 
 	for _, name := range files {

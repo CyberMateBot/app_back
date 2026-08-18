@@ -148,5 +148,11 @@ func (f *fakeReferralsUC) UpdateAdminHomeWidget(ctx context.Context, input ucMod
 func (f *fakeReferralsUC) DeleteAdminHomeWidget(ctx context.Context, id int64) error {
 	return errors.New("not impl")
 }
+func (f *fakeReferralsUC) StartCheckout(ctx context.Context, input ucModels.StartCheckoutInput) (ucModels.StartCheckoutOutput, error) {
+	return ucModels.StartCheckoutOutput{}, errors.New("not impl")
+}
+func (f *fakeReferralsUC) HandleYooKassaWebhookNotification(ctx context.Context, providerPaymentID string) error {
+	return errors.New("not impl")
+}
 
 var _ internal.UseCase = (*fakeReferralsUC)(nil)

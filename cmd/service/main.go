@@ -7,26 +7,28 @@ import (
 
 	"github.com/twelvepills-936/tgapp-/internal/bot"
 	"github.com/twelvepills-936/tgapp-/internal/migrations"
-	"github.com/twelvepills-936/tgapp-/pkg/adminapi"
 	"github.com/twelvepills-936/tgapp-/internal/repository"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
 	"github.com/twelvepills-936/tgapp-/internal/service"
 	"github.com/twelvepills-936/tgapp-/internal/usecase"
+	"github.com/twelvepills-936/tgapp-/pkg/adminapi"
+	"github.com/twelvepills-936/tgapp-/pkg/ai"
 	api "github.com/twelvepills-936/tgapp-/pkg/api"
 	"github.com/twelvepills-936/tgapp-/pkg/app"
 	"github.com/twelvepills-936/tgapp-/pkg/applinks"
 	"github.com/twelvepills-936/tgapp-/pkg/config"
-	"github.com/twelvepills-936/tgapp-/pkg/ai"
 	"github.com/twelvepills-936/tgapp-/pkg/cors"
 	"github.com/twelvepills-936/tgapp-/pkg/generate"
 	"github.com/twelvepills-936/tgapp-/pkg/health"
 	"github.com/twelvepills-936/tgapp-/pkg/logger"
 	"github.com/twelvepills-936/tgapp-/pkg/mediadownload"
+	"github.com/twelvepills-936/tgapp-/pkg/paymentsapi"
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 	"github.com/twelvepills-936/tgapp-/pkg/walletapi"
+	"github.com/twelvepills-936/tgapp-/pkg/yookassa"
 )
 
 func main() {
@@ -74,8 +76,13 @@ func main() {
 	}
 	repo := repository.NewRepository(pool)
 
+	yookassaClient := yookassa.New(addConfig.YooKassa.ShopID, addConfig.YooKassa.SecretKey)
+	if !yookassaClient.Enabled() {
+		slog.WarnContext(ctx, "yookassa is not configured (YOOKASSA_SHOP_ID/YOOKASSA_SECRET_KEY missing); checkout endpoint will return 503")
+	}
+
 	// Create single instances of usecase and service
-	uc := usecase.NewUseCase(repo, addConfig.JWT)
+	uc := usecase.NewUseCase(repo, addConfig.JWT, usecase.WithYooKassa(yookassaClient, addConfig.YooKassa.ReturnURL))
 	if err := uc.BootstrapAdmin(ctx); err != nil {
 		slog.WarnContext(ctx, "admin bootstrap skipped", logger.ErrorAttr(err))
 	}
@@ -110,25 +117,29 @@ func main() {
 		health.Wrap(
 			walletapi.Wrap(
 				adminapi.Wrap(
-					mediadownload.Wrap(
-						generate.Wrap(
-							prompthistory.Wrap(
-								applinks.Wrap(
-									siteapi.Wrap(
-										swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+					paymentsapi.Wrap(
+						mediadownload.Wrap(
+							generate.Wrap(
+								prompthistory.Wrap(
+									applinks.Wrap(
+										siteapi.Wrap(
+											swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+											uc,
+											addConfig.JWT,
+										),
+										addConfig.App,
 										uc,
-										addConfig.JWT,
 									),
-									addConfig.App,
-									uc,
+									promptHistory,
+									tokenGuard,
 								),
+								aiSvc,
 								promptHistory,
 								tokenGuard,
 							),
-							aiSvc,
-							promptHistory,
-							tokenGuard,
 						),
+						uc,
+						tokenGuard,
 					),
 					uc,
 					addConfig.JWT,

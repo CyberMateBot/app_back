@@ -104,6 +104,21 @@ func (fakeAdminRepoStubs) UpdateHomeWidget(ctx context.Context, tx pgx.Tx, w rep
 func (fakeAdminRepoStubs) DeleteHomeWidget(ctx context.Context, tx pgx.Tx, id int64) error {
 	return errors.New("not impl")
 }
+func (fakeAdminRepoStubs) CreatePayment(ctx context.Context, tx pgx.Tx, p repoModels.Payment) (int64, error) {
+	return 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) UpdatePaymentProvider(ctx context.Context, tx pgx.Tx, id int64, providerPaymentID, confirmationURL string) error {
+	return errors.New("not impl")
+}
+func (fakeAdminRepoStubs) GetPaymentByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.Payment, error) {
+	return repoModels.Payment{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) LockPaymentByProviderID(ctx context.Context, tx pgx.Tx, providerPaymentID string) (repoModels.Payment, error) {
+	return repoModels.Payment{}, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) UpdatePaymentStatus(ctx context.Context, tx pgx.Tx, id int64, status string) error {
+	return errors.New("not impl")
+}
 
 // fakeAdminUCStubs provides no-op admin usecase methods for test fakes.
 type fakeAdminUCStubs struct{}
@@ -206,5 +221,11 @@ func (fakeAdminUCStubs) UpdateAdminHomeWidget(ctx context.Context, input ucModel
 	return ucModels.AdminHomeWidgetOutput{}, errors.New("not impl")
 }
 func (fakeAdminUCStubs) DeleteAdminHomeWidget(ctx context.Context, id int64) error {
+	return errors.New("not impl")
+}
+func (fakeAdminUCStubs) StartCheckout(ctx context.Context, input ucModels.StartCheckoutInput) (ucModels.StartCheckoutOutput, error) {
+	return ucModels.StartCheckoutOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) HandleYooKassaWebhookNotification(ctx context.Context, providerPaymentID string) error {
 	return errors.New("not impl")
 }

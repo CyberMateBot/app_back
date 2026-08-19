@@ -18,6 +18,7 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/applinks"
 	"github.com/twelvepills-936/tgapp-/pkg/config"
 	"github.com/twelvepills-936/tgapp-/pkg/cors"
+	"github.com/twelvepills-936/tgapp-/pkg/feedbackapi"
 	"github.com/twelvepills-936/tgapp-/pkg/generate"
 	"github.com/twelvepills-936/tgapp-/pkg/health"
 	"github.com/twelvepills-936/tgapp-/pkg/logger"
@@ -117,26 +118,30 @@ func main() {
 		health.Wrap(
 			walletapi.Wrap(
 				adminapi.Wrap(
-					paymentsapi.Wrap(
-						mediadownload.Wrap(
-							generate.Wrap(
-								prompthistory.Wrap(
-									applinks.Wrap(
-										siteapi.Wrap(
-											swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+					feedbackapi.Wrap(
+						paymentsapi.Wrap(
+							mediadownload.Wrap(
+								generate.Wrap(
+									prompthistory.Wrap(
+										applinks.Wrap(
+											siteapi.Wrap(
+												swagger.Wrap(application.ServeMux, addConfig.App.SwaggerEnabled),
+												uc,
+												addConfig.JWT,
+											),
+											addConfig.App,
 											uc,
-											addConfig.JWT,
 										),
-										addConfig.App,
-										uc,
+										promptHistory,
+										tokenGuard,
 									),
+									aiSvc,
 									promptHistory,
 									tokenGuard,
 								),
-								aiSvc,
-								promptHistory,
-								tokenGuard,
 							),
+							uc,
+							tokenGuard,
 						),
 						uc,
 						tokenGuard,

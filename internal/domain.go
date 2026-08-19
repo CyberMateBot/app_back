@@ -69,6 +69,11 @@ type Repository interface {
 	GetPaymentByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.Payment, error)
 	LockPaymentByProviderID(ctx context.Context, tx pgx.Tx, providerPaymentID string) (repoModels.Payment, error)
 	UpdatePaymentStatus(ctx context.Context, tx pgx.Tx, id int64, status string) error
+
+	// User feedback
+	CreateUserFeedback(ctx context.Context, tx pgx.Tx, profileID int64, kind, message string) (int64, error)
+	ListAdminUserFeedback(ctx context.Context, tx pgx.Tx, kind string, limit, offset int32) ([]repoModels.UserFeedback, int64, error)
+	DeleteAdminUserFeedback(ctx context.Context, tx pgx.Tx, id int64) error
 }
 
 type UseCase interface {
@@ -128,6 +133,11 @@ type UseCase interface {
 	// Payments (YooKassa)
 	StartCheckout(ctx context.Context, input ucModels.StartCheckoutInput) (ucModels.StartCheckoutOutput, error)
 	HandleYooKassaWebhookNotification(ctx context.Context, providerPaymentID string) error
+
+	// User feedback
+	SubmitUserFeedback(ctx context.Context, input ucModels.SubmitUserFeedbackInput) (ucModels.SubmitUserFeedbackOutput, error)
+	ListAdminUserFeedback(ctx context.Context, input ucModels.AdminListUserFeedbackInput) (ucModels.AdminListUserFeedbackOutput, error)
+	DeleteAdminUserFeedback(ctx context.Context, id int64) error
 }
 
 type Client interface {

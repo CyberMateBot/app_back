@@ -159,6 +159,20 @@ type transactionsListResp struct {
 	Total int64                 `json:"total"`
 }
 
+type feedbackItemResp struct {
+	ID        int64  `json:"id"`
+	User      string `json:"user"`
+	Kind      string `json:"kind"`
+	KindLabel string `json:"kind_label"`
+	Message   string `json:"message"`
+	CreatedAt string `json:"created_at"`
+}
+
+type feedbackListResp struct {
+	Data  []feedbackItemResp `json:"data"`
+	Total int64              `json:"total"`
+}
+
 type broadcastHistoryItemResp struct {
 	ID          int64  `json:"id"`
 	Message     string `json:"message"`
@@ -532,6 +546,47 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 				items = append(items, coinPackItemResp(item))
 			}
 			writeJSON(w, http.StatusOK, coinPacksListResp{Data: items})
+			return
+
+		case r.Method == http.MethodGet && path == "feedback":
+			page := parseInt32(r.URL.Query().Get("page"), 1)
+			perPage := parseInt32(r.URL.Query().Get("per_page"), 20)
+			out, err := uc.ListAdminUserFeedback(r.Context(), ucModels.AdminListUserFeedbackInput{
+				Page:    page,
+				PerPage: perPage,
+				Kind:    r.URL.Query().Get("kind"),
+			})
+			if err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			items := make([]feedbackItemResp, 0, len(out.Data))
+			for _, item := range out.Data {
+				items = append(items, feedbackItemResp(item))
+			}
+			writeJSON(w, http.StatusOK, feedbackListResp{Data: items, Total: out.Total})
+			return
+
+		case strings.HasPrefix(path, "feedback/"):
+			idStr := strings.TrimPrefix(path, "feedback/")
+			if idStr == "" || strings.Contains(idStr, "/") {
+				writeErr(w, http.StatusNotFound, "not found")
+				return
+			}
+			feedbackID, err := strconv.ParseInt(idStr, 10, 64)
+			if err != nil || feedbackID < 1 {
+				writeErr(w, http.StatusBadRequest, "invalid feedback id")
+				return
+			}
+			if r.Method != http.MethodDelete {
+				writeErr(w, http.StatusMethodNotAllowed, "method not allowed")
+				return
+			}
+			if err := uc.DeleteAdminUserFeedback(r.Context(), feedbackID); err != nil {
+				writeUsecaseErr(w, err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
 			return
 
 		case r.Method == http.MethodGet && path == "home-widgets":

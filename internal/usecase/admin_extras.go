@@ -74,6 +74,10 @@ func (uc *useCase) ListAdminTransactions(ctx context.Context, input ucModels.Adm
 }
 
 func mapAdminTransaction(item repoModels.AdminTokenTransaction) ucModels.AdminTransactionItem {
+	if strings.EqualFold(strings.TrimSpace(item.Source), "payment") {
+		return mapAdminPaymentTransaction(item)
+	}
+
 	op := strings.ToLower(strings.TrimSpace(item.Operation))
 	typeLabel := "Списание админом"
 	amountLabel := fmt.Sprintf("-%d монет", item.Amount)
@@ -94,6 +98,48 @@ func mapAdminTransaction(item repoModels.AdminTokenTransaction) ucModels.AdminTr
 		CreatedAt:   item.CreatedAt.UTC().Format(time.RFC3339),
 		Status:      "completed",
 		StatusLabel: "Успешно",
+	}
+}
+
+func mapAdminPaymentTransaction(item repoModels.AdminTokenTransaction) ucModels.AdminTransactionItem {
+	kind := strings.ToLower(strings.TrimSpace(item.PaymentKind))
+	typeLabel := "Покупка монет"
+	if kind == "subscription" {
+		typeLabel = "Подписка"
+	}
+
+	amountLabel := fmt.Sprintf("+%d монет", item.Amount)
+	if item.AmountRub > 0 {
+		amountLabel = fmt.Sprintf("+%d монет · %.0f ₽", item.Amount, item.AmountRub)
+	}
+
+	status, statusLabel := mapPaymentStatus(item.Status)
+
+	return ucModels.AdminTransactionItem{
+		ID:          item.ID,
+		User:        item.UserName,
+		Type:        "credit",
+		TypeLabel:   typeLabel,
+		Amount:      item.Amount,
+		AmountLabel: amountLabel,
+		Method:      "yookassa",
+		MethodLabel: "ЮKassa",
+		CreatedAt:   item.CreatedAt.UTC().Format(time.RFC3339),
+		Status:      status,
+		StatusLabel: statusLabel,
+	}
+}
+
+func mapPaymentStatus(raw string) (string, string) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "pending":
+		return "pending", "Ожидание"
+	case "canceled":
+		return "canceled", "Отменён"
+	case "refunded":
+		return "refunded", "Возврат"
+	default:
+		return "succeeded", "Успешно"
 	}
 }
 

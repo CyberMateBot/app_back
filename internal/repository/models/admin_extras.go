@@ -11,12 +11,16 @@ type AdminEvent struct {
 }
 
 type AdminTokenTransaction struct {
-	ID        int64
-	UserName  string
-	Operation string
-	Amount    int64
-	Reason    string
-	CreatedAt time.Time
+	ID          int64
+	UserName    string
+	Operation   string
+	Amount      int64
+	Reason      string
+	CreatedAt   time.Time
+	Source      string
+	Status      string
+	PaymentKind string
+	AmountRub   float64
 }
 
 type AdminTransactionStats struct {

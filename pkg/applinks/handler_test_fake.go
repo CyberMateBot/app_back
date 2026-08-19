@@ -154,5 +154,14 @@ func (f *fakeReferralsUC) StartCheckout(ctx context.Context, input ucModels.Star
 func (f *fakeReferralsUC) HandleYooKassaWebhookNotification(ctx context.Context, providerPaymentID string) error {
 	return errors.New("not impl")
 }
+func (f *fakeReferralsUC) SubmitUserFeedback(ctx context.Context, input ucModels.SubmitUserFeedbackInput) (ucModels.SubmitUserFeedbackOutput, error) {
+	return ucModels.SubmitUserFeedbackOutput{}, errors.New("not impl")
+}
+func (f *fakeReferralsUC) ListAdminUserFeedback(ctx context.Context, input ucModels.AdminListUserFeedbackInput) (ucModels.AdminListUserFeedbackOutput, error) {
+	return ucModels.AdminListUserFeedbackOutput{}, errors.New("not impl")
+}
+func (f *fakeReferralsUC) DeleteAdminUserFeedback(ctx context.Context, id int64) error {
+	return errors.New("not impl")
+}
 
 var _ internal.UseCase = (*fakeReferralsUC)(nil)

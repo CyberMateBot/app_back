@@ -119,6 +119,15 @@ func (fakeAdminRepoStubs) LockPaymentByProviderID(ctx context.Context, tx pgx.Tx
 func (fakeAdminRepoStubs) UpdatePaymentStatus(ctx context.Context, tx pgx.Tx, id int64, status string) error {
 	return errors.New("not impl")
 }
+func (fakeAdminRepoStubs) CreateUserFeedback(ctx context.Context, tx pgx.Tx, profileID int64, kind, message string) (int64, error) {
+	return 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) ListAdminUserFeedback(ctx context.Context, tx pgx.Tx, kind string, limit, offset int32) ([]repoModels.UserFeedback, int64, error) {
+	return nil, 0, errors.New("not impl")
+}
+func (fakeAdminRepoStubs) DeleteAdminUserFeedback(ctx context.Context, tx pgx.Tx, id int64) error {
+	return errors.New("not impl")
+}
 
 // fakeAdminUCStubs provides no-op admin usecase methods for test fakes.
 type fakeAdminUCStubs struct{}
@@ -227,5 +236,14 @@ func (fakeAdminUCStubs) StartCheckout(ctx context.Context, input ucModels.StartC
 	return ucModels.StartCheckoutOutput{}, errors.New("not impl")
 }
 func (fakeAdminUCStubs) HandleYooKassaWebhookNotification(ctx context.Context, providerPaymentID string) error {
+	return errors.New("not impl")
+}
+func (fakeAdminUCStubs) SubmitUserFeedback(ctx context.Context, input ucModels.SubmitUserFeedbackInput) (ucModels.SubmitUserFeedbackOutput, error) {
+	return ucModels.SubmitUserFeedbackOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) ListAdminUserFeedback(ctx context.Context, input ucModels.AdminListUserFeedbackInput) (ucModels.AdminListUserFeedbackOutput, error) {
+	return ucModels.AdminListUserFeedbackOutput{}, errors.New("not impl")
+}
+func (fakeAdminUCStubs) DeleteAdminUserFeedback(ctx context.Context, id int64) error {
 	return errors.New("not impl")
 }

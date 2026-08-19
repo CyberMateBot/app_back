@@ -99,19 +99,129 @@ func sortEventsDesc(events []repoModels.AdminEvent) {
 func (r *Repository) GetAdminTransactionStats(ctx context.Context, tx pgx.Tx) (repoModels.AdminTransactionStats, error) {
 	const q = `
 SELECT
+    COALESCE(SUM(amount) FILTER (
+        WHERE created_at >= date_trunc('month', now())
+          AND (source = 'token' AND operation = 'credit' OR source = 'payment' AND status = 'succeeded')
+    ), 0),
+    COALESCE(SUM(amount) FILTER (
+        WHERE created_at >= date_trunc('month', now())
+          AND source = 'token' AND operation = 'debit'
+    ), 0),
+    COUNT(*) FILTER (WHERE created_at >= date_trunc('month', now())),
+    COALESCE(ROUND(AVG(amount) FILTER (WHERE created_at >= date_trunc('month', now()))), 0)
+FROM (
+    SELECT tt.created_at, tt.operation, tt.amount, 'token'::text AS source, 'completed'::text AS status
+    FROM token_transactions tt
+    UNION ALL
+    SELECT pay.created_at, 'credit'::text, pay.coins, 'payment'::text, pay.status
+    FROM payments pay
+) combined`
+
+	var s repoModels.AdminTransactionStats
+	qry := r.getQueryable(tx)
+	err := qry.QueryRow(ctx, q).Scan(&s.CreditsMonth, &s.DebitsMonth, &s.OperationsMonth, &s.AvgAmount)
+	if err != nil {
+		if isMissingRelation(err) {
+			const fallbackQ = `
+SELECT
     COALESCE(SUM(amount) FILTER (WHERE operation = 'credit' AND created_at >= date_trunc('month', now())), 0),
     COALESCE(SUM(amount) FILTER (WHERE operation = 'debit' AND created_at >= date_trunc('month', now())), 0),
     COUNT(*) FILTER (WHERE created_at >= date_trunc('month', now())),
     COALESCE(ROUND(AVG(amount) FILTER (WHERE created_at >= date_trunc('month', now()))), 0)
 FROM token_transactions`
-
-	var s repoModels.AdminTransactionStats
-	qry := r.getQueryable(tx)
-	err := qry.QueryRow(ctx, q).Scan(&s.CreditsMonth, &s.DebitsMonth, &s.OperationsMonth, &s.AvgAmount)
+			err = qry.QueryRow(ctx, fallbackQ).Scan(&s.CreditsMonth, &s.DebitsMonth, &s.OperationsMonth, &s.AvgAmount)
+		}
+	}
 	return s, err
 }
 
 func (r *Repository) ListAdminTokenTransactions(ctx context.Context, tx pgx.Tx, operation string, limit, offset int32) ([]repoModels.AdminTokenTransaction, int64, error) {
+	qry := r.getQueryable(tx)
+	operation = strings.TrimSpace(strings.ToLower(operation))
+
+	countFilter := ""
+	if operation == "credit" {
+		countFilter = `WHERE (source = 'token' AND operation = 'credit') OR source = 'payment'`
+	} else if operation == "debit" {
+		countFilter = `WHERE source = 'token' AND operation = 'debit'`
+	}
+
+	countQ := `SELECT COUNT(*) FROM (` + adminTransactionsUnionSQL + `) combined`
+	if countFilter != "" {
+		countQ += " " + countFilter
+	}
+
+	var total int64
+	if err := qry.QueryRow(ctx, countQ).Scan(&total); err != nil {
+		if isMissingRelation(err) {
+			return r.listAdminTokenTransactionsFallback(ctx, tx, operation, limit, offset)
+		}
+		return nil, 0, err
+	}
+
+	listQ := `
+SELECT id, user_name, operation, amount, reason, created_at, source, status, payment_kind, amount_rub
+FROM (` + adminTransactionsUnionSQL + `) combined`
+	if operation == "credit" {
+		listQ += ` WHERE (source = 'token' AND operation = 'credit') OR source = 'payment'`
+	} else if operation == "debit" {
+		listQ += ` WHERE source = 'token' AND operation = 'debit'`
+	}
+	listQ += ` ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+
+	rows, err := qry.Query(ctx, listQ, limit, offset)
+	if err != nil {
+		if isMissingRelation(err) {
+			return r.listAdminTokenTransactionsFallback(ctx, tx, operation, limit, offset)
+		}
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	items := make([]repoModels.AdminTokenTransaction, 0)
+	for rows.Next() {
+		var item repoModels.AdminTokenTransaction
+		if scanErr := rows.Scan(
+			&item.ID, &item.UserName, &item.Operation, &item.Amount, &item.Reason,
+			&item.CreatedAt, &item.Source, &item.Status, &item.PaymentKind, &item.AmountRub,
+		); scanErr != nil {
+			return nil, 0, scanErr
+		}
+		items = append(items, item)
+	}
+	return items, total, rows.Err()
+}
+
+const adminTransactionsUnionSQL = `
+SELECT
+    tt.id,
+    COALESCE(NULLIF(p.name, ''), NULLIF(p.username, ''), p.telegram_id) AS user_name,
+    tt.operation,
+    tt.amount::bigint,
+    COALESCE(tt.reason, '') AS reason,
+    tt.created_at,
+    'token'::text AS source,
+    'completed'::text AS status,
+    ''::text AS payment_kind,
+    0::numeric AS amount_rub
+FROM token_transactions tt
+JOIN profiles p ON p.id = tt.profile_id
+UNION ALL
+SELECT
+    1000000000 + pay.id,
+    COALESCE(NULLIF(p.name, ''), NULLIF(p.username, ''), p.telegram_id),
+    'credit',
+    pay.coins,
+    pay.item_id,
+    pay.created_at,
+    'payment',
+    pay.status,
+    pay.kind,
+    pay.amount_rub
+FROM payments pay
+JOIN profiles p ON p.id = pay.profile_id`
+
+func (r *Repository) listAdminTokenTransactionsFallback(ctx context.Context, tx pgx.Tx, operation string, limit, offset int32) ([]repoModels.AdminTokenTransaction, int64, error) {
 	qry := r.getQueryable(tx)
 	operation = strings.TrimSpace(strings.ToLower(operation))
 
@@ -127,7 +237,8 @@ SELECT COUNT(*) FROM token_transactions WHERE operation = $1`, operation).Scan(&
 		rows, err = qry.Query(ctx, `
 SELECT tt.id,
        COALESCE(NULLIF(p.name, ''), NULLIF(p.username, ''), p.telegram_id),
-       tt.operation, tt.amount, COALESCE(tt.reason, ''), tt.created_at
+       tt.operation, tt.amount, COALESCE(tt.reason, ''), tt.created_at,
+       'token', 'completed', '', 0
 FROM token_transactions tt
 JOIN profiles p ON p.id = tt.profile_id
 WHERE tt.operation = $1
@@ -140,7 +251,8 @@ LIMIT $2 OFFSET $3`, operation, limit, offset)
 		rows, err = qry.Query(ctx, `
 SELECT tt.id,
        COALESCE(NULLIF(p.name, ''), NULLIF(p.username, ''), p.telegram_id),
-       tt.operation, tt.amount, COALESCE(tt.reason, ''), tt.created_at
+       tt.operation, tt.amount, COALESCE(tt.reason, ''), tt.created_at,
+       'token', 'completed', '', 0
 FROM token_transactions tt
 JOIN profiles p ON p.id = tt.profile_id
 ORDER BY tt.created_at DESC
@@ -154,7 +266,10 @@ LIMIT $1 OFFSET $2`, limit, offset)
 	items := make([]repoModels.AdminTokenTransaction, 0)
 	for rows.Next() {
 		var item repoModels.AdminTokenTransaction
-		if scanErr := rows.Scan(&item.ID, &item.UserName, &item.Operation, &item.Amount, &item.Reason, &item.CreatedAt); scanErr != nil {
+		if scanErr := rows.Scan(
+			&item.ID, &item.UserName, &item.Operation, &item.Amount, &item.Reason, &item.CreatedAt,
+			&item.Source, &item.Status, &item.PaymentKind, &item.AmountRub,
+		); scanErr != nil {
 			return nil, 0, scanErr
 		}
 		items = append(items, item)

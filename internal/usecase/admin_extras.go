@@ -14,6 +14,7 @@ import (
 var defaultAdminSettings = ucModels.AdminSettingsOutput{
 	RegistrationBonus:    20,
 	ReferralBonus:        300,
+	ReferralRefereeBonus: 30,
 	TokenExpiryDays:      60,
 	MaintenanceMode:      false,
 	YookassaEnabled:      true,
@@ -209,6 +210,9 @@ func (uc *useCase) UpdateAdminSettings(ctx context.Context, input ucModels.Admin
 	if input.ReferralBonus != nil {
 		current.ReferralBonus = *input.ReferralBonus
 	}
+	if input.ReferralRefereeBonus != nil {
+		current.ReferralRefereeBonus = *input.ReferralRefereeBonus
+	}
 	if input.TokenExpiryDays != nil {
 		current.TokenExpiryDays = *input.TokenExpiryDays
 	}
@@ -226,13 +230,14 @@ func (uc *useCase) UpdateAdminSettings(ctx context.Context, input ucModels.Admin
 	}
 
 	keys := map[string]any{
-		"registration_bonus":     current.RegistrationBonus,
-		"referral_bonus":         current.ReferralBonus,
-		"token_expiry_days":      current.TokenExpiryDays,
-		"maintenance_mode":       current.MaintenanceMode,
-		"yookassa_enabled":       current.YookassaEnabled,
-		"telegram_stars_enabled": current.TelegramStarsEnabled,
-		"coin_rate_rub":          current.CoinRateRub,
+		"registration_bonus":      current.RegistrationBonus,
+		"referral_bonus":          current.ReferralBonus,
+		"referral_referee_bonus":  current.ReferralRefereeBonus,
+		"token_expiry_days":       current.TokenExpiryDays,
+		"maintenance_mode":        current.MaintenanceMode,
+		"yookassa_enabled":        current.YookassaEnabled,
+		"telegram_stars_enabled":  current.TelegramStarsEnabled,
+		"coin_rate_rub":           current.CoinRateRub,
 	}
 
 	for key, value := range keys {
@@ -283,6 +288,7 @@ func mergeAdminSettings(raw map[string]json.RawMessage) ucModels.AdminSettingsOu
 
 	decodeInt("registration_bonus", &out.RegistrationBonus)
 	decodeInt("referral_bonus", &out.ReferralBonus)
+	decodeInt("referral_referee_bonus", &out.ReferralRefereeBonus)
 	decodeInt("token_expiry_days", &out.TokenExpiryDays)
 	decodeBool("maintenance_mode", &out.MaintenanceMode)
 	decodeBool("yookassa_enabled", &out.YookassaEnabled)

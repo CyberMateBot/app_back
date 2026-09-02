@@ -271,7 +271,87 @@ VALUES($1, NULL, 'debit', $2, $3, $4)`,
 		return fmt.Errorf("commit debit tx: %w", err)
 	}
 
+	g.maybeCreditReferralBonus(ctx, profileID)
+
 	return nil
+}
+
+// maybeCreditReferralBonus rewards the referrer the first time their referee
+// completes a billable action (e.g. any AI generation). Idempotent: the
+// referrals row's completed_tasks_count acts as a one-shot flag so the bonus
+// is paid out exactly once per referral. Best-effort; failures here must
+// never affect the primary debit that already committed.
+func (g *Guard) maybeCreditReferralBonus(ctx context.Context, refereeProfileID int64) {
+	tx, err := g.db.Begin(ctx)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	var referralID, referrerProfileID int64
+	err = tx.QueryRow(ctx, `
+SELECT id, referrer_profile_id
+FROM referrals
+WHERE referee_profile_id = $1 AND completed_tasks_count = 0
+LIMIT 1
+FOR UPDATE`, refereeProfileID).Scan(&referralID, &referrerProfileID)
+	if err != nil {
+		return
+	}
+
+	bonus := g.resolveReferralBonus(ctx)
+	if bonus <= 0 {
+		_, _ = tx.Exec(ctx, `UPDATE referrals SET completed_tasks_count = 1 WHERE id = $1`, referralID)
+		_ = tx.Commit(ctx)
+		return
+	}
+
+	var balanceAfter int64
+	err = tx.QueryRow(ctx, `
+WITH locked AS (
+  SELECT id FROM wallets WHERE profile_id = $1 ORDER BY id LIMIT 1 FOR UPDATE
+)
+UPDATE wallets w
+SET balance_available = w.balance_available + $2,
+    balance = w.balance + $2,
+    total_earned = w.total_earned + $2
+FROM locked
+WHERE w.id = locked.id
+RETURNING w.balance_available`, referrerProfileID, bonus).Scan(&balanceAfter)
+	if err != nil {
+		return
+	}
+
+	if _, err = tx.Exec(ctx, `
+INSERT INTO token_transactions(profile_id, admin_id, operation, amount, balance_after, reason)
+VALUES($1, NULL, 'credit', $2, $3, 'referral_bonus')`, referrerProfileID, bonus, balanceAfter); err != nil {
+		return
+	}
+
+	if _, err = tx.Exec(ctx, `
+UPDATE referrals SET completed_tasks_count = 1, earnings = $2 WHERE id = $1`, referralID, bonus); err != nil {
+		return
+	}
+
+	_ = tx.Commit(ctx)
+}
+
+// resolveReferralBonus reads the referral_bonus admin setting, defaulting to
+// 300 CyberCoins when unset (mirrors the usecase-layer default).
+func (g *Guard) resolveReferralBonus(ctx context.Context) int64 {
+	const defaultBonus int64 = 300
+
+	var raw []byte
+	err := g.db.QueryRow(ctx, `SELECT value FROM admin_settings WHERE key = 'referral_bonus'`).Scan(&raw)
+	if err != nil {
+		return defaultBonus
+	}
+
+	var value int64
+	if jsonErr := json.Unmarshal(raw, &value); jsonErr != nil {
+		return defaultBonus
+	}
+	return value
 }
 
 // CheckIdentity validates telegram identity without requiring token balance (history read/delete).

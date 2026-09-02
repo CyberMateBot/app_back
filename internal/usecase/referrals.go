@@ -46,18 +46,21 @@ func (uc *useCase) ListReferralsByTelegramID(ctx context.Context, telegramID str
 	return out, nil
 }
 
-func (uc *useCase) linkReferral(ctx context.Context, tx pgx.Tx, refereeProfileID int64, refereeTelegramID, startParam string) error {
+func (uc *useCase) linkReferral(ctx context.Context, tx pgx.Tx, refereeProfileID int64, refereeTelegramID, startParam string) (bool, error) {
 	referrerID := applinks.ParseReferralStartParam(startParam, "")
 	if referrerID == "" {
 		referrerID = startParam
 	}
 	if referrerID == "" || referrerID == refereeTelegramID {
-		return nil
+		return false, nil
 	}
 
 	ref, refErr := uc.repo.GetProfileByTelegramID(ctx, tx, referrerID)
 	if refErr != nil || ref.ID == 0 || ref.ID == refereeProfileID {
-		return nil
+		return false, nil
 	}
-	return uc.repo.AddReferral(ctx, tx, ref.ID, refereeProfileID)
+	if err := uc.repo.AddReferral(ctx, tx, ref.ID, refereeProfileID); err != nil {
+		return false, err
+	}
+	return true, nil
 }

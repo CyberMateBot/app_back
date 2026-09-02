@@ -68,7 +68,7 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 	// if exists, still try to link referral from start_param, then return already registered
 	if existing, checkErr := uc.repo.GetProfileByTelegramID(ctx, tx, refereeTelegramID); checkErr == nil {
 		if startParam != "" {
-			if linkErr := uc.linkReferral(ctx, tx, existing.ID, refereeTelegramID, startParam); linkErr != nil {
+			if _, linkErr := uc.linkReferral(ctx, tx, existing.ID, refereeTelegramID, startParam); linkErr != nil {
 				err = linkErr
 				return output, err
 			}
@@ -110,9 +110,19 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 		return output, err
 	}
 
+	wasReferred := false
 	if startParam != "" {
-		if linkErr := uc.linkReferral(ctx, tx, pid, refereeTelegramID, startParam); linkErr != nil {
+		linked, linkErr := uc.linkReferral(ctx, tx, pid, refereeTelegramID, startParam)
+		if linkErr != nil {
 			err = linkErr
+			return output, err
+		}
+		wasReferred = linked
+	}
+
+	if wasReferred {
+		if bonusErr := uc.grantReferralSignupBonus(ctx, tx, pid); bonusErr != nil {
+			err = bonusErr
 			return output, err
 		}
 	}
@@ -143,6 +153,30 @@ func (uc *useCase) grantRegistrationBonus(ctx context.Context, tx pgx.Tx, profil
 		0,
 		settings.RegistrationBonus,
 		"registration_bonus",
+	)
+	return err
+}
+
+// grantReferralSignupBonus rewards a newly registered user who came in via a
+// referral link, on top of the standard registration bonus.
+func (uc *useCase) grantReferralSignupBonus(ctx context.Context, tx pgx.Tx, profileID int64) error {
+	raw, err := uc.repo.GetAdminSettings(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	settings := mergeAdminSettings(raw)
+	if settings.ReferralRefereeBonus <= 0 {
+		return nil
+	}
+
+	_, err = uc.repo.CreditProfileTokens(
+		ctx,
+		tx,
+		profileID,
+		0,
+		settings.ReferralRefereeBonus,
+		"referral_signup_bonus",
 	)
 	return err
 }

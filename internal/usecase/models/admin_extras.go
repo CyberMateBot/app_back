@@ -97,6 +97,7 @@ type AdminListBroadcastsOutput struct {
 type AdminSettingsOutput struct {
 	RegistrationBonus     int64   `json:"registration_bonus"`
 	ReferralBonus         int64   `json:"referral_bonus"`
+	ReferralRefereeBonus  int64   `json:"referral_referee_bonus"`
 	TokenExpiryDays       int64   `json:"token_expiry_days"`
 	MaintenanceMode       bool    `json:"maintenance_mode"`
 	YookassaEnabled       bool    `json:"yookassa_enabled"`
@@ -107,6 +108,7 @@ type AdminSettingsOutput struct {
 type AdminUpdateSettingsInput struct {
 	RegistrationBonus    *int64   `json:"registration_bonus"`
 	ReferralBonus        *int64   `json:"referral_bonus"`
+	ReferralRefereeBonus *int64   `json:"referral_referee_bonus"`
 	TokenExpiryDays      *int64   `json:"token_expiry_days"`
 	MaintenanceMode      *bool    `json:"maintenance_mode"`
 	YookassaEnabled      *bool    `json:"yookassa_enabled"`

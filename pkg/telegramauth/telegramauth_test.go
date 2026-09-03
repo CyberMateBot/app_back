@@ -84,3 +84,33 @@ func TestVerifyInitData_WrongToken(t *testing.T) {
 		t.Fatalf("err = %v, want ErrInitDataInvalid", err)
 	}
 }
+
+func TestIsDevelopmentEnv(t *testing.T) {
+	// Unset must default to strict/production now: a deployment that never
+	// sets this specific var (only e.g. APP_ENVIRONMENT) must not silently
+	// disable Telegram signature checks.
+	t.Setenv("ENVIRONMENT", "")
+	if IsDevelopmentEnv() {
+		t.Fatal("expected unset ENVIRONMENT to default to production/strict")
+	}
+
+	t.Setenv("ENVIRONMENT", "development")
+	if !IsDevelopmentEnv() {
+		t.Fatal("expected development")
+	}
+
+	t.Setenv("ENVIRONMENT", "dev")
+	if !IsDevelopmentEnv() {
+		t.Fatal("expected dev")
+	}
+
+	t.Setenv("ENVIRONMENT", "local")
+	if !IsDevelopmentEnv() {
+		t.Fatal("expected local")
+	}
+
+	t.Setenv("ENVIRONMENT", "production")
+	if IsDevelopmentEnv() {
+		t.Fatal("expected not development")
+	}
+}

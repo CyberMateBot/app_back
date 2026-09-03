@@ -7,10 +7,10 @@ import (
 )
 
 var (
-	ErrAdminNotFound        = errors.New("ErrAdminNotFound")
-	ErrAdminUserNotFound    = errors.New("ErrAdminUserNotFound")
-	ErrBroadcastNotReady    = errors.New("ErrBroadcastNotReady")
-	ErrInsufficientTokens   = errors.New("ErrInsufficientTokens")
+	ErrAdminNotFound        = errors.New("admin not found")
+	ErrAdminUserNotFound    = errors.New("admin user not found")
+	ErrBroadcastNotReady    = errors.New("broadcast is not ready")
+	ErrInsufficientTokens   = errors.New("insufficient tokens")
 )
 
 type AdminLoginInput struct {

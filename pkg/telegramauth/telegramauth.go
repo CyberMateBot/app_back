@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -121,6 +122,25 @@ func ExtractUserID(initDataRaw string) (string, error) {
 		return "", ErrInitDataInvalid
 	}
 	return strconv.FormatInt(user.ID, 10), nil
+}
+
+// IsDevelopmentEnv reports whether the service is running in a local/dev
+// environment, where init data with no Telegram signature is tolerated (the
+// browser-based dev mock has no bot secret to sign with).
+//
+// Defaults to false (strict/production) when ENVIRONMENT is unset: this used
+// to default to true, which silently disabled Telegram signature checks
+// everywhere (register, wallet, generate, payments, ...) on any deployment
+// that never set this specific var — exactly the case in production here,
+// where only APP_ENVIRONMENT is configured. Local development must now opt
+// in explicitly with ENVIRONMENT=development|dev|local.
+func IsDevelopmentEnv() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ENVIRONMENT"))) {
+	case "development", "dev", "local":
+		return true
+	default:
+		return false
+	}
 }
 
 // InitDataMissingHash reports whether init data has no Telegram signature hash.

@@ -2,10 +2,15 @@ package usecase
 
 import (
     "context"
+    "crypto/hmac"
+    "crypto/sha256"
     "encoding/base64"
+    "encoding/hex"
     "encoding/json"
     "errors"
     "net/url"
+    "sort"
+    "strings"
     "testing"
 
     "github.com/jackc/pgx/v5"
@@ -15,6 +20,28 @@ import (
     ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
     "github.com/twelvepills-936/tgapp-/pkg/config"
 )
+
+// signInitData mirrors Telegram's WebApp init-data HMAC scheme (see
+// pkg/telegramauth), so tests can build init_data_raw payloads with a hash
+// that actually verifies against a given bot token.
+func signInitData(botToken string, values url.Values) string {
+    values.Del("hash")
+    pairs := make([]string, 0, len(values))
+    for key := range values {
+        pairs = append(pairs, key+"="+values.Get(key))
+    }
+    sort.Strings(pairs)
+    dataCheckString := strings.Join(pairs, "\n")
+
+    secretMAC := hmac.New(sha256.New, []byte("WebAppData"))
+    secretMAC.Write([]byte(botToken))
+    secretKey := secretMAC.Sum(nil)
+
+    mac := hmac.New(sha256.New, secretKey)
+    mac.Write([]byte(dataCheckString))
+    values.Set("hash", hex.EncodeToString(mac.Sum(nil)))
+    return values.Encode()
+}
 
 type fakeTx struct{}
 
@@ -100,6 +127,9 @@ func (f *fakeRepoProfile) ListWebPrompts(ctx context.Context, tx pgx.Tx, webAcco
 }
 
 func TestRegisterByTelegram_CreatesProfile(t *testing.T) {
+    // Register now verifies Telegram's init-data signature; local/dev mock
+    // data with no hash is only accepted in a development environment.
+    t.Setenv("ENVIRONMENT", "development")
     var _ internal.Repository = (*fakeRepoProfile)(nil)
     repo := &fakeRepoProfile{
         exists:                      map[string]repoModels.Profile{},
@@ -123,7 +153,73 @@ func TestRegisterByTelegram_CreatesProfile(t *testing.T) {
     }
 }
 
+func TestRegisterByTelegram_ValidSignature_CreatesProfile(t *testing.T) {
+    // Even outside dev mode, a genuinely Telegram-signed payload must be
+    // accepted: the signature check must not just fail-closed on everything.
+    t.Setenv("ENVIRONMENT", "production")
+    const botToken = "123456:test-bot-token"
+    var _ internal.Repository = (*fakeRepoProfile)(nil)
+    repo := &fakeRepoProfile{
+        exists:                      map[string]repoModels.Profile{},
+        registrationBonus:           10,
+        hasRegistrationBonusSetting: true,
+    }
+    uc := NewUseCase(repo, config.ConfigJWT{}, WithTelegramBotToken(botToken))
+
+    values := url.Values{}
+    values.Set("user", `{"id":123,"first_name":"Ivan","username":"ivan"}`)
+    initRaw := base64.StdEncoding.EncodeToString([]byte(signInitData(botToken, values)))
+
+    out, err := uc.RegisterByTelegram(context.Background(), ucModels.RegisterByTelegramInput{InitDataRaw: initRaw})
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if out.ProfileID == 0 {
+        t.Fatalf("expected profile id > 0")
+    }
+}
+
+func TestRegisterByTelegram_TamperedSignature_Rejected(t *testing.T) {
+    // This is the core vulnerability being closed: a hand-crafted user id
+    // with no valid Telegram signature (or one signed by a different bot)
+    // must never be allowed to register.
+    t.Setenv("ENVIRONMENT", "production")
+    repo := &fakeRepoProfile{exists: map[string]repoModels.Profile{}}
+    uc := NewUseCase(repo, config.ConfigJWT{}, WithTelegramBotToken("real-bot-token"))
+
+    values := url.Values{}
+    values.Set("user", `{"id":999999999,"first_name":"Fake","username":"fake"}`)
+    initRaw := base64.StdEncoding.EncodeToString([]byte(signInitData("attacker-controlled-token", values)))
+
+    _, err := uc.RegisterByTelegram(context.Background(), ucModels.RegisterByTelegramInput{InitDataRaw: initRaw})
+    if !errors.Is(err, ucModels.ErrInvalidTelegramSignature) {
+        t.Fatalf("expected ErrInvalidTelegramSignature, got %v", err)
+    }
+    if len(repo.exists) != 0 {
+        t.Fatalf("profile must not be created for an unverified signature, got %+v", repo.exists)
+    }
+}
+
+func TestRegisterByTelegram_NoHashInProduction_Rejected(t *testing.T) {
+    // Init data with no `hash` at all (the dev/mock shape) must be rejected
+    // once ENVIRONMENT is not development/dev/local — this is what used to
+    // silently default to permissive everywhere.
+    t.Setenv("ENVIRONMENT", "production")
+    repo := &fakeRepoProfile{exists: map[string]repoModels.Profile{}}
+    uc := NewUseCase(repo, config.ConfigJWT{}, WithTelegramBotToken("real-bot-token"))
+
+    values := url.Values{}
+    values.Set("user", `{"id":123,"first_name":"Ivan","username":"ivan"}`)
+    initRaw := base64.StdEncoding.EncodeToString([]byte(values.Encode()))
+
+    _, err := uc.RegisterByTelegram(context.Background(), ucModels.RegisterByTelegramInput{InitDataRaw: initRaw})
+    if !errors.Is(err, ucModels.ErrInvalidTelegramSignature) {
+        t.Fatalf("expected ErrInvalidTelegramSignature, got %v", err)
+    }
+}
+
 func TestRegisterByTelegram_SkipsZeroRegistrationBonus(t *testing.T) {
+    t.Setenv("ENVIRONMENT", "development")
     repo := &fakeRepoProfile{
         exists:                      map[string]repoModels.Profile{},
         registrationBonus:           0,
@@ -145,6 +241,7 @@ func TestRegisterByTelegram_SkipsZeroRegistrationBonus(t *testing.T) {
 }
 
 func TestRegisterByTelegram_AlreadyExists(t *testing.T) {
+    t.Setenv("ENVIRONMENT", "development")
     repo := &fakeRepoProfile{exists: map[string]repoModels.Profile{"123":{TelegramID:"123"}}}
     uc := NewUseCase(repo, config.ConfigJWT{})
 
@@ -159,6 +256,11 @@ func TestRegisterByTelegram_AlreadyExists(t *testing.T) {
 }
 
 func TestRegisterByTelegram_InvalidInitData_NoUserParam(t *testing.T) {
+	// No `user` field means there's nothing to verify/extract a telegram id
+	// from at all, so this is now rejected by the signature check itself
+	// (before the codebase's already-existing later ErrInvalidInput checks
+	// even run) — still a rejected registration either way.
+	t.Setenv("ENVIRONMENT", "development")
 	repo := &fakeRepoProfile{exists: map[string]repoModels.Profile{}}
 	uc := NewUseCase(repo, config.ConfigJWT{})
 
@@ -167,8 +269,8 @@ func TestRegisterByTelegram_InvalidInitData_NoUserParam(t *testing.T) {
 	initRaw := base64.StdEncoding.EncodeToString([]byte(values.Encode()))
 
 	_, err := uc.RegisterByTelegram(context.Background(), ucModels.RegisterByTelegramInput{InitDataRaw: initRaw})
-	if !errors.Is(err, ucModels.ErrInvalidInput) {
-		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	if !errors.Is(err, ucModels.ErrInvalidTelegramSignature) {
+		t.Fatalf("expected ErrInvalidTelegramSignature, got %v", err)
 	}
 }
 
@@ -182,6 +284,7 @@ func TestGetUserByTelegramID_NotFound(t *testing.T) {
 }
 
 func TestRegisterByTelegram_LinksReferral(t *testing.T) {
+    t.Setenv("ENVIRONMENT", "development")
     repo := &fakeRepoProfile{exists: map[string]repoModels.Profile{
         "777000": {ID: 10, TelegramID: "777000"},
     }}
@@ -204,6 +307,7 @@ func TestRegisterByTelegram_LinksReferral(t *testing.T) {
 }
 
 func TestRegisterByTelegram_AlreadyExistsStillLinksReferral(t *testing.T) {
+    t.Setenv("ENVIRONMENT", "development")
     repo := &fakeRepoProfile{exists: map[string]repoModels.Profile{
         "123":    {ID: 1, TelegramID: "123"},
         "777000": {ID: 10, TelegramID: "777000"},

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
 
 const walletPathPrefix = "/v1/wallet/telegram/"
@@ -37,7 +38,11 @@ type walletResponse struct {
 }
 
 // Wrap serves GET /v1/wallet/telegram/{telegramId} with token balances from wallets table.
-func Wrap(next http.Handler, db *pgxpool.Pool) http.Handler {
+// tokens gates access so only the owner of telegramId (proven via a valid
+// Telegram init-data signature) can read that wallet's balance and
+// transaction history — this endpoint used to be fully unauthenticated, so
+// anyone could enumerate any user's finances by telegram id.
+func Wrap(next http.Handler, db *pgxpool.Pool, tokens *tokenguard.Guard) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, walletPathPrefix) {
 			next.ServeHTTP(w, r)
@@ -48,6 +53,13 @@ func Wrap(next http.Handler, db *pgxpool.Pool) http.Handler {
 		if telegramID == "" {
 			http.Error(w, "telegram_id required", http.StatusBadRequest)
 			return
+		}
+
+		if tokens != nil {
+			identityErr := tokens.CheckIdentity(r.Context(), telegramID, tokenguard.InitDataFromRequest(r, ""))
+			if tokenguard.WriteHTTPError(w, r, identityErr) {
+				return
+			}
 		}
 
 		if db == nil {

@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	ErrWebAccountAlreadyExists = errors.New("ErrWebAccountAlreadyExists")
-	ErrWebAccountNotFound      = errors.New("ErrWebAccountNotFound")
-	ErrInvalidCredentials      = errors.New("ErrInvalidCredentials")
+	ErrWebAccountAlreadyExists = errors.New("account already exists")
+	ErrWebAccountNotFound      = errors.New("account not found")
+	ErrInvalidCredentials      = errors.New("invalid credentials")
 )
 
 type RegisterWebAccountInput struct {

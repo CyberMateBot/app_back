@@ -14,12 +14,12 @@ const (
 var (
 	// ErrPaymentsDisabled is returned when YooKassa credentials are missing or
 	// the admin has switched payments off in the admin panel.
-	ErrPaymentsDisabled = errors.New("ErrPaymentsDisabled")
+	ErrPaymentsDisabled = errors.New("payments are not available right now")
 	// ErrItemNotFound is returned when the requested plan_id/pack_id does not
 	// exist (or is disabled) in the current billing catalog.
-	ErrItemNotFound = errors.New("ErrItemNotFound")
+	ErrItemNotFound = errors.New("item not found")
 	// ErrPaymentNotFound is returned when a webhook references an unknown payment.
-	ErrPaymentNotFound = errors.New("ErrPaymentNotFound")
+	ErrPaymentNotFound = errors.New("payment not found")
 )
 
 // StartCheckoutInput starts a YooKassa redirect checkout for one catalog item.

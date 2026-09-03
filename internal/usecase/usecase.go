@@ -13,6 +13,8 @@ type useCase struct {
 
 	yookassa          *yookassa.Client
 	yookassaReturnURL string
+
+	telegramBotToken string
 }
 
 // Option configures optional dependencies on the usecase layer.
@@ -24,6 +26,16 @@ func WithYooKassa(client *yookassa.Client, returnURL string) Option {
 	return func(uc *useCase) {
 		uc.yookassa = client
 		uc.yookassaReturnURL = returnURL
+	}
+}
+
+// WithTelegramBotToken wires the bot token used to verify the HMAC signature
+// Telegram attaches to WebApp init data (see telegramauth.VerifyInitData).
+// Without it, RegisterByTelegram cannot confirm a registration request
+// actually came from Telegram rather than a forged payload.
+func WithTelegramBotToken(token string) Option {
+	return func(uc *useCase) {
+		uc.telegramBotToken = token
 	}
 }
 

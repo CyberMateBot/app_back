@@ -201,13 +201,20 @@ func LoadConfig() Config {
 }
 
 func LoadAppConfig() ConfigApp {
+	// Swagger/OpenAPI used to default to enabled everywhere, including
+	// production, exposing the full API surface (internal Go struct names in
+	// schemas, every admin/internal route) to anyone. Default it off on a
+	// deployment that looks like production; SWAGGER_ENABLED=true still
+	// force-enables it if it's ever needed there temporarily.
+	defaultSwaggerEnabled := !isDeployedProduction()
+
 	return ConfigApp{
 		HTTPPort:       getenvInt("APP_HTTP_PORT", 8090),
 		GRPCPort:       getenvInt("APP_GRPC_PORT", 8091),
 		Environment:    getenv("ENVIRONMENT", "development"),
 		Debug:          getenvBool("DEBUG", false),
 		LogLevel:       getenv("LOG_LEVEL", "info"),
-		SwaggerEnabled: getenvBool("SWAGGER_ENABLED", true),
+		SwaggerEnabled: getenvBool("SWAGGER_ENABLED", defaultSwaggerEnabled),
 		APITitle:       getenv("API_TITLE", "Your API"),
 		APIVersion:     getenv("API_VERSION", "1.0.0"),
 

@@ -16,9 +16,21 @@ INSERT INTO profiles(name, telegram_id, avatar, location, role, description, tel
 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
 RETURNING id`
 
+	// profiles.username is UNIQUE. Telegram usernames are optional — most
+	// users who never set one arrive here with an empty string, not a Go
+	// nil. Postgres treats repeated "" values as duplicates (unlike NULL,
+	// which is never equal to another NULL), so the *second* ever
+	// username-less registration hit a raw unique_violation from this
+	// INSERT and failed outright. Pass SQL NULL instead so any number of
+	// accounts without a Telegram username can coexist.
+	var username any
+	if p.Username != "" {
+		username = p.Username
+	}
+
 	var id int64
 	qry := r.getQueryable(tx)
-	err := qry.QueryRow(ctx, q, p.Name, p.TelegramID, p.Avatar, p.Location, p.Role, p.Description, p.TelegramInitData, p.Username, p.Verified).Scan(&id)
+	err := qry.QueryRow(ctx, q, p.Name, p.TelegramID, p.Avatar, p.Location, p.Role, p.Description, p.TelegramInitData, username, p.Verified).Scan(&id)
 	return id, err
 }
 

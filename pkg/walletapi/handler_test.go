@@ -12,7 +12,7 @@ func TestWrap_PassesThroughOtherPaths(t *testing.T) {
 
 	mux := Wrap(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
-	}), nil)
+	}), nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/telegram/1", nil)
 	rec := httptest.NewRecorder()
@@ -26,7 +26,7 @@ func TestWrap_PassesThroughOtherPaths(t *testing.T) {
 func TestWrap_MissingTelegramID(t *testing.T) {
 	t.Parallel()
 
-	mux := Wrap(http.NotFoundHandler(), nil)
+	mux := Wrap(http.NotFoundHandler(), nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/wallet/telegram/", nil)
 	rec := httptest.NewRecorder()

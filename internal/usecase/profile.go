@@ -11,12 +11,30 @@ import (
 	"github.com/jackc/pgx/v5"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
+	"github.com/twelvepills-936/tgapp-/pkg/telegramauth"
 )
 
 func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.RegisterByTelegramInput) (output ucModels.RegisterByTelegramOutput, err error) {
 	// Validate input
 	if err := input.Validate(); err != nil {
 		return ucModels.RegisterByTelegramOutput{}, err
+	}
+
+	// Verify Telegram's HMAC signature over init_data_raw before trusting any
+	// field inside it. Without this, anyone can base64-encode a hand-crafted
+	// `user={"id":...}` payload and register arbitrary/fake telegram ids —
+	// there is nothing else in this flow that proves the request actually
+	// came from Telegram. verifiedTelegramID below is the only telegram id we
+	// trust; the rest of the user JSON (name/username/avatar/etc.) is cosmetic
+	// and doesn't need its own signature.
+	verifiedTelegramID, verifyErr := telegramauth.VerifyInitData(input.InitDataRaw, uc.telegramBotToken)
+	if verifyErr != nil && telegramauth.IsDevelopmentEnv() && telegramauth.InitDataMissingHash(input.InitDataRaw) {
+		// Local/dev mock init data has no bot secret to sign with. Only ever
+		// tolerated outside production (ENVIRONMENT unset/dev/local).
+		verifiedTelegramID, verifyErr = telegramauth.ExtractUserID(input.InitDataRaw)
+	}
+	if verifyErr != nil {
+		return output, fmt.Errorf("%w: %s", ucModels.ErrInvalidTelegramSignature, verifyErr.Error())
 	}
 
 	// decode init_data_raw (base64) and parse user json param similar to Node parseAuthToken path
@@ -50,6 +68,12 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 	}
 	if tg.ID == 0 {
 		return output, fmt.Errorf("%w: telegram user id is missing", ucModels.ErrInvalidInput)
+	}
+	if intToString(tg.ID) != verifiedTelegramID {
+		// The signed `user` field's id doesn't match what we just verified —
+		// can't happen with a genuine Telegram-issued payload, only with a
+		// tampered one (e.g. the hash was valid for a different init data).
+		return output, fmt.Errorf("%w: telegram user id does not match signed init data", ucModels.ErrInvalidTelegramSignature)
 	}
 
 	tx, txErr := uc.repo.DBBeginTransaction(ctx)

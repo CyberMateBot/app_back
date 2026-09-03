@@ -6,18 +6,6 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/telegramauth"
 )
 
-func TestIsDevelopmentEnv(t *testing.T) {
-	t.Setenv("ENVIRONMENT", "development")
-	if !isDevelopmentEnv() {
-		t.Fatal("expected development")
-	}
-
-	t.Setenv("ENVIRONMENT", "production")
-	if isDevelopmentEnv() {
-		t.Fatal("expected not development")
-	}
-}
-
 func TestDevelopmentMockInitData(t *testing.T) {
 	t.Setenv("ENVIRONMENT", "development")
 

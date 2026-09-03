@@ -11,7 +11,7 @@ const (
 	UserFeedbackKindBug        = "bug"
 )
 
-var ErrFeedbackMessageTooShort = errors.New("ErrFeedbackMessageTooShort")
+var ErrFeedbackMessageTooShort = errors.New("feedback message is too short")
 
 type SubmitUserFeedbackInput struct {
 	TelegramID string

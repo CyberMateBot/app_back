@@ -6,10 +6,18 @@ import (
 	"fmt"
 )
 
+// Error text below is intentionally a short, generic, lower-case phrase (not
+// e.g. "ErrProfileNotFound") — these strings can end up verbatim in HTTP
+// error responses via the gRPC-gateway, and Go-identifier-shaped messages
+// were leaking internal type names to API callers.
 var (
-	ErrProfileNotFound          = errors.New("ErrProfileNotFound")
-	ErrProfileAlreadyRegistered = errors.New("ErrProfileAlreadyRegistered")
-	ErrInvalidInput             = errors.New("ErrInvalidInput")
+	ErrProfileNotFound          = errors.New("profile not found")
+	ErrProfileAlreadyRegistered = errors.New("profile already registered")
+	ErrInvalidInput             = errors.New("invalid input")
+	// ErrInvalidTelegramSignature is returned when init_data_raw fails Telegram's
+	// HMAC signature check, i.e. it was not actually issued by Telegram for this
+	// bot. Without this check anyone could register arbitrary telegram ids.
+	ErrInvalidTelegramSignature = errors.New("invalid telegram signature")
 )
 
 type RegisterByTelegramInput struct {

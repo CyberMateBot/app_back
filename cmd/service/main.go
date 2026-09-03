@@ -83,7 +83,12 @@ func main() {
 	}
 
 	// Create single instances of usecase and service
-	uc := usecase.NewUseCase(repo, addConfig.JWT, usecase.WithYooKassa(yookassaClient, addConfig.YooKassa.ReturnURL))
+	uc := usecase.NewUseCase(
+		repo,
+		addConfig.JWT,
+		usecase.WithYooKassa(yookassaClient, addConfig.YooKassa.ReturnURL),
+		usecase.WithTelegramBotToken(os.Getenv("TELEGRAM_BOT_TOKEN")),
+	)
 	if err := uc.BootstrapAdmin(ctx); err != nil {
 		slog.WarnContext(ctx, "admin bootstrap skipped", logger.ErrorAttr(err))
 	}
@@ -151,6 +156,7 @@ func main() {
 					tgBot,
 				),
 				pool,
+				tokenGuard,
 			),
 		),
 		addConfig.CORS,

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-var ErrHomeWidgetNotFound = errors.New("ErrHomeWidgetNotFound")
+var ErrHomeWidgetNotFound = errors.New("home widget not found")
 
 type HomeWidgetItem struct {
 	ID              int64

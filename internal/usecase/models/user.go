@@ -3,8 +3,8 @@ package models
 import "errors"
 
 var (
-	ErrUserIsNotFound  = errors.New("ErrUserIsNotFound")
-	ErrUserIDIsInvalid = errors.New("ErrUserIDIsInvalid")
+	ErrUserIsNotFound  = errors.New("user not found")
+	ErrUserIDIsInvalid = errors.New("user id is invalid")
 )
 
 type GetUserInput struct {

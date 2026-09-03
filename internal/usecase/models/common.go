@@ -3,5 +3,5 @@ package models
 import "errors"
 
 var (
-	ErrInternalServerError = errors.New("ErrInternalServerError")
+	ErrInternalServerError = errors.New("internal server error")
 )

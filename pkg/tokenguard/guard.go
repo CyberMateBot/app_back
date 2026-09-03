@@ -370,7 +370,7 @@ func (g *Guard) CheckIdentity(ctx context.Context, telegramID, initDataRaw strin
 			return ErrInitDataRequired
 		}
 		verifiedID, err := telegramauth.VerifyInitData(initDataRaw, g.botToken)
-		if err != nil && isDevelopmentEnv() && telegramauth.InitDataMissingHash(initDataRaw) {
+		if err != nil && telegramauth.IsDevelopmentEnv() && telegramauth.InitDataMissingHash(initDataRaw) {
 			verifiedID, err = telegramauth.ExtractUserID(initDataRaw)
 		}
 		if err != nil {
@@ -448,15 +448,6 @@ func WriteHTTPError(w http.ResponseWriter, r *http.Request, err error) bool {
 		writeJSON(w, http.StatusInternalServerError, "failed to verify account tokens")
 	}
 	return true
-}
-
-func isDevelopmentEnv() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("ENVIRONMENT"))) {
-	case "", "development", "dev", "local":
-		return true
-	default:
-		return false
-	}
 }
 
 func isBillingDisabled() bool {

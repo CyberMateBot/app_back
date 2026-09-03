@@ -3,7 +3,7 @@ package models
 import "errors"
 
 var (
-	ErrUserIsNotFound = errors.New("ErrUserIsNotFound")
+	ErrUserIsNotFound = errors.New("user not found")
 )
 
 type User struct {

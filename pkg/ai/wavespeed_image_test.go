@@ -1,6 +1,8 @@
 package ai
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/twelvepills-936/tgapp-/pkg/config"
@@ -30,6 +32,20 @@ func TestBuildWavespeedImageInput_NanoBanana2Text(t *testing.T) {
 	}
 	if _, ok := input["images"]; ok {
 		t.Fatalf("text-to-image must not set images")
+	}
+	if _, ok := input["enable_sync_mode"]; ok {
+		t.Fatalf("sync mode must not be sent when disabled")
+	}
+}
+
+func TestWavespeedUserMessage_Timeout(t *testing.T) {
+	err := fmt.Errorf("prediction timed out after 180 seconds (task_id: abc)")
+	got := wavespeedUserMessage(err)
+	if !strings.Contains(got, "taking too long") {
+		t.Fatalf("got %q", got)
+	}
+	if strings.Contains(got, "task_id") {
+		t.Fatalf("must not leak task id: %q", got)
 	}
 }
 

@@ -14,18 +14,18 @@ type ConfigAI struct {
 	YandexImageModel string
 	YandexImageSize  string
 
-	OpenAIAPIKey  string
+	OpenAIAPIKey    string
 	OpenAITextModel string
 
-	WavespeedAPIKey       string
-	GeminiAPIBaseURL      string
-	GeminiModel           string
-	NanoBananaModel       string
-	NanoBananaResolution  string
-	NanoBananaOutputFmt   string
-	NanoBananaSyncMode    bool
-	NanoBananaBase64Out   bool
-	NanoBananaPollMS      int
+	WavespeedAPIKey      string
+	GeminiAPIBaseURL     string
+	GeminiModel          string
+	NanoBananaModel      string
+	NanoBananaResolution string
+	NanoBananaOutputFmt  string
+	NanoBananaSyncMode   bool
+	NanoBananaBase64Out  bool
+	NanoBananaPollMS     int
 
 	TextMaxOutputTokens int
 	HTTPTimeout         time.Duration
@@ -39,9 +39,9 @@ func LoadAIConfig() ConfigAI {
 	}
 
 	return ConfigAI{
-		YandexAPIKey:     strings.TrimSpace(os.Getenv("YANDEX_GPT_API_KEY")),
-		YandexFolderID:   strings.TrimSpace(os.Getenv("YANDEX_GPT_FOLDER_ID")),
-		YandexGPTModel:   getenv("YANDEX_GPT_MODEL", "yandexgpt/latest"),
+		YandexAPIKey:   strings.TrimSpace(os.Getenv("YANDEX_GPT_API_KEY")),
+		YandexFolderID: strings.TrimSpace(os.Getenv("YANDEX_GPT_FOLDER_ID")),
+		YandexGPTModel: getenv("YANDEX_GPT_MODEL", "yandexgpt/latest"),
 		// For Alice AI ART via OpenAI-compatible Images API we keep /latest by default.
 		YandexImageModel: getenv("YANDEX_ALICE_AI_ART_MODEL", "aliceai-image-art-3.0/latest"),
 		YandexImageSize:  getenv("YANDEX_IMAGE_SIZE", "1024x1024"),
@@ -61,7 +61,11 @@ func LoadAIConfig() ConfigAI {
 
 		TextMaxOutputTokens: getenvInt("AI_TEXT_MAX_OUTPUT_TOKENS", 4096),
 		HTTPTimeout:         getenvDuration("AI_HTTP_TIMEOUT", 120*time.Second),
-		ImagePollTimeout:    getenvDuration("AI_IMAGE_POLL_TIMEOUT", 3*time.Minute),
+		// Nano Banana Pro / Seedream / 2K–4K regularly sit in WaveSpeed's
+		// queue longer than 3 minutes. 6 minutes stays under the frontend
+		// generate fetch timeout (420s) so the user sees a real result or
+		// a clean timeout instead of a mid-wait disconnect.
+		ImagePollTimeout: getenvDuration("AI_IMAGE_POLL_TIMEOUT", 6*time.Minute),
 	}
 }
 

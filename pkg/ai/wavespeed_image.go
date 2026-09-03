@@ -41,9 +41,16 @@ func generateWavespeedImage(ctx context.Context, cfg config.ConfigAI, prompt str
 }
 
 func buildWavespeedImageInput(cfg config.ConfigAI, def mediaModelDef, prompt string, req ImageRequest, slug string) map[string]any {
-	input := map[string]any{
-		"enable_sync_mode":     cfg.NanoBananaSyncMode,
-		"enable_base64_output": cfg.NanoBananaBase64Out,
+	input := map[string]any{}
+	// Only send these when enabled. The WaveSpeed SDK already opts into
+	// sync mode via WithSyncMode; putting enable_sync_mode=false in the
+	// payload has made some models wait on a single long POST instead of
+	// returning a task_id we can poll.
+	if cfg.NanoBananaSyncMode {
+		input["enable_sync_mode"] = true
+	}
+	if cfg.NanoBananaBase64Out {
+		input["enable_base64_output"] = true
 	}
 
 	isEdit := strings.HasSuffix(slug, "/edit") || strings.Contains(slug, "/edit-")

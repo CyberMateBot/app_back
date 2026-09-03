@@ -21,7 +21,7 @@ func runWavespeedModel(ctx context.Context, cfg config.ConfigAI, modelSlug strin
 	client := newWavespeedClient(cfg)
 	timeoutSec := cfg.ImagePollTimeout.Seconds()
 	if timeoutSec <= 0 {
-		timeoutSec = 180
+		timeoutSec = 360
 	}
 	pollSec := float64(cfg.NanoBananaPollMS) / 1000.0
 	if pollSec <= 0 {
@@ -47,7 +47,7 @@ func runWavespeedModel(ctx context.Context, cfg config.ConfigAI, modelSlug strin
 		return nil, ctx.Err()
 	case result := <-ch:
 		if result.err != nil {
-			return nil, &ProviderError{Provider: "wavespeed", Message: truncate(result.err.Error(), 500)}
+			return nil, &ProviderError{Provider: "wavespeed", Message: wavespeedUserMessage(result.err)}
 		}
 		urls, err := extractWavespeedOutputs(result.out)
 		if err != nil {
@@ -55,6 +55,17 @@ func runWavespeedModel(ctx context.Context, cfg config.ConfigAI, modelSlug strin
 		}
 		return urls, nil
 	}
+}
+
+func wavespeedUserMessage(err error) string {
+	if err == nil {
+		return "generation failed"
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "timed out") || strings.Contains(msg, "timeout") {
+		return "the model is taking too long. try again, or pick a lower resolution"
+	}
+	return truncate(err.Error(), 500)
 }
 
 func extractWavespeedOutputs(out map[string]any) ([]string, error) {

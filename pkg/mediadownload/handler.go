@@ -94,6 +94,12 @@ func handleDownload(w http.ResponseWriter, r *http.Request, client *http.Client)
 		writeError(w, http.StatusBadRequest, "invalid url")
 		return
 	}
+	// WaveSpeed / CDN edges often return an empty or 1×1 black JPEG to
+	// clients with no browser User-Agent. The in-app <img> preview still
+	// works (the WebView sends a real UA), so the user sees a picture and
+	// then downloads a black file.
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; CyberMate/1.0; +https://t.me/CyberMate_bot)")
+	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -130,6 +136,10 @@ func handleDownload(w http.ResponseWriter, r *http.Request, client *http.Client)
 	// device as "unsupported format" / "file is corrupted".
 	if looksLikeNonMedia(contentType) {
 		writeError(w, http.StatusBadGateway, "media provider did not return a valid file")
+		return
+	}
+	if cl := resp.ContentLength; cl > 0 && cl < 512 && strings.HasPrefix(baseContentType(contentType), "image/") {
+		writeError(w, http.StatusBadGateway, "media provider returned an empty image")
 		return
 	}
 

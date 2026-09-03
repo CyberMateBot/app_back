@@ -47,3 +47,35 @@ ORDER BY r.id DESC`
 	}
 	return items, nil
 }
+
+// LockPendingReferralByReferee looks up the referral row that credits this
+// referee, IF the referrer hasn't already been paid out for them. The row is
+// locked FOR UPDATE so a concurrent second call (e.g. two overlapping
+// subscription webhooks) can't double-pay the referrer. `pgx.ErrNoRows` is
+// returned when the referee has no unpaid referral (either no inviter or the
+// bonus was already granted).
+func (r *Repository) LockPendingReferralByReferee(ctx context.Context, tx pgx.Tx, refereeProfileID int64) (int64, int64, error) {
+	const q = `
+SELECT id, referrer_profile_id
+FROM referrals
+WHERE referee_profile_id = $1 AND completed_tasks_count = 0
+LIMIT 1
+FOR UPDATE`
+
+	qry := r.getQueryable(tx)
+	var referralID, referrerProfileID int64
+	if err := qry.QueryRow(ctx, q, refereeProfileID).Scan(&referralID, &referrerProfileID); err != nil {
+		return 0, 0, err
+	}
+	return referralID, referrerProfileID, nil
+}
+
+// MarkReferralCompleted flips a referral's completed flag and records how
+// much the referrer earned from it. Idempotent by design of the callsite —
+// LockPendingReferralByReferee only returns rows that are still pending.
+func (r *Repository) MarkReferralCompleted(ctx context.Context, tx pgx.Tx, referralID int64, earnings int64) error {
+	const q = `UPDATE referrals SET completed_tasks_count = 1, earnings = $2 WHERE id = $1`
+	qry := r.getQueryable(tx)
+	_, err := qry.Exec(ctx, q, referralID, earnings)
+	return err
+}

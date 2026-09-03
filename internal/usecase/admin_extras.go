@@ -4,17 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"time"
 	repoModels "github.com/twelvepills-936/tgapp-/internal/repository/models"
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
 	"github.com/twelvepills-936/tgapp-/pkg/admincatalog"
+	"strings"
+	"time"
 )
 
 var defaultAdminSettings = ucModels.AdminSettingsOutput{
-	RegistrationBonus:    20,
-	ReferralBonus:        300,
-	ReferralRefereeBonus: 30,
+	RegistrationBonus: 20,
+	ReferralBonus:     300,
+	// Zero by default: the referee (invited user) no longer gets an
+	// automatic signup bonus for merely following the invite link — that
+	// path used to be scriptable free tokens. Admins can still turn it
+	// back on from the admin panel if the business calls for it.
+	ReferralRefereeBonus: 0,
 	TokenExpiryDays:      60,
 	MaintenanceMode:      false,
 	YookassaEnabled:      true,
@@ -230,14 +234,14 @@ func (uc *useCase) UpdateAdminSettings(ctx context.Context, input ucModels.Admin
 	}
 
 	keys := map[string]any{
-		"registration_bonus":      current.RegistrationBonus,
-		"referral_bonus":          current.ReferralBonus,
-		"referral_referee_bonus":  current.ReferralRefereeBonus,
-		"token_expiry_days":       current.TokenExpiryDays,
-		"maintenance_mode":        current.MaintenanceMode,
-		"yookassa_enabled":        current.YookassaEnabled,
-		"telegram_stars_enabled":  current.TelegramStarsEnabled,
-		"coin_rate_rub":           current.CoinRateRub,
+		"registration_bonus":     current.RegistrationBonus,
+		"referral_bonus":         current.ReferralBonus,
+		"referral_referee_bonus": current.ReferralRefereeBonus,
+		"token_expiry_days":      current.TokenExpiryDays,
+		"maintenance_mode":       current.MaintenanceMode,
+		"yookassa_enabled":       current.YookassaEnabled,
+		"telegram_stars_enabled": current.TelegramStarsEnabled,
+		"coin_rate_rub":          current.CoinRateRub,
 	}
 
 	for key, value := range keys {

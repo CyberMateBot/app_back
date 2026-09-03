@@ -134,19 +134,19 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 		return output, err
 	}
 
-	wasReferred := false
 	if startParam != "" {
-		linked, linkErr := uc.linkReferral(ctx, tx, pid, refereeTelegramID, startParam)
-		if linkErr != nil {
+		// Link the referral, but DO NOT grant the referee (new signup) a
+		// bonus. Handing out coins for merely following an invite link
+		// was the main "free tokens" vector — a scripted flow could farm
+		// unlimited valid Telegram accounts and every one got a 20-coin
+		// registration bonus + 30-coin referral bonus (with signature
+		// validation gone missing), enough to spend on paid features.
+		// The referrer's own bonus is now paid ONLY after this referee
+		// actually purchases a subscription (see
+		// creditReferralBonusOnSubscription), which ties every referral
+		// payout to a real revenue event so we can't lose money.
+		if _, linkErr := uc.linkReferral(ctx, tx, pid, refereeTelegramID, startParam); linkErr != nil {
 			err = linkErr
-			return output, err
-		}
-		wasReferred = linked
-	}
-
-	if wasReferred {
-		if bonusErr := uc.grantReferralSignupBonus(ctx, tx, pid); bonusErr != nil {
-			err = bonusErr
 			return output, err
 		}
 	}
@@ -177,30 +177,6 @@ func (uc *useCase) grantRegistrationBonus(ctx context.Context, tx pgx.Tx, profil
 		0,
 		settings.RegistrationBonus,
 		"registration_bonus",
-	)
-	return err
-}
-
-// grantReferralSignupBonus rewards a newly registered user who came in via a
-// referral link, on top of the standard registration bonus.
-func (uc *useCase) grantReferralSignupBonus(ctx context.Context, tx pgx.Tx, profileID int64) error {
-	raw, err := uc.repo.GetAdminSettings(ctx, tx)
-	if err != nil {
-		return err
-	}
-
-	settings := mergeAdminSettings(raw)
-	if settings.ReferralRefereeBonus <= 0 {
-		return nil
-	}
-
-	_, err = uc.repo.CreditProfileTokens(
-		ctx,
-		tx,
-		profileID,
-		0,
-		settings.ReferralRefereeBonus,
-		"referral_signup_bonus",
 	)
 	return err
 }

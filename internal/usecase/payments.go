@@ -210,6 +210,15 @@ func (uc *useCase) HandleYooKassaWebhookNotification(ctx context.Context, provid
 					return err
 				}
 			}
+			// A paid subscription is the only event that unlocks the
+			// referrer bonus — see creditReferralBonusOnSubscription
+			// for the "why this trigger" rationale. Any error here must
+			// abort the whole webhook so the payment isn't marked
+			// succeeded without the bonus (retried webhook will try
+			// again idempotently).
+			if err := uc.creditReferralBonusOnSubscription(ctx, tx, payment.ProfileID); err != nil {
+				return err
+			}
 		}
 
 	case "canceled":

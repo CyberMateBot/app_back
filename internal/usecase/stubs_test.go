@@ -128,6 +128,12 @@ func (fakeAdminRepoStubs) ListAdminUserFeedback(ctx context.Context, tx pgx.Tx, 
 func (fakeAdminRepoStubs) DeleteAdminUserFeedback(ctx context.Context, tx pgx.Tx, id int64) error {
 	return errors.New("not impl")
 }
+func (fakeAdminRepoStubs) LockPendingReferralByReferee(ctx context.Context, tx pgx.Tx, refereeProfileID int64) (int64, int64, error) {
+	return 0, 0, pgx.ErrNoRows
+}
+func (fakeAdminRepoStubs) MarkReferralCompleted(ctx context.Context, tx pgx.Tx, referralID int64, earnings int64) error {
+	return nil
+}
 
 // fakeAdminUCStubs provides no-op admin usecase methods for test fakes.
 type fakeAdminUCStubs struct{}

@@ -23,6 +23,8 @@ type Repository interface {
 	CreateWalletForUser(ctx context.Context, tx pgx.Tx, profileID int64) (int64, error)
 	AddReferral(ctx context.Context, tx pgx.Tx, referrerProfileID int64, refereeProfileID int64) error
 	ListReferralsByReferrerProfileID(ctx context.Context, tx pgx.Tx, referrerProfileID int64) ([]repoModels.Referral, error)
+	LockPendingReferralByReferee(ctx context.Context, tx pgx.Tx, refereeProfileID int64) (referralID int64, referrerProfileID int64, err error)
+	MarkReferralCompleted(ctx context.Context, tx pgx.Tx, referralID int64, earnings int64) error
 
 	// Web site repositories
 	CreateWebAccount(ctx context.Context, tx pgx.Tx, a repoModels.WebAccount) (int64, error)

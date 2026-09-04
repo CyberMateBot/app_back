@@ -79,6 +79,18 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT) http.
 			return
 		}
 
+		// Every site-auth route (register/login/me/prompts) either signs or
+		// verifies a JWT. The default JWT_SECRET is a well-known placeholder
+		// ("your-super-secret-jwt-key-change-this"): RegisterWebAccount and
+		// LoginWebAccount only refused an *empty* secret, so a deployment
+		// that forgot to set JWT_SECRET happily minted tokens anyone could
+		// forge. Refuse in production the same way the admin panel already
+		// does, but keep the public model catalog available.
+		if r.URL.Path != "/v1/site/models" && config.JWTSecretWeak(jwtCfg.Secret) && config.IsDeployedProduction() {
+			writeErr(w, http.StatusServiceUnavailable, "web auth is not configured")
+			return
+		}
+
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/site/auth/register":
 			var req authReq

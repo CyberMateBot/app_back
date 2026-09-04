@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/twelvepills-936/tgapp-/internal/bot"
 	"github.com/twelvepills-936/tgapp-/internal/migrations"
@@ -25,6 +27,7 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/mediadownload"
 	"github.com/twelvepills-936/tgapp-/pkg/paymentsapi"
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
+	"github.com/twelvepills-936/tgapp-/pkg/ratelimit"
 	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
@@ -119,8 +122,25 @@ func main() {
 	promptHistory := prompthistory.NewStore(pool)
 	tokenGuard := tokenguard.New(pool)
 
+	// A small, deliberately conservative set of rate limits on endpoints
+	// that are either unauthenticated or brute-forceable: admin login
+	// (credential stuffing), account registration (bonus/abuse farming),
+	// web auth (credential stuffing), and the unauthenticated media-prepare
+	// endpoint (memory DoS via repeated large uploads). Generation and other
+	// initData-guarded endpoints already require a verified Telegram
+	// identity per request, which is a stronger control than IP-based
+	// limiting alone.
+	rateLimitRules := []ratelimit.Rule{
+		{Method: http.MethodPost, Path: "/api/admin/auth/login", Limit: 10, Window: 5 * time.Minute},
+		{Method: http.MethodPost, Path: "/v1/register", Limit: 20, Window: 5 * time.Minute},
+		{Method: http.MethodPost, Path: "/v1/site/auth/login", Limit: 10, Window: 5 * time.Minute},
+		{Method: http.MethodPost, Path: "/v1/site/auth/register", Limit: 10, Window: 5 * time.Minute},
+		{Method: http.MethodPost, Path: "/v1/media/download/prepare", Limit: 30, Window: 5 * time.Minute},
+		{Method: http.MethodPost, Path: "/v1/payments/yookassa/webhook", Limit: 120, Window: time.Minute},
+	}
+
 	httpHandler := bot.HTTPWrap(cors.Wrap(
-		health.Wrap(
+		ratelimit.Wrap(health.Wrap(
 			walletapi.Wrap(
 				adminapi.Wrap(
 					feedbackapi.Wrap(
@@ -136,6 +156,7 @@ func main() {
 											),
 											addConfig.App,
 											uc,
+											tokenGuard,
 										),
 										promptHistory,
 										tokenGuard,
@@ -158,7 +179,7 @@ func main() {
 				pool,
 				tokenGuard,
 			),
-		),
+		), rateLimitRules),
 		addConfig.CORS,
 	), tgBot)
 	application.SetHTTPHandler(httpHandler)

@@ -1,6 +1,7 @@
 package applinks
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -9,7 +10,16 @@ import (
 	"github.com/twelvepills-936/tgapp-/internal"
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
 	"github.com/twelvepills-936/tgapp-/pkg/config"
+	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
+
+// TokenChecker verifies that a telegramId is genuinely owned by the caller
+// (via a valid Telegram init-data signature). Satisfied by
+// *tokenguard.Guard; declared as a small interface here so this package's
+// ownership checks are unit-testable without a real database.
+type TokenChecker interface {
+	CheckIdentity(ctx context.Context, telegramID, initDataRaw string) error
+}
 
 // linksResponse is returned by GET /v1/app/links for the frontend (Support button, referral links).
 type linksResponse struct {
@@ -104,12 +114,77 @@ const referralLinkPathPrefix = "/v1/users/telegram/"
 const referralLinkPathSuffix = "/referral-link"
 const referralsPathSuffix = "/referrals"
 const subscriptionPathSuffix = "/subscription"
+const themePathSuffix = "/theme"
+
+// knownTelegramSubPaths lists the recognized suffixes under
+// /v1/users/telegram/{id}/... so the bare profile path (no suffix) can be
+// distinguished from them.
+var knownTelegramSubPaths = []string{
+	referralLinkPathSuffix,
+	referralsPathSuffix,
+	subscriptionPathSuffix,
+	themePathSuffix,
+}
+
+func isBareTelegramProfilePath(rest string) bool {
+	if rest == "" || strings.Contains(rest, "/") {
+		return false
+	}
+	for _, suffix := range knownTelegramSubPaths {
+		if strings.HasSuffix(rest, suffix) {
+			return false
+		}
+	}
+	return true
+}
+
+// authorizeTelegramOwner verifies the caller's Telegram init data proves
+// ownership of telegramID before any profile/subscription/referral data for
+// that id is served. These routes used to be fully unauthenticated, letting
+// anyone enumerate any user's profile, plan, or referral earnings by
+// telegram id (IDOR). tokens may be nil in tests, in which case the check is
+// skipped (mirrors tokenguard.Guard's own nil-safety).
+func authorizeTelegramOwner(w http.ResponseWriter, r *http.Request, tokens TokenChecker, telegramID string) bool {
+	telegramID = strings.TrimSpace(telegramID)
+	if telegramID == "" {
+		http.Error(w, "telegram_id required", http.StatusBadRequest)
+		return false
+	}
+	if tokens == nil {
+		return true
+	}
+	err := tokens.CheckIdentity(r.Context(), telegramID, tokenguard.InitDataFromRequest(r, ""))
+	return !tokenguard.WriteHTTPError(w, r, err)
+}
 
 // Wrap adds app link endpoints with Telegram deep links from config.
-func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Handler {
+func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase, tokens TokenChecker) http.Handler {
 	botUsername := NormalizeBotUsername(app.TelegramBotUsername)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The profile GET and theme PATCH routes are handled further down the
+		// chain by the gRPC-gateway mux, not in this switch. They still need
+		// an ownership check here (before forwarding) because the generated
+		// gateway handlers have no notion of Telegram init data.
+		if strings.HasPrefix(r.URL.Path, referralLinkPathPrefix) {
+			rest := strings.TrimPrefix(r.URL.Path, referralLinkPathPrefix)
+			switch {
+			case r.Method == http.MethodPatch && strings.HasSuffix(rest, themePathSuffix):
+				telegramID := strings.TrimSuffix(rest, themePathSuffix)
+				if !authorizeTelegramOwner(w, r, tokens, telegramID) {
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			case r.Method == http.MethodGet && isBareTelegramProfilePath(rest):
+				if !authorizeTelegramOwner(w, r, tokens, rest) {
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
 		if r.Method != http.MethodGet {
 			next.ServeHTTP(w, r)
 			return
@@ -213,6 +288,9 @@ func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Han
 				http.Error(w, "telegram_id required", http.StatusBadRequest)
 				return
 			}
+			if !authorizeTelegramOwner(w, r, tokens, telegramID) {
+				return
+			}
 			if uc == nil {
 				http.Error(w, "subscriptions are not configured", http.StatusServiceUnavailable)
 				return
@@ -254,6 +332,9 @@ func Wrap(next http.Handler, app config.ConfigApp, uc internal.UseCase) http.Han
 			)
 			if telegramID == "" {
 				http.Error(w, "telegram_id required", http.StatusBadRequest)
+				return
+			}
+			if !authorizeTelegramOwner(w, r, tokens, telegramID) {
 				return
 			}
 			if uc == nil {

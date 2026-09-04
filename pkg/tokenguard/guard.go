@@ -26,6 +26,12 @@ var (
 	ErrInsufficientTokens = errors.New("insufficient tokens")
 	// ErrModelLocked is returned when the user's plan does not unlock the model.
 	ErrModelLocked = errors.New("model requires a higher subscription plan")
+	// ErrBotTokenNotConfigured is returned when TELEGRAM_BOT_TOKEN is missing
+	// outside development. Previously an empty bot token silently skipped all
+	// Telegram init-data verification, letting any client claim any
+	// telegramId on every guarded endpoint (wallet, generate, checkout,
+	// feedback, prompt history). Fail closed instead.
+	ErrBotTokenNotConfigured = errors.New("telegram bot token is not configured")
 )
 
 // ModelLockedError carries the plan required to unlock a gated model.
@@ -292,21 +298,8 @@ func (g *Guard) CheckIdentity(ctx context.Context, telegramID, initDataRaw strin
 		return nil
 	}
 
-	if g.botToken != "" {
-		initDataRaw = strings.TrimSpace(initDataRaw)
-		if initDataRaw == "" {
-			return ErrInitDataRequired
-		}
-		verifiedID, err := telegramauth.VerifyInitData(initDataRaw, g.botToken)
-		if err != nil && telegramauth.IsDevelopmentEnv() && telegramauth.InitDataMissingHash(initDataRaw) {
-			verifiedID, err = telegramauth.ExtractUserID(initDataRaw)
-		}
-		if err != nil {
-			return err
-		}
-		if verifiedID != telegramID {
-			return ErrTelegramIDMismatch
-		}
+	if err := verifyTelegramOwnership(g.botToken, telegramID, initDataRaw); err != nil {
+		return err
 	}
 
 	var isActive bool
@@ -323,6 +316,46 @@ LIMIT 1`, telegramID).Scan(&isActive)
 	}
 	if !isActive {
 		return ErrProfileInactive
+	}
+	return nil
+}
+
+// verifyTelegramOwnership checks that telegramID matches the identity encoded
+// in initDataRaw, signed by botToken. Extracted from CheckIdentity so it can
+// be unit-tested without a database.
+func verifyTelegramOwnership(botToken, telegramID, initDataRaw string) error {
+	if botToken == "" {
+		if !telegramauth.IsDevelopmentEnv() {
+			// A misconfigured deployment (bot token missing) used to fall
+			// through unauthenticated. Fail closed in anything that isn't
+			// explicitly local/dev.
+			return ErrBotTokenNotConfigured
+		}
+		initDataRaw = strings.TrimSpace(initDataRaw)
+		if initDataRaw == "" {
+			// Local tooling / curl without any init data at all: keep the
+			// previous permissive behavior so dev scripts keep working.
+			return nil
+		}
+		if verifiedID, err := telegramauth.ExtractUserID(initDataRaw); err == nil && verifiedID != telegramID {
+			return ErrTelegramIDMismatch
+		}
+		return nil
+	}
+
+	initDataRaw = strings.TrimSpace(initDataRaw)
+	if initDataRaw == "" {
+		return ErrInitDataRequired
+	}
+	verifiedID, err := telegramauth.VerifyInitData(initDataRaw, botToken)
+	if err != nil && telegramauth.IsDevelopmentEnv() && telegramauth.InitDataMissingHash(initDataRaw) {
+		verifiedID, err = telegramauth.ExtractUserID(initDataRaw)
+	}
+	if err != nil {
+		return err
+	}
+	if verifiedID != telegramID {
+		return ErrTelegramIDMismatch
 	}
 	return nil
 }
@@ -367,6 +400,9 @@ func WriteHTTPError(w http.ResponseWriter, r *http.Request, err error) bool {
 		writeJSON(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, ErrProfileInactive):
 		writeJSON(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, ErrBotTokenNotConfigured):
+		slog.ErrorContext(r.Context(), "telegram bot token missing outside development; refusing request")
+		writeJSON(w, http.StatusServiceUnavailable, "service is not configured")
 	case errors.Is(err, ErrModelLocked):
 		writeJSON(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, ErrInsufficientTokens):

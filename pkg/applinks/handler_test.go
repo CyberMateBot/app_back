@@ -1,12 +1,14 @@
 package applinks
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/twelvepills-936/tgapp-/pkg/config"
+	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
 
 func TestWrap_AppLinks(t *testing.T) {
@@ -17,7 +19,7 @@ func TestWrap_AppLinks(t *testing.T) {
 	}), config.ConfigApp{
 		TelegramBotUsername:      "CyberMate_bot",
 		SupportTelegramInviteURL: "https://t.me/+test",
-	}, nil)
+	}, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/app/links", nil)
 	rec := httptest.NewRecorder()
@@ -45,7 +47,7 @@ func TestWrap_AppLinks(t *testing.T) {
 func TestWrap_ReferralLink(t *testing.T) {
 	t.Parallel()
 
-	mux := Wrap(http.NotFoundHandler(), config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, nil)
+	mux := Wrap(http.NotFoundHandler(), config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/telegram/42/referral-link", nil)
 	rec := httptest.NewRecorder()
@@ -64,7 +66,7 @@ func TestWrap_ReferralLink(t *testing.T) {
 func TestWrap_ReferralsList(t *testing.T) {
 	t.Parallel()
 
-	mux := Wrap(http.NotFoundHandler(), config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, &fakeReferralsUC{})
+	mux := Wrap(http.NotFoundHandler(), config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, &fakeReferralsUC{}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/telegram/42/referrals", nil)
 	rec := httptest.NewRecorder()
@@ -83,5 +85,97 @@ func TestWrap_ReferralsList(t *testing.T) {
 	}
 	if body.Referrals[0].TelegramID != "999" {
 		t.Fatalf("telegram_id = %q", body.Referrals[0].TelegramID)
+	}
+}
+
+// fakeTokenChecker lets tests simulate the IDOR-prevention ownership check
+// without a real database/tokenguard.Guard.
+type fakeTokenChecker struct {
+	err error
+}
+
+func (f *fakeTokenChecker) CheckIdentity(_ context.Context, telegramID, _ string) error {
+	return f.err
+}
+
+func TestWrap_ReferralsList_RequiresOwnership(t *testing.T) {
+	t.Parallel()
+
+	mux := Wrap(http.NotFoundHandler(), config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, &fakeReferralsUC{},
+		&fakeTokenChecker{err: tokenguard.ErrTelegramIDMismatch})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/telegram/42/referrals", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 when caller does not own telegramId", rec.Code)
+	}
+}
+
+func TestWrap_Subscription_RequiresOwnership(t *testing.T) {
+	t.Parallel()
+
+	mux := Wrap(http.NotFoundHandler(), config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, &fakeReferralsUC{},
+		&fakeTokenChecker{err: tokenguard.ErrTelegramIDMismatch})
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/telegram/42/subscription", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 when caller does not own telegramId", rec.Code)
+	}
+}
+
+func TestWrap_ProfileAndTheme_ForwardOnlyWhenOwned(t *testing.T) {
+	t.Parallel()
+
+	var forwarded bool
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		forwarded = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	deny := Wrap(next, config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, &fakeReferralsUC{},
+		&fakeTokenChecker{err: tokenguard.ErrTelegramIDMismatch})
+
+	forwarded = false
+	rec := httptest.NewRecorder()
+	deny.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/users/telegram/42", nil))
+	if forwarded {
+		t.Fatal("profile GET must not be forwarded when ownership check fails")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+
+	forwarded = false
+	rec = httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPatch, "/v1/users/telegram/42/theme", nil)
+	deny.ServeHTTP(rec, req)
+	if forwarded {
+		t.Fatal("theme PATCH must not be forwarded when ownership check fails")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+
+	allow := Wrap(next, config.ConfigApp{TelegramBotUsername: "CyberMate_bot"}, &fakeReferralsUC{},
+		&fakeTokenChecker{err: nil})
+
+	forwarded = false
+	rec = httptest.NewRecorder()
+	allow.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/users/telegram/42", nil))
+	if !forwarded {
+		t.Fatal("profile GET must be forwarded when ownership check passes")
+	}
+
+	forwarded = false
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPatch, "/v1/users/telegram/42/theme", nil)
+	allow.ServeHTTP(rec, req)
+	if !forwarded {
+		t.Fatal("theme PATCH must be forwarded when ownership check passes")
 	}
 }

@@ -1,7 +1,10 @@
 package mediadownload
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -36,6 +39,74 @@ func TestValidateRemoteURL_allowsPublicHTTPS(t *testing.T) {
 	}
 	if err := validateRemoteURL(req.URL); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateResolvedIP(t *testing.T) {
+	cases := []struct {
+		ip      string
+		wantErr bool
+	}{
+		{"127.0.0.1", true},
+		{"10.1.2.3", true},
+		{"192.168.1.1", true},
+		{"169.254.169.254", true}, // cloud metadata endpoint
+		{"::1", true},
+		{"0.0.0.0", true},
+		{"224.0.0.1", true}, // multicast
+		{"8.8.8.8", false},
+		{"1.1.1.1", false},
+	}
+
+	for _, tc := range cases {
+		err := validateResolvedIP(net.ParseIP(tc.ip))
+		if tc.wantErr && err == nil {
+			t.Fatalf("validateResolvedIP(%q) = nil, want error", tc.ip)
+		}
+		if !tc.wantErr && err != nil {
+			t.Fatalf("validateResolvedIP(%q) = %v, want nil", tc.ip, err)
+		}
+	}
+}
+
+func TestSecureDialContext_BlocksDNSRebindingToPrivateIP(t *testing.T) {
+	// Simulates an attacker-controlled hostname (passes validateRemoteURL,
+	// which only inspects the literal URL string) that resolves to an
+	// internal/cloud-metadata IP at connect time.
+	lookup := func(_ context.Context, host string) ([]net.IP, error) {
+		if host != "evil.example.com" {
+			return nil, errors.New("unexpected host in test")
+		}
+		return []net.IP{net.ParseIP("169.254.169.254")}, nil
+	}
+
+	dial := secureDialContext(lookup, &net.Dialer{Timeout: time.Second})
+	conn, err := dial(context.Background(), "tcp", "evil.example.com:443")
+	if err == nil {
+		if conn != nil {
+			conn.Close()
+		}
+		t.Fatal("expected dial to be blocked for a hostname resolving to a private/metadata IP")
+	}
+}
+
+func TestSecureDialContext_LookupErrorPropagates(t *testing.T) {
+	lookup := func(_ context.Context, _ string) ([]net.IP, error) {
+		return nil, errors.New("dns failure")
+	}
+	dial := secureDialContext(lookup, &net.Dialer{Timeout: time.Second})
+	if _, err := dial(context.Background(), "tcp", "example.com:443"); err == nil {
+		t.Fatal("expected lookup error to propagate")
+	}
+}
+
+func TestSecureDialContext_NoAddressesReturnsError(t *testing.T) {
+	lookup := func(_ context.Context, _ string) ([]net.IP, error) {
+		return nil, nil
+	}
+	dial := secureDialContext(lookup, &net.Dialer{Timeout: time.Second})
+	if _, err := dial(context.Background(), "tcp", "example.com:443"); err == nil {
+		t.Fatal("expected error when resolver returns no addresses")
 	}
 }
 

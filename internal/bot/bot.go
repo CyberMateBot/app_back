@@ -2,11 +2,15 @@ package bot
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -21,6 +25,11 @@ const (
 
 type Bot struct {
 	api *tgbotapi.BotAPI
+	// webhookSecret is sent to Telegram via setWebhook's secret_token and
+	// checked against the X-Telegram-Bot-Api-Secret-Token header on every
+	// inbound webhook POST. Without it, anyone who finds the webhook URL
+	// (it's not otherwise secret) could POST forged Telegram updates.
+	webhookSecret string
 }
 
 // New creates Telegram bot when TELEGRAM_BOT_ENABLED=true and TELEGRAM_BOT_TOKEN is set.
@@ -46,8 +55,26 @@ func New() (*Bot, error) {
 		return nil, fmt.Errorf("bot username mismatch: got @%s, want @%s", api.Self.UserName, expected)
 	}
 
+	secret := strings.TrimSpace(os.Getenv("TELEGRAM_WEBHOOK_SECRET"))
+	if secret == "" {
+		generated, genErr := generateWebhookSecret()
+		if genErr != nil {
+			slog.Warn("failed to generate telegram webhook secret token; webhook will be unauthenticated", slog.Any("error", genErr))
+		} else {
+			secret = generated
+		}
+	}
+
 	slog.Info("telegram bot connected", slog.String("username", "@"+api.Self.UserName))
-	return &Bot{api: api}, nil
+	return &Bot{api: api, webhookSecret: secret}, nil
+}
+
+func generateWebhookSecret() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 func (b *Bot) Active() bool {
@@ -108,16 +135,22 @@ func (b *Bot) SetWebhook(ctx context.Context, webhookURL string) error {
 	if webhookURL == "" {
 		return nil
 	}
-
-	cfg, err := tgbotapi.NewWebhook(webhookURL)
-	if err != nil {
+	if _, err := url.Parse(webhookURL); err != nil {
 		return err
 	}
-	if _, err := b.api.Request(cfg); err != nil {
+
+	params := tgbotapi.Params{"url": webhookURL}
+	if b.webhookSecret != "" {
+		params["secret_token"] = b.webhookSecret
+	}
+	if _, err := b.api.MakeRequest("setWebhook", params); err != nil {
 		slog.ErrorContext(ctx, "failed to set telegram webhook", slog.String("url", webhookURL), slog.Any("error", err))
 		return err
 	}
-	slog.InfoContext(ctx, "telegram webhook configured", slog.String("url", webhookURL))
+	slog.InfoContext(ctx, "telegram webhook configured",
+		slog.String("url", webhookURL),
+		slog.Bool("secret_token_set", b.webhookSecret != ""),
+	)
 	return nil
 }
 
@@ -139,6 +172,14 @@ func (b *Bot) serveWebhook(w http.ResponseWriter, r *http.Request) {
 	if b.api == nil {
 		http.Error(w, "bot not configured", http.StatusServiceUnavailable)
 		return
+	}
+
+	if b.webhookSecret != "" {
+		got := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
+		if subtle.ConstantTimeCompare([]byte(got), []byte(b.webhookSecret)) != 1 {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 	}
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))

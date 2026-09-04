@@ -19,6 +19,88 @@ import (
 	"time"
 )
 
+// ipLookup resolves a hostname to its IP addresses. Extracted as a function
+// type so DNS-rebinding protection (validating the *resolved* IP, not just
+// the URL's literal hostname) can be unit-tested without real DNS/network
+// access.
+type ipLookup func(ctx context.Context, host string) ([]net.IP, error)
+
+func defaultIPLookup(ctx context.Context, host string) ([]net.IP, error) {
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	ips := make([]net.IP, 0, len(addrs))
+	for _, a := range addrs {
+		ips = append(ips, a.IP)
+	}
+	return ips, nil
+}
+
+// validateResolvedIP rejects loopback/private/link-local/multicast/
+// unspecified addresses. Applied to the IP actually dialed (not just the
+// hostname string in the URL), so an attacker cannot bypass validateRemoteURL
+// by pointing a public-looking hostname at an internal IP via DNS (DNS
+// rebinding) — a gap in the previous hostname-only check.
+func validateResolvedIP(ip net.IP) error {
+	if ip == nil {
+		return errors.New("could not resolve host")
+	}
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsUnspecified() || ip.IsMulticast() {
+		return errors.New("resolved to a private or internal network address")
+	}
+	return nil
+}
+
+// secureDialContext returns a DialContext for http.Transport that resolves
+// the target host itself, validates every candidate IP, and only ever
+// connects to a validated IP — never to whatever net.Dial's own resolution
+// might return at connect time. This closes the TOCTOU window between the
+// URL-level hostname check (validateRemoteURL) and the actual TCP connect.
+func secureDialContext(lookup ipLookup, dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		// A literal IP in the URL still goes through the resolver (it just
+		// "resolves" to itself), so it's validated the same way.
+		ips, err := lookup(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("no addresses found for %s", host)
+		}
+
+		var lastErr error
+		for _, ip := range ips {
+			if verr := validateResolvedIP(ip); verr != nil {
+				lastErr = verr
+				continue
+			}
+			conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+			if dialErr == nil {
+				return conn, nil
+			}
+			lastErr = dialErr
+		}
+		if lastErr == nil {
+			lastErr = fmt.Errorf("no routable address found for %s", host)
+		}
+		return nil, lastErr
+	}
+}
+
+func newSecureTransport() *http.Transport {
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = secureDialContext(defaultIPLookup, dialer)
+	return transport
+}
+
 const (
 	pathMediaDownload   = "/v1/media/download"
 	pathPrepareDownload = "/v1/media/download/prepare"
@@ -40,7 +122,8 @@ var preparedDownloads sync.Map
 // Wrap handles media download routes for browser and Telegram Mini App clients.
 func Wrap(next http.Handler) http.Handler {
 	client := &http.Client{
-		Timeout: 3 * time.Minute,
+		Timeout:   3 * time.Minute,
+		Transport: newSecureTransport(),
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
 				return errors.New("too many redirects")

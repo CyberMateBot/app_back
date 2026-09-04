@@ -73,7 +73,7 @@ var modelMinPlanRank = map[string]int{
 	// max
 	"gpt-4o": 3, "gemini-2.5-pro": 3, "claude-opus-4.7": 3, "o3": 3,
 	// ultra
-	"claude-opus-4.8": 4, "o1": 4, "gpt-5.5": 4,
+	"claude-opus-4.8": 4, "claude-fable-5": 4, "o1": 4, "gpt-5.5": 4,
 
 	// ---- Image ----
 	"flux-dev": 0,

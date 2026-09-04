@@ -33,6 +33,11 @@ func TestResolveTextModel(t *testing.T) {
 		t.Fatalf("claude-haiku: %+v ok=%v", def, ok)
 	}
 
+	def, ok = resolveTextModel("anthropic/claude-fable-5", "")
+	if !ok || !def.UseWavespeed || def.ID != "claude-fable-5" || def.Slug != "anthropic/claude-fable-5" {
+		t.Fatalf("claude-fable-5: %+v ok=%v", def, ok)
+	}
+
 	def, ok = resolveTextModel("gemini-flash", "")
 	if !ok || def.ID != "gemini-2.5-flash" {
 		t.Fatalf("gemini-flash alias: %+v", def)

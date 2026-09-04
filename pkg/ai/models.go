@@ -83,6 +83,11 @@ var wavespeedTextModelCatalog = []textModelDef{
 		Tier: "pro", Slug: "anthropic/claude-opus-4.8", UseWavespeed: true, SupportsImage: true,
 	},
 	{
+		ID: "claude-fable-5", Label: "Claude Fable 5", Group: "Claude",
+		Description: "Флагман Anthropic для длинных задач, кода и автономной работы",
+		Tier: "pro", Slug: "anthropic/claude-fable-5", UseWavespeed: true, SupportsImage: true,
+	},
+	{
 		ID: "gemini-2.5-flash", Label: "Gemini 2.5 Flash", Group: "Gemini",
 		Description: "Быстрые мультимодальные ответы Google AI",
 		Tier: "fast", Slug: "google/gemini-2.5-flash", UseWavespeed: true, SupportsImage: true,
@@ -206,6 +211,7 @@ var modelAliases = map[string]string{
 	"anthropic/claude-sonnet-4.5": "claude-sonnet-4.5",
 	"anthropic/claude-opus-4.7": "claude-opus-4.7",
 	"anthropic/claude-opus-4.8": "claude-opus-4.8",
+	"anthropic/claude-fable-5": "claude-fable-5",
 	"google/gemini-2.5-flash": "gemini-2.5-flash",
 	"google/gemini-2.5-pro": "gemini-2.5-pro",
 	"openai": "gpt-4o-mini",

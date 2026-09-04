@@ -27,7 +27,7 @@ var defaultModelPrices = map[string]int{
 	"deepseek-v3.2-exp": 2, "deepseek-v4": 2, "deepseek-r1": 3, "gpt-4.1-nano": 1, "gpt-4o-mini": 1,
 	"gpt-5.4-mini": 2, "gpt-4.1-mini": 2, "o4-mini": 4, "gemini-2.5-flash": 2, "claude-haiku-4.5": 2,
 	"gpt-4.1": 4, "gpt-4o": 5, "gemini-2.5-pro": 4, "o3-mini": 5, "gpt-5.4": 5, "claude-sonnet-4.5": 5,
-	"o3": 12, "o1": 15, "claude-opus-4.7": 8, "claude-opus-4.8": 8, "gpt-5.5": 10,
+	"o3": 12, "o1": 15, "claude-opus-4.7": 8, "claude-opus-4.8": 8, "claude-fable-5": 16, "gpt-5.5": 10,
 	"flux-dev": 5, "nano-banana": 10, "gpt-image-2": 20, "gpt-image-1.5": 20, "nano-banana-2": 22,
 	"nano-banana-pro": 40, "alice-ai-art": 12,
 	"seedream-v4.5": 14, "seedream-v5.0-lite": 12,

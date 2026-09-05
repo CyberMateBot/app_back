@@ -56,9 +56,13 @@ func TestServeWebhook_RequiresSecretToken(t *testing.T) {
 }
 
 func TestServeWebhook_NoSecretConfiguredAllowsRequest(t *testing.T) {
-	// Backward-compat: if secret generation ever fails, the webhook must
-	// still function (degrading to the old unauthenticated behavior) rather
-	// than bricking the bot.
+	// serveWebhook itself only enforces the secret_token check when a secret
+	// is actually set on the Bot; this documents that fallback so a
+	// hand-constructed Bot (e.g. future call sites, tooling) doesn't
+	// silently reject all webhook traffic. Note that New() no longer
+	// produces such a Bot in practice: if secret generation fails, New()
+	// now returns an error instead of starting the bot unauthenticated
+	// (fail closed) — see TestNew-level coverage of generateWebhookSecret.
 	b := &Bot{api: &tgbotapi.BotAPI{}}
 
 	req := httptest.NewRequest(http.MethodPost, webhookPath, strings.NewReader(`{}`))

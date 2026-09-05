@@ -59,10 +59,13 @@ func New() (*Bot, error) {
 	if secret == "" {
 		generated, genErr := generateWebhookSecret()
 		if genErr != nil {
-			slog.Warn("failed to generate telegram webhook secret token; webhook will be unauthenticated", slog.Any("error", genErr))
-		} else {
-			secret = generated
+			// Fail closed: refuse to start the bot rather than run the
+			// webhook without a secret_token, which would let anyone who
+			// finds the (not otherwise secret) webhook URL POST forged
+			// Telegram updates.
+			return nil, fmt.Errorf("failed to generate telegram webhook secret: %w", genErr)
 		}
+		secret = generated
 	}
 
 	slog.Info("telegram bot connected", slog.String("username", "@"+api.Self.UserName))

@@ -86,7 +86,10 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 		return
 	}
 
-	chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "text")
+	if err := chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "text"); err != nil {
+		tokenguard.WriteHTTPError(w, r, err)
+		return
+	}
 
 	resp := textGenerateResponse{
 		Text:   out.Text,
@@ -146,7 +149,10 @@ func handleImage(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 	}
 
 	finalized := ai.FinalizeImageResponse(out)
-	chargeImageGeneration(r.Context(), tokens, req, finalized.Model)
+	if err := chargeImageGeneration(r.Context(), tokens, req, finalized.Model); err != nil {
+		tokenguard.WriteHTTPError(w, r, err)
+		return
+	}
 	resp := imageGenerateResponse{
 		ImageURL:    finalized.ImageURL,
 		ImageURLs:   finalized.ImageURLs,
@@ -210,7 +216,10 @@ func handleVideo(w http.ResponseWriter, r *http.Request, svc *ai.Service, histor
 		return
 	}
 
-	chargeVideoGeneration(r.Context(), tokens, req, out.Model)
+	if err := chargeVideoGeneration(r.Context(), tokens, req, out.Model); err != nil {
+		tokenguard.WriteHTTPError(w, r, err)
+		return
+	}
 
 	resp := videoGenerateResponse{
 		VideoURL: out.VideoURL,
@@ -267,7 +276,10 @@ func handleAudio(w http.ResponseWriter, r *http.Request, svc *ai.Service, tokens
 		return
 	}
 
-	chargeAudioGeneration(r.Context(), tokens, req.AudioRequest, out.Model)
+	if err := chargeAudioGeneration(r.Context(), tokens, req.AudioRequest, out.Model); err != nil {
+		tokenguard.WriteHTTPError(w, r, err)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, out)
 }
@@ -294,7 +306,10 @@ func handle3D(w http.ResponseWriter, r *http.Request, svc *ai.Service, history *
 		return
 	}
 
-	chargeThreeDGeneration(r.Context(), tokens, req, out.Model)
+	if err := chargeThreeDGeneration(r.Context(), tokens, req, out.Model); err != nil {
+		tokenguard.WriteHTTPError(w, r, err)
+		return
+	}
 
 	resp := threeDGenerateResponse{
 		ModelURL: out.ModelURL,
@@ -583,9 +598,13 @@ func threeDBillingParams(req ai.ThreeDRequest, modelID string) billing.ThreeDGen
 	return p
 }
 
-func chargeImageGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.ImageRequest, modelID string) {
+// chargeImageGeneration debits CyberCoins for a completed image generation.
+// Callers MUST treat a non-nil error as fatal for the request (write an error
+// response and discard the generated result) instead of returning the
+// content for free — see chargeGeneration for the full rationale.
+func chargeImageGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.ImageRequest, modelID string) error {
 	if tokens == nil {
-		return
+		return nil
 	}
 	model := strings.TrimSpace(modelID)
 	if model == "" {
@@ -602,19 +621,21 @@ func chargeImageGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai
 		ImageSearch: req.ImageSearch,
 	})
 	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "image", price); err != nil {
-		slog.WarnContext(ctx, "failed to charge generation",
+		slog.WarnContext(ctx, "failed to charge generation; discarding result",
 			slog.String("telegram_id", req.TelegramID),
 			slog.String("model", model),
 			slog.String("category", "image"),
 			slog.Int("price", price),
 			slog.Any("error", err),
 		)
+		return err
 	}
+	return nil
 }
 
-func chargeAudioGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.AudioRequest, modelID string) {
+func chargeAudioGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.AudioRequest, modelID string) error {
 	if tokens == nil {
-		return
+		return nil
 	}
 	model := strings.TrimSpace(modelID)
 	if model == "" {
@@ -623,19 +644,21 @@ func chargeAudioGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai
 	params := audioBillingParams(req, model)
 	price := tokens.ResolveAudioGenerationPrice(ctx, model, params)
 	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "audio", price); err != nil {
-		slog.WarnContext(ctx, "failed to charge generation",
+		slog.WarnContext(ctx, "failed to charge generation; discarding result",
 			slog.String("telegram_id", req.TelegramID),
 			slog.String("model", model),
 			slog.String("category", "audio"),
 			slog.Int("price", price),
 			slog.Any("error", err),
 		)
+		return err
 	}
+	return nil
 }
 
-func chargeVideoGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.VideoRequest, modelID string) {
+func chargeVideoGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.VideoRequest, modelID string) error {
 	if tokens == nil {
-		return
+		return nil
 	}
 	model := strings.TrimSpace(modelID)
 	if model == "" {
@@ -644,19 +667,21 @@ func chargeVideoGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai
 	params := videoBillingParams(req, model)
 	price := tokens.ResolveVideoGenerationPrice(ctx, model, params)
 	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "video", price); err != nil {
-		slog.WarnContext(ctx, "failed to charge generation",
+		slog.WarnContext(ctx, "failed to charge generation; discarding result",
 			slog.String("telegram_id", req.TelegramID),
 			slog.String("model", model),
 			slog.String("category", "video"),
 			slog.Int("price", price),
 			slog.Any("error", err),
 		)
+		return err
 	}
+	return nil
 }
 
-func chargeThreeDGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.ThreeDRequest, modelID string) {
+func chargeThreeDGeneration(ctx context.Context, tokens *tokenguard.Guard, req ai.ThreeDRequest, modelID string) error {
 	if tokens == nil {
-		return
+		return nil
 	}
 	model := strings.TrimSpace(modelID)
 	if model == "" {
@@ -665,32 +690,45 @@ func chargeThreeDGeneration(ctx context.Context, tokens *tokenguard.Guard, req a
 	params := threeDBillingParams(req, model)
 	price := tokens.ResolveThreeDGenerationPrice(ctx, model, params)
 	if err := tokens.ChargeForGenerationPrice(ctx, req.TelegramID, model, "3d", price); err != nil {
-		slog.WarnContext(ctx, "failed to charge generation",
+		slog.WarnContext(ctx, "failed to charge generation; discarding result",
 			slog.String("telegram_id", req.TelegramID),
 			slog.String("model", model),
 			slog.String("category", "3d"),
 			slog.Int("price", price),
 			slog.Any("error", err),
 		)
+		return err
 	}
+	return nil
 }
 
-func chargeGeneration(ctx context.Context, tokens *tokenguard.Guard, telegramID, modelID, category string) {
+// chargeGeneration debits CyberCoins for a completed generation. Charging
+// happens after the (already-paid-for-by-us) provider call succeeds, so a
+// concurrent burst of requests can all pass the pre-generation balance check
+// before any of them actually debits the wallet. The atomic, row-locked debit
+// in debitProfileByTelegram guarantees only requests the user can actually
+// afford succeed here — callers MUST propagate a non-nil error back as an
+// HTTP error and MUST NOT hand the generated content to the client, or the
+// remaining (unpaid) requests in the burst would receive paid output for
+// free.
+func chargeGeneration(ctx context.Context, tokens *tokenguard.Guard, telegramID, modelID, category string) error {
 	if tokens == nil {
-		return
+		return nil
 	}
 	model := strings.TrimSpace(modelID)
 	if model == "" {
 		model = strings.TrimSpace(category)
 	}
 	if err := tokens.ChargeForGeneration(ctx, telegramID, model, category); err != nil {
-		slog.WarnContext(ctx, "failed to charge generation",
+		slog.WarnContext(ctx, "failed to charge generation; discarding result",
 			slog.String("telegram_id", telegramID),
 			slog.String("model", model),
 			slog.String("category", category),
 			slog.Any("error", err),
 		)
+		return err
 	}
+	return nil
 }
 
 func writeServiceError(w http.ResponseWriter, r *http.Request, op string, err error) {

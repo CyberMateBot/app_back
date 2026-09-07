@@ -51,9 +51,6 @@ func (uc *useCase) ListAdminHomeWidgets(ctx context.Context) (ucModels.ListHomeW
 
 func (uc *useCase) CreateAdminHomeWidget(ctx context.Context, input ucModels.AdminCreateHomeWidgetInput) (ucModels.AdminHomeWidgetOutput, error) {
 	input.Normalize()
-	if input.Title == "" {
-		return ucModels.AdminHomeWidgetOutput{}, ucModels.ErrInvalidInput
-	}
 
 	id, err := uc.repo.CreateHomeWidget(ctx, nil, repoModels.HomeWidget{
 		SortOrder:       input.SortOrder,
@@ -110,9 +107,6 @@ func (uc *useCase) UpdateAdminHomeWidget(ctx context.Context, input ucModels.Adm
 	}
 	if input.Title != nil {
 		current.Title = strings.TrimSpace(*input.Title)
-		if current.Title == "" {
-			return ucModels.AdminHomeWidgetOutput{}, ucModels.ErrInvalidInput
-		}
 	}
 	if input.Description != nil {
 		current.Description = strings.TrimSpace(*input.Description)

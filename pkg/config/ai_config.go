@@ -60,7 +60,12 @@ func LoadAIConfig() ConfigAI {
 		NanoBananaPollMS:     pollMS,
 
 		TextMaxOutputTokens: getenvInt("AI_TEXT_MAX_OUTPUT_TOKENS", 4096),
-		HTTPTimeout:         getenvDuration("AI_HTTP_TIMEOUT", 120*time.Second),
+		// 120s was too short for reasoning models — Claude Opus 4.7/4.8,
+		// o1/o3, DeepSeek R1 routinely take 60–180s to reply. Users hit
+		// the timeout and saw "попробуйте ещё раз". 300s stays safely
+		// below the frontend's 420s API_FETCH_TIMEOUT_MS while giving
+		// slow models enough headroom.
+		HTTPTimeout:         getenvDuration("AI_HTTP_TIMEOUT", 300*time.Second),
 		// Nano Banana Pro / Seedream / 2K–4K regularly sit in WaveSpeed's
 		// queue longer than 3 minutes. 6 minutes stays under the frontend
 		// generate fetch timeout (420s) so the user sees a real result or

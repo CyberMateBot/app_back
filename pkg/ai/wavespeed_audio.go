@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/twelvepills-936/tgapp-/pkg/config"
 )
@@ -14,6 +15,22 @@ func generateWavespeedAudio(ctx context.Context, cfg config.ConfigAI, prompt str
 	}
 
 	slug := resolveWavespeedAudioSlug(def, req)
+
+	// TTS models truncate long inputs (e.g. Qwen3-TTS caps audio at ~30s).
+	// When the prompt would exceed the model's practical limit we split it
+	// into sentence-sized chunks, synthesize each separately, and merge the
+	// resulting mp3s so the user still receives a single audio_url with the
+	// entire transcript spoken. Music-generation models (Mureka, ACE-Step)
+	// don't need this: their "prompt" is a lyric snippet, not a script.
+	if isTTSModel(def) {
+		if limit := chunkLimitForModel(def, slug); limit > 0 && utf8.RuneCountInString(prompt) > limit {
+			chunks := splitTextIntoChunks(prompt, limit)
+			if len(chunks) > 1 {
+				return generateChunkedWavespeedAudio(ctx, cfg, chunks, req, def)
+			}
+		}
+	}
+
 	input := buildWavespeedAudioInput(def, prompt, req, slug)
 	urls, err := runWavespeedModel(ctx, cfg, slug, input)
 	if err != nil {

@@ -17,7 +17,7 @@ ARG release
 ENV APP_RELEASE=$release
 ENV GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn
 
-RUN apk add --no-cache bash ca-certificates
+RUN apk add --no-cache bash ca-certificates ffmpeg
 
 COPY --from=build /app/api/ /api
 

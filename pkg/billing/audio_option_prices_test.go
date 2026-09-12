@@ -60,11 +60,11 @@ func TestAudioGenerationPrice_ElevenLabsV3(t *testing.T) {
 	t.Parallel()
 
 	base := DefaultModelPrice("elevenlabs-v3", "audio")
-	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "elevenlabs-v3", TextLength: 50}); got != 8 {
-		t.Fatalf("50 chars (min 1000): got %d, want 8", got)
+	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "elevenlabs-v3", TextLength: 50}); got != 30 {
+		t.Fatalf("50 chars (min 1000): got %d, want 30", got)
 	}
-	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "elevenlabs-v3", TextLength: 2000}); got != 16 {
-		t.Fatalf("2000 chars: got %d, want 16", got)
+	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "elevenlabs-v3", TextLength: 2000}); got != 60 {
+		t.Fatalf("2000 chars: got %d, want 60", got)
 	}
 }
 
@@ -72,10 +72,10 @@ func TestAudioGenerationPrice_MiniMaxSpeech(t *testing.T) {
 	t.Parallel()
 
 	base := DefaultModelPrice("minimax-speech-2.6", "audio")
-	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "minimax-speech-2.6", TextLength: 1000}); got != 3 {
-		t.Fatalf("1000 chars: got %d, want 3", got)
+	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "minimax-speech-2.6", TextLength: 1000}); got != 18 {
+		t.Fatalf("1000 chars: got %d, want 18", got)
 	}
-	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "minimax-speech-2.6", TextLength: 5000}); got != 15 {
-		t.Fatalf("5000 chars: got %d, want 15", got)
+	if got := AudioGenerationPrice(base, AudioGenerationParams{ModelID: "minimax-speech-2.6", TextLength: 5000}); got != 90 {
+		t.Fatalf("5000 chars: got %d, want 90", got)
 	}
 }

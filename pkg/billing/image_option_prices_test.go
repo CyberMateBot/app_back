@@ -37,14 +37,14 @@ func TestImageGenerationPrice_NanoBananaPro(t *testing.T) {
 	t.Parallel()
 
 	base := DefaultModelPrice("nano-banana-pro", "image")
-	if got := ImageGenerationPrice(base, ImageGenerationParams{ModelID: "nano-banana-pro", Resolution: "1k"}); got != 40 {
-		t.Fatalf("1k: got %d, want 40", got)
+	if got := ImageGenerationPrice(base, ImageGenerationParams{ModelID: "nano-banana-pro", Resolution: "1k"}); got != 42 {
+		t.Fatalf("1k: got %d, want 42", got)
 	}
-	if got := ImageGenerationPrice(base, ImageGenerationParams{ModelID: "nano-banana-pro", Resolution: "2k"}); got != 40 {
-		t.Fatalf("2k: got %d, want 40", got)
+	if got := ImageGenerationPrice(base, ImageGenerationParams{ModelID: "nano-banana-pro", Resolution: "2k"}); got != 42 {
+		t.Fatalf("2k: got %d, want 42", got)
 	}
-	if got := ImageGenerationPrice(base, ImageGenerationParams{ModelID: "nano-banana-pro", Resolution: "4k"}); got != 69 {
-		t.Fatalf("4k: got %d, want 69", got)
+	if got := ImageGenerationPrice(base, ImageGenerationParams{ModelID: "nano-banana-pro", Resolution: "4k"}); got != 72 {
+		t.Fatalf("4k: got %d, want 72", got)
 	}
 }
 

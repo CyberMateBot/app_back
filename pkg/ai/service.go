@@ -267,6 +267,15 @@ func (s *Service) ListModels() ModelsResponse {
 	}
 }
 
+// HasTextProvider reports whether at least one text-generation provider
+// (Yandex / OpenAI / Wavespeed) has credentials configured. Callers use
+// it to fast-fail obvious "AI not configured" errors with a real HTTP
+// status code BEFORE entering the streamed keep-alive block, where the
+// status header has already been committed.
+func (s *Service) HasTextProvider() bool {
+	return s.cfg.YandexTextEnabled() || s.cfg.OpenAITextEnabled() || s.cfg.WavespeedTextEnabled()
+}
+
 func (s *Service) GenerateText(ctx context.Context, req TextRequest) (TextResponse, error) {
 	prompt, messages, err := normalizeTextInput(req)
 	if err != nil {

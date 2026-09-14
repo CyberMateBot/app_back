@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/twelvepills-936/tgapp-/pkg/ai"
@@ -15,6 +16,67 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/prompthistory"
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 )
+
+// keepAliveInterval controls how often we flush a heartbeat byte to
+// long-running generation responses so upstream reverse proxies
+// (Timeweb / Cloudflare / etc.) don't drop the connection at their
+// idle-timeout (~100-120s) while the LLM is still thinking.
+const keepAliveInterval = 12 * time.Second
+
+// runWithKeepAlive executes `exec` in a goroutine while writing the
+// HTTP response prelude and flushing a single whitespace byte every
+// keepAliveInterval. Whitespace before a JSON body is valid, so the
+// client's JSON.parse still works. Once `exec` returns, we stop the
+// heartbeat and let the caller finish writing the actual response.
+//
+// The status header is committed up-front (StatusOK) — that means
+// even on failure the response is 200, so callers must indicate
+// errors inside the JSON body. That's the trade-off for keeping the
+// connection alive: the proxy stops caring about idle time as soon
+// as we send *any* body byte, but browsers won't let us change the
+// status code afterwards.
+func runWithKeepAlive(ctx context.Context, w http.ResponseWriter, exec func() error) error {
+	flusher, canFlush := w.(http.Flusher)
+	if !canFlush {
+		return exec()
+	}
+
+	// Advertise that we're going to stream chunked JSON. `X-Accel-
+	// Buffering: no` disables nginx's default response buffering,
+	// which otherwise swallows our heartbeats until end-of-response.
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Cache-Control", "no-cache, no-transform")
+	w.WriteHeader(http.StatusOK)
+	// Flush headers before we start ticking so the browser/proxy
+	// have already seen response bytes when the LLM warms up.
+	flusher.Flush()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- exec()
+	}()
+
+	ticker := time.NewTicker(keepAliveInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case err := <-done:
+			return err
+		case <-ticker.C:
+			if _, writeErr := w.Write([]byte(" ")); writeErr != nil {
+				// Client is already gone — cancel executor context
+				// via the request context, then wait for it to
+				// return so we don't leak the goroutine.
+				return <-done
+			}
+			flusher.Flush()
+		case <-ctx.Done():
+			return <-done
+		}
+	}
+}
 
 const (
 	pathGenerateModels = "/v1/generate/models"
@@ -76,18 +138,46 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	// Fast-fail obvious errors BEFORE the keep-alive wrapper commits
+	// the 200 status header. Empty prompt / missing provider config
+	// should be plain HTTP errors so clients (and tests) can rely on
+	// the status code.
+	if strings.TrimSpace(req.Prompt) == "" && strings.TrimSpace(req.Text) == "" {
+		writeError(w, http.StatusBadRequest, ai.ErrPromptEmpty.Error())
+		return
+	}
+	if !svc.HasTextProvider() {
+		writeError(w, http.StatusServiceUnavailable, ai.ErrNotConfigured.Error())
+		return
+	}
+
 	if err := ensureGenerationAccess(w, r, tokens, req.TelegramID, tokenguard.InitDataFromRequest(r, req.InitDataRaw), req.Model, "text"); err != nil {
 		return
 	}
 
-	out, err := svc.GenerateText(r.Context(), req.TextRequest)
-	if err != nil {
-		writeServiceError(w, r, "generate text", err)
+	// Run the actual LLM call under a keep-alive wrapper. LLM
+	// completions can take 30–180s; without heartbeats the reverse
+	// proxy silently kills the connection at ~2min idle, which
+	// users saw as the "попробуйте ещё раз" error.
+	var out ai.TextResponse
+	genErr := runWithKeepAlive(r.Context(), w, func() error {
+		var innerErr error
+		out, innerErr = svc.GenerateText(r.Context(), req.TextRequest)
+		return innerErr
+	})
+
+	// From here on the response headers/status are already flushed,
+	// so we can only communicate outcomes via the JSON body. Any
+	// downstream helper that also calls w.WriteHeader will be a
+	// no-op — that's OK, we just need the body to be valid JSON.
+	if genErr != nil {
+		writeStreamedError(r.Context(), w, "generate text", genErr)
 		return
 	}
 
 	if err := chargeGeneration(r.Context(), tokens, req.TelegramID, out.Model, "text"); err != nil {
-		tokenguard.WriteHTTPError(w, r, err)
+		writeStreamedError(r.Context(), w, "charge generation", err)
 		return
 	}
 
@@ -121,7 +211,30 @@ func handleText(w http.ResponseWriter, r *http.Request, svc *ai.Service, history
 		}
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	// Body was pre-flushed; just encode the final payload.
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// writeStreamedError encodes an error into a JSON body when the
+// response headers have already been committed (200 OK). Clients
+// look for the `error` field on 200 responses too.
+func writeStreamedError(ctx context.Context, w http.ResponseWriter, op string, err error) {
+	slog.ErrorContext(ctx, op, slog.Any("error", err))
+	msg := "generation failed"
+	var pe *ai.ProviderError
+	switch {
+	case errors.Is(err, ai.ErrPromptEmpty):
+		msg = err.Error()
+	case errors.Is(err, ai.ErrNotConfigured):
+		msg = err.Error()
+	case errors.As(err, &pe):
+		msg = pe.Error()
+	default:
+		if em := err.Error(); em != "" {
+			msg = em
+		}
+	}
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 type imageGenerateResponse struct {

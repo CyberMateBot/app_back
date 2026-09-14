@@ -109,6 +109,43 @@ func TestResolveWavespeedVideoSlug(t *testing.T) {
 	}
 }
 
+// TestBuildWavespeedVideoInputReferenceImages verifies that an optional
+// reference photo attached to a video-edit model is forwarded under the
+// correct WaveSpeed param name — this differs per provider ("images" for
+// WAN/HappyHorse, "reference_images" for Seedance) and was previously not
+// wired up at all for wan-2.7-edit / happyhorse-video-edit.
+func TestBuildWavespeedVideoInputReferenceImages(t *testing.T) {
+	cases := []struct {
+		name  string
+		id    string
+		field string
+	}{
+		{name: "seedance edit", id: "seedance-v2-video-edit", field: "reference_images"},
+		{name: "wan edit", id: "wan-2.7-edit", field: "images"},
+		{name: "happyhorse edit", id: "happyhorse-video-edit", field: "images"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			def, ok := resolveWavespeedVideoModel(tc.id)
+			if !ok {
+				t.Fatalf("model not found: %s", tc.id)
+			}
+			input := buildWavespeedVideoInput(def, "replace the person", VideoRequest{
+				SourceVideoURL: "https://cdn.example.com/v.mp4",
+				SourceImageURL: "https://cdn.example.com/face.png",
+			})
+			got, ok := input[tc.field].([]string)
+			if !ok || len(got) != 1 || got[0] != "https://cdn.example.com/face.png" {
+				t.Fatalf("%s: input[%q] = %#v, want [face.png]", tc.id, tc.field, input[tc.field])
+			}
+			if input["video"] != "https://cdn.example.com/v.mp4" {
+				t.Fatalf("%s: video = %#v", tc.id, input["video"])
+			}
+		})
+	}
+}
+
 func TestResolveWavespeedAudioModel(t *testing.T) {
 	def, ok := resolveWavespeedAudioModel("omnivoice")
 	if !ok || def.TextSlug != "wavespeed-ai/omnivoice/text-to-speech" {

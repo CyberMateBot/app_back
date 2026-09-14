@@ -103,7 +103,10 @@ var extendedVideoModels = []mediaModelDef{
 	{
 		ID: "wan-2.7-edit", Label: "WAN 2.7 Edit", Group: "WAN",
 		Description: "WAN 2.7 редактирование видео по инструкции",
-		TextSlug: "alibaba/wan-2.7/edit",
+		// NOTE: the real WaveSpeed endpoint is "alibaba/wan-2.7/video-edit" —
+		// "alibaba/wan-2.7/edit" (the old value here) doesn't exist and would
+		// 404. Confirmed against https://wavespeed.ai/models/alibaba/wan-2.7/video-edit.
+		TextSlug: "alibaba/wan-2.7/video-edit",
 		Provider: "wavespeed", Kind: "video", RequiresVideo: true,
 	},
 	{
@@ -212,7 +215,8 @@ var extendedMediaAliases = map[string]string{
 	"alibaba/wan-2.7/text-to-video":              "wan-2.7-t2v",
 	"alibaba/wan-2.7/first-last-frame":           "wan-2.7-flf",
 	"alibaba/wan-2.7/image-grid":               "wan-2.7-grid",
-	"alibaba/wan-2.7/edit":                     "wan-2.7-edit",
+	"alibaba/wan-2.7/edit":                     "wan-2.7-edit", // legacy/incorrect slug kept for backward compat
+	"alibaba/wan-2.7/video-edit":               "wan-2.7-edit",
 	"alibaba/happyhorse-1.0/text-to-video":     "happyhorse-t2v",
 	"alibaba/happyhorse-1.0/image-to-video":    "happyhorse-i2v",
 	"alibaba/happyhorse-1.0/reference-to-video": "happyhorse-ref2v",

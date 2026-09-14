@@ -64,16 +64,7 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		if sourceVideo == "" {
 			sourceVideo = strings.TrimSpace(req.VideoURL)
 		}
-		if def.ID == "wan-2.7-edit" {
-			if instr := strings.TrimSpace(req.EditInstruction); instr != "" {
-				input["edit_instruction"] = instr
-			} else if strings.TrimSpace(prompt) != "" {
-				input["edit_instruction"] = strings.TrimSpace(prompt)
-			}
-			input["video"] = sourceVideo
-		} else {
-			input["video"] = sourceVideo
-		}
+		input["video"] = sourceVideo
 	}
 
 	if def.ID == "happyhorse-video-extend" || def.ID == "veo-3.1-extend" {
@@ -104,11 +95,29 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		}
 	}
 
+	// Reference/guide images for editing models. Confirmed against the
+	// WaveSpeed docs for each endpoint — the param name differs by model:
+	//   - bytedance/seedance-2.0/video-edit  -> "reference_images"
+	//   - alibaba/wan-2.7/video-edit         -> "images"
+	//   - alibaba/happyhorse-1.0/video-edit  -> "images"
+	//   - alibaba/happyhorse-1.0/reference-to-video -> "reference_images"
+	// This lets users attach a photo to a video-edit model (e.g. "replace
+	// the person in the video with the person in this photo") instead of
+	// only being able to attach the source video itself.
+	usesImagesField := def.ID == "wan-2.7-edit" || def.ID == "happyhorse-video-edit"
 	if refs := normalizeReferenceImages(req.ReferenceImages); len(refs) > 0 {
-		input["reference_images"] = refs
-	} else if isUnifiedSeedanceVideoEdit(def) || def.ID == "happyhorse-ref2v" {
+		if usesImagesField {
+			input["images"] = refs
+		} else {
+			input["reference_images"] = refs
+		}
+	} else if isUnifiedSeedanceVideoEdit(def) || def.ID == "happyhorse-ref2v" || usesImagesField {
 		if img := optionalVideoStartImage(req); img != "" {
-			input["reference_images"] = []string{img}
+			if usesImagesField {
+				input["images"] = []string{img}
+			} else {
+				input["reference_images"] = []string{img}
+			}
 		}
 	}
 

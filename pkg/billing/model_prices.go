@@ -51,8 +51,9 @@ var defaultModelPrices = map[string]int{
 	"seedance-v1-pro-i2v": 149, "seedance-v1.5-i2v-fast": 149, "seedance-v1.5-t2v-fast": 149,
 	"seedance-v1.5-i2v-spicy": 223, "seedance-v2-video-edit": 223, "seedance-v2-video-extend": 223,
 	"wan-2.5-t2v": 149, "wan-2.6-i2v": 149, "wan-2.2-spicy-i2v": 149,
-	"wan-2.7-t2v": 149, "wan-2.7-flf": 149, "wan-2.7-grid": 149,
-	"happyhorse-t2v": 223, "happyhorse-i2v": 223, "happyhorse-ref2v": 223, "happyhorse-video-extend": 223,
+	"wan-2.7-t2v": 149, "wan-2.7-flf": 149, "wan-2.7-grid": 149, "wan-2.7-edit": 223,
+	"happyhorse-t2v": 223, "happyhorse-i2v": 223, "happyhorse-ref2v": 223, "happyhorse-video-edit": 223, "happyhorse-video-extend": 223,
+	"sora-2-t2v": 149, "sora-2-i2v": 149, "sora-2-t2v-pro": 250,
 	"veo-3.1-extend": 312, "vidu-q3-i2v-spicy": 238,
 	"hailuo-2.3-t2v": 44, "hailuo-2.3-i2v-fast": 36, "hailuo-2.3-i2v-pro": 93,
 

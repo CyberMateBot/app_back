@@ -32,13 +32,13 @@ type CoinPack struct {
 // Balance model (see docs/PRICING_REPORT.md):
 //   - 1 CyberCoin = 1 ₽ base rate. Per-model prices are set at ~3.5× provider cost
 //     (model_prices.go), so a spent coin costs us ≈ 1/3.5 ≈ 0.29 ₽ in provider fees.
-//   - Coins are granted once per billing period (on purchase / admin grant) and are
-//     spendable only on models the tier unlocks (gating.go).
+//   - Coins are granted ONCE at purchase (not per-period) and are NEVER burned on
+//     subscription expiry. Expired users lose model access but keep their coin balance,
+//     which can be spent on models of the old tier if a new subscription is purchased
+//     or topped up via coin packs.
 //   - Coin allowance is sized so each tier can actually use its flagship feature
-//     several times per month (the previous allowances were below the price of a
-//     single unlocked video). Per-coin rate falls as the tier rises, so a higher
-//     subscription is always the cheapest way to buy coins; one-time packs sit at a
-//     small premium above subscriptions (see DefaultCoinPacks).
+//     several times. Per-coin rate falls as the tier rises, so a higher subscription
+//     is always the cheapest way to buy coins; one-time packs sit at a small premium.
 //
 // Per-coin rate: basic 0.93 ₽, pro 0.87 ₽, max 0.84 ₽, ultra 0.77 ₽.
 func DefaultSubscriptionPlans() []SubscriptionPlan {
@@ -46,32 +46,33 @@ func DefaultSubscriptionPlans() []SubscriptionPlan {
 		{
 			ID: "free", Name: "Старт", Badge: "Бесплатно", BadgeClass: "free",
 			PriceRub: 0, PriceSub: "навсегда", Coins: 15, SortOrder: 1, Enabled: true,
-			Features: []string{"15 монет для старта", "YandexGPT, GPT OSS 20B, DeepSeek Chat", "FLUX (изображения)", "Qwen3 TTS, OmniVoice, MiniMax Speech"},
-			Locked:   []string{"Видео — нет", "3D — нет", "Премиум модели — нет"},
+			Features: []string{"15 монет при регистрации", "YandexGPT, GPT OSS 20B, DeepSeek Chat", "FLUX Dev (изображения)", "Qwen3 TTS, OmniVoice, MiniMax Speech"},
+			Locked:   []string{"Видео и 3D — недоступны", "Премиум модели — недоступны"},
 		},
 		{
 			ID: "basic", Name: "Базовый", Badge: "Доступный", BadgeClass: "basic",
 			PriceRub: 149, PriceSub: "/ месяц", Coins: 160, SortOrder: 2, Enabled: true,
-			Features: []string{"160 монет / месяц", "Claude Haiku, Gemini Flash, GPT-4o mini, DeepSeek Flash", "Nano Banana, Alice AI, Seedream, Qwen Image, Z-Image", "Kling Standard, Hailuo T2V (≈2–3 видео)", "ElevenLabs, Hunyuan 3D rapid"},
-			Locked:   []string{"Pro/Max видео и 3D — нет"},
+			Features: []string{"160 монет при покупке", "Claude Haiku, Gemini Flash, GPT-4o mini, DeepSeek Flash", "Nano Banana, Alice AI, Seedream, Qwen Image, Z-Image", "Kling Std, Hailuo T2V (≈1–2 видео)", "ElevenLabs, Hunyuan 3D Rapid"},
+			Locked:   []string{"Pro видео и 3D — недоступны"},
 		},
 		{
 			ID: "pro", Name: "Про", Badge: "Популярный", BadgeClass: "popular",
 			PriceRub: 349, PriceSub: "/ месяц", Coins: 400, SortOrder: 3, Enabled: true, Popular: true,
-			Features: []string{"400 монет / месяц", "Claude Sonnet, GPT-5.4, DeepSeek R1, Qwen 3.6", "GPT Image 2, Nano Banana 2, Grok Imagine", "Kling Pro, Seedance, WAN, Vidu, HappyHorse (≈4 видео)", "Mureka, ACE-Step, Tripo, Meshy 3D"},
+			Features: []string{"400 монет при покупке", "Claude Sonnet, GPT-5.4, DeepSeek R1, Qwen 3.6", "GPT Image 2, Nano Banana 2, Grok Imagine", "Kling Pro, Seedance, WAN, Vidu, HappyHorse (≈2–3 видео)", "Mureka, ACE-Step, Tripo, Meshy 3D"},
 		},
 		{
 			ID: "max", Name: "Максимум", Badge: "Выгодный", BadgeClass: "max",
 			PriceRub: 799, PriceSub: "/ месяц", Coins: 950, SortOrder: 4, Enabled: true,
-			Features: []string{"950 монет / месяц", "GPT-4o, Gemini 2.5 Pro, Claude Opus 4.7, o3", "Nano Banana Pro", "Kling 4K, Seedance 2.0, Sora, Veo (≈6 видео)", "Tripo H3.1, Rodin 3D"},
+			Features: []string{"950 монет при покупке", "GPT-4o, Gemini 2.5 Pro, Claude Opus 4.7, o3", "Nano Banana Pro", "Kling 4K, Seedance 2.0, Sora, Veo (≈4–6 видео)", "Tripo H3.1, Rodin 3D"},
 		},
 		{
 			ID: "ultra", Name: "Бизнес", Badge: "Для бизнеса", BadgeClass: "biz",
 			PriceRub: 1999, PriceSub: "/ месяц", Coins: 2600, SortOrder: 5, Enabled: true,
-			Features: []string{"2600 монет / месяц", "Claude Opus 4.8, o1, GPT-5.5, Sora Pro", "Все модели без ограничений", "Максимальный приоритет", "Лучшая цена за монету"},
+			Features: []string{"2600 монет при покупке", "Claude Opus 4.8, o1, GPT-5.5, Sora Pro", "Все модели без ограничений", "Максимальный приоритет очереди", "Лучшая цена за монету"},
 		},
 	}
 }
+
 
 // DefaultCoinPacks are seeded when admin has not configured packs yet.
 //

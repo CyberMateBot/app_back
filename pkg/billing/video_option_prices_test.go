@@ -18,8 +18,56 @@ func TestVideoGenerationPrice_Kling(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "kling-v3-std", Duration: 5, Resolution: "720p", Sound: true,
-	}); got != 188 {
-		t.Fatalf("std 5s 720p + sound: got %d, want 188", got)
+	}); got != 155 {
+		t.Fatalf("std 5s 720p + sound: got %d, want 155", got)
+	}
+	base4k := DefaultModelPrice("kling-v3-4k", "video")
+	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
+		ModelID: "kling-v3-4k", Duration: 5, Resolution: "4k", Sound: false,
+	}); got != 250 {
+		t.Fatalf("4k 5s: got %d, want 250", got)
+	}
+	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
+		ModelID: "kling-v3-4k", Duration: 5, Resolution: "4k", Sound: true,
+	}); got != 280 {
+		t.Fatalf("4k 5s + sound: got %d, want 280", got)
+	}
+	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
+		ModelID: "kling-v3-4k", Duration: 10, Resolution: "4k", Sound: false,
+	}); got != 500 {
+		t.Fatalf("4k 10s: got %d, want 500", got)
+	}
+	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
+		ModelID: "kling-v3-4k", Duration: 10, Resolution: "4k", Sound: true,
+	}); got != 560 {
+		t.Fatalf("4k 10s + sound: got %d, want 560", got)
+	}
+}
+
+func TestVideoGenerationPrice_Sora2(t *testing.T) {
+	t.Parallel()
+
+	base := DefaultModelPrice("sora-2-t2v", "video")
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "sora-2-t2v", Duration: 5, Resolution: "720p",
+	}); got != 149 {
+		t.Fatalf("sora-2 5s 720p: got %d, want 149", got)
+	}
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "sora-2-t2v", Duration: 10, Resolution: "720p",
+	}); got != 298 {
+		t.Fatalf("sora-2 10s 720p: got %d, want 298", got)
+	}
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "sora-2-t2v", Duration: 5, Resolution: "1080p",
+	}); got != 250 {
+		t.Fatalf("sora-2 5s 1080p: got %d, want 250", got)
+	}
+	basePro := DefaultModelPrice("sora-2-t2v-pro", "video")
+	if got := VideoGenerationPrice(basePro, VideoGenerationParams{
+		ModelID: "sora-2-t2v-pro", Duration: 5,
+	}); got != 250 {
+		t.Fatalf("sora-2 pro 5s: got %d, want 250", got)
 	}
 }
 

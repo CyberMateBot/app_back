@@ -226,11 +226,15 @@ func videoModelOptions(id string) []MediaOption {
 			{Key: "duration", Type: "select", Values: []string{"3", "5", "10"}, Default: "5"},
 			{Key: "extend_by", Type: "select", Values: []string{"3", "5", "10"}, Default: "5"},
 		})
-	case "sora-2-t2v", "sora-2-i2v", "sora-2-t2v-pro":
-		return []MediaOption{
+	case "sora-2-t2v":
+		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
-		}
+		})
+	case "sora-2-i2v", "sora-2-t2v-pro":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+		})
 	case "veo-3.1-extend":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"4", "7"}, Default: "4"},

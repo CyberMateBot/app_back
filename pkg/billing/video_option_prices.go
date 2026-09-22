@@ -22,6 +22,8 @@ var klingPerSecondUSD = map[string]float64{
 	"kling-v3-4k":  0.168,
 }
 
+const klingAudioPerSecondUSD = 0.02
+
 var wanPerSecondUSD = map[string]float64{
 	"480p": 0.05,
 	"480P": 0.05,
@@ -141,9 +143,15 @@ func videoGenerationUSD(p VideoGenerationParams) float64 {
 	case isKlingModel(modelID):
 		usd := klingPerSecondUSD[modelID] * float64(duration)
 		if p.Sound {
-			usd *= 1.5
+			usd += klingAudioPerSecondUSD * float64(duration)
 		}
 		return usd
+	case strings.HasPrefix(modelID, "sora-2"):
+		rate := 0.10
+		if modelID == "sora-2-t2v-pro" || strings.EqualFold(p.Resolution, "1080p") {
+			rate = 0.168
+		}
+		return rate * float64(duration)
 	case isSeedance15Model(modelID):
 		return seedance15PerSecond(p.Resolution, p.GenerateAudio) * float64(duration)
 	case modelID == "seedance-v1-pro-i2v":
@@ -192,6 +200,12 @@ func defaultVideoUSD(modelID string, p VideoGenerationParams) float64 {
 	switch {
 	case isKlingModel(modelID):
 		return klingPerSecondUSD[modelID] * float64(duration)
+	case strings.HasPrefix(modelID, "sora-2"):
+		rate := 0.10
+		if modelID == "sora-2-t2v-pro" {
+			rate = 0.168
+		}
+		return rate * float64(duration)
 	case isSeedance15Model(modelID):
 		return seedance15PerSecond(defaultVideoResolution(modelID), defaultSeedance15Audio(modelID)) * float64(duration)
 	case modelID == "seedance-v1-pro-i2v":
@@ -278,7 +292,7 @@ func klingSoundDeltas(modelID string, base int) map[string]int {
 	effective := klingEffectiveModel(modelID, defaultVideoResolution(modelID))
 	dur := defaultVideoDuration(effective)
 	ref := klingPerSecondUSD[effective] * float64(dur)
-	withSound := ref * 1.5
+	withSound := ref + klingAudioPerSecondUSD*float64(dur)
 	return map[string]int{
 		"true": usdToCoinsFromBase(effective, base, ref, withSound) - base,
 	}
@@ -528,6 +542,8 @@ func defaultVideoResolution(modelID string) string {
 		return "720P"
 	case strings.HasPrefix(modelID, "wan-"):
 		return "720P"
+	case modelID == "sora-2-t2v":
+		return "720p"
 	case modelID == "veo-3.1-extend":
 		return "1080p"
 	default:
@@ -547,6 +563,8 @@ func videoDurationOptions(modelID string) []string {
 	switch {
 	case isKlingModel(modelID):
 		return []string{"3", "5", "10", "15"}
+	case strings.HasPrefix(modelID, "sora-2"):
+		return []string{"5", "10"}
 	case modelID == "seedance-v1-pro-i2v":
 		return []string{"2", "5", "8", "10", "12"}
 	case isSeedance15Model(modelID):
@@ -578,6 +596,8 @@ func videoResolutionOptions(modelID string) []string {
 	switch {
 	case isKlingModel(modelID):
 		return []string{"720p", "1080p", "4k"}
+	case modelID == "sora-2-t2v":
+		return []string{"720p", "1080p"}
 	case isSeedance15Model(modelID), isHappyHorseModel(modelID), modelID == "seedance-v2-video-extend":
 		return []string{"720p", "1080p"}
 	case modelID == "seedance-v2-video-edit":

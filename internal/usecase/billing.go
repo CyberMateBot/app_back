@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sort"
+	"strings"
 
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
 	"github.com/twelvepills-936/tgapp-/pkg/billing"
@@ -116,6 +117,7 @@ func (uc *useCase) loadCoinPacks(ctx context.Context) ([]ucModels.CoinPackItem, 
 	if !ok || len(items) == 0 {
 		return billing.DefaultCoinPacks(), nil
 	}
+	items = normalizeLoadedCoinPacks(items)
 	sortCoinPacks(items)
 	return items, nil
 }
@@ -156,24 +158,83 @@ func sortCoinPacks(items []ucModels.CoinPackItem) {
 }
 
 // normalizeLoadedPlans fixes legacy admin_settings rows saved before the enabled
-// flag existed (json omitempty → false → all plans filtered from public catalog).
+// flag existed (json omitempty → false → all plans filtered from public catalog),
+// and ensures up-to-date plan features, locked models, and coin amounts from code
+// without requiring manual database migrations.
 func normalizeLoadedPlans(items []ucModels.SubscriptionPlanItem) []ucModels.SubscriptionPlanItem {
 	if len(items) == 0 {
-		return items
+		return billing.DefaultSubscriptionPlans()
 	}
+	defaults := billing.DefaultSubscriptionPlans()
+	defaultsByID := make(map[string]ucModels.SubscriptionPlanItem, len(defaults))
+	for _, d := range defaults {
+		defaultsByID[d.ID] = d
+	}
+
 	enabled := 0
-	for _, item := range items {
-		if item.Enabled {
+	out := make([]ucModels.SubscriptionPlanItem, len(items))
+	copy(out, items)
+	for i := range out {
+		if out[i].Enabled {
 			enabled++
+		}
+		if d, ok := defaultsByID[out[i].ID]; ok {
+			if out[i].Coins < d.Coins {
+				out[i].Coins = d.Coins
+			}
+			out[i].Features = d.Features
+			out[i].Locked = d.Locked
 		}
 	}
 	if enabled == 0 {
-		out := make([]ucModels.SubscriptionPlanItem, len(items))
-		copy(out, items)
 		for i := range out {
 			out[i].Enabled = true
 		}
-		return out
 	}
-	return items
+	return out
+}
+
+// normalizeLoadedCoinPacks ensures all standard coin packs are present and have
+// valid names, prices, and coins even if stale DB rows exist.
+func normalizeLoadedCoinPacks(items []ucModels.CoinPackItem) []ucModels.CoinPackItem {
+	defaults := billing.DefaultCoinPacks()
+	if len(items) == 0 {
+		return defaults
+	}
+	defaultsByID := make(map[string]ucModels.CoinPackItem, len(defaults))
+	for _, d := range defaults {
+		defaultsByID[d.ID] = d
+	}
+	existingIDs := make(map[string]bool, len(items))
+	for _, item := range items {
+		existingIDs[item.ID] = true
+	}
+
+	out := make([]ucModels.CoinPackItem, 0, len(items)+len(defaults))
+	for _, item := range items {
+		if d, ok := defaultsByID[item.ID]; ok {
+			if item.Coins < d.Coins {
+				item.Coins = d.Coins
+			}
+			if item.PriceRub <= 0 {
+				item.PriceRub = d.PriceRub
+			}
+			// Use clean tier name if previous was 'X монет'
+			if item.Name == "" || item.Name == d.Name || strings.HasSuffix(item.Name, "монет") {
+				item.Name = d.Name
+			}
+			if item.Badge == "" && d.Badge != "" {
+				item.Badge = d.Badge
+			}
+		}
+		out = append(out, item)
+	}
+
+	// Add any missing default packs
+	for _, d := range defaults {
+		if !existingIDs[d.ID] {
+			out = append(out, d)
+		}
+	}
+	return out
 }

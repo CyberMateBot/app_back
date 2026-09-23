@@ -81,9 +81,9 @@ func DefaultSubscriptionPlans() []SubscriptionPlan {
 // rate. Per-coin rate: 100→1.29 ₽, 300→1.16 ₽, 1000→1.05 ₽, 2500→0.96 ₽.
 func DefaultCoinPacks() []CoinPack {
 	return []CoinPack{
-		{ID: "pack-100", Name: "100 монет", Coins: 100, PriceRub: 129, SortOrder: 1, Enabled: true},
-		{ID: "pack-300", Name: "300 монет", Coins: 300, PriceRub: 349, Badge: "−10%", SortOrder: 2, Enabled: true},
-		{ID: "pack-1000", Name: "1000 монет", Coins: 1000, PriceRub: 1049, Badge: "−18%", SortOrder: 3, Enabled: true},
-		{ID: "pack-2500", Name: "2500 монет", Coins: 2500, PriceRub: 2399, Badge: "−26%", SortOrder: 4, Enabled: true},
+		{ID: "pack-100", Name: "Пакет «Старт»", Coins: 100, PriceRub: 129, SortOrder: 1, Enabled: true},
+		{ID: "pack-300", Name: "Пакет «Стандарт»", Coins: 300, PriceRub: 349, Badge: "−10%", SortOrder: 2, Enabled: true},
+		{ID: "pack-1000", Name: "Пакет «Оптимум»", Coins: 1000, PriceRub: 1049, Badge: "−18%", SortOrder: 3, Enabled: true},
+		{ID: "pack-2500", Name: "Пакет «Макси»", Coins: 2500, PriceRub: 2399, Badge: "−26%", SortOrder: 4, Enabled: true},
 	}
 }

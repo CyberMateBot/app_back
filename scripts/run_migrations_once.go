@@ -67,6 +67,7 @@ func main() {
 		"V20260724000100__rebalance_billing_catalog.sql",
 		"V20260813000100__payments.sql",
 		"V20260819000100__user_feedback.sql",
+		"V20260923000100__admin_token_version.sql",
 	}
 
 	for _, name := range files {

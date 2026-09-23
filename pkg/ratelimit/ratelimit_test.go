@@ -113,13 +113,32 @@ func TestWrap_UnmatchedPathsPassThrough(t *testing.T) {
 	}
 }
 
-func TestClientIP_PrefersForwardedFor(t *testing.T) {
+// TestClientIP_PrefersLastForwardedFor verifies that ClientIP reads the
+// rightmost (last) X-Forwarded-For entry — the one appended by the trusted
+// proxy — rather than the first, which is client-controlled and spoofable.
+// Input:  "X-Forwarded-For: 203.0.113.9, 10.0.0.1"
+// Client sends first entry; Railway proxy appends the real IP as the last.
+func TestClientIP_PrefersLastForwardedFor(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "10.0.0.1:5555"
 	req.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
 
-	if got := ClientIP(req); got != "203.0.113.9" {
-		t.Fatalf("ClientIP() = %q, want 203.0.113.9", got)
+	// Expect the last entry ("10.0.0.1") — added by the trusted proxy.
+	if got := ClientIP(req); got != "10.0.0.1" {
+		t.Fatalf("ClientIP() = %q, want 10.0.0.1 (last XFF, proxy-appended)", got)
+	}
+}
+
+// TestClientIP_SpoofPrevented checks that a client setting a fake first XFF
+// entry cannot trick the rate limiter into using that IP instead of the real one.
+func TestClientIP_SpoofPrevented(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.0.0.1:5555"
+	// Attacker forges first entry; proxy adds the real IP at the end.
+	req.Header.Set("X-Forwarded-For", "1.2.3.4, 10.0.0.1")
+
+	if got := ClientIP(req); got == "1.2.3.4" {
+		t.Fatal("ClientIP() returned the spoofed first XFF entry — fix H-1 regression")
 	}
 }
 

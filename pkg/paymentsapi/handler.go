@@ -24,9 +24,11 @@ const (
 )
 
 // Wrap adds POST /v1/billing/checkout (Telegram-authenticated) and
-// POST /v1/payments/yookassa/webhook (public, called by YooKassa).
+// POST /v1/payments/yookassa/webhook (YooKassa IP-gated).
+// The webhook route is additionally wrapped by webhookAllowlistMiddleware so
+// only requests from official YooKassa IP ranges are processed.
 func Wrap(next http.Handler, uc internal.UseCase, tokens *tokenguard.Guard) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == pathCheckout:
 			handleCheckout(w, r, uc, tokens)
@@ -37,6 +39,7 @@ func Wrap(next http.Handler, uc internal.UseCase, tokens *tokenguard.Guard) http
 		}
 		next.ServeHTTP(w, r)
 	})
+	return webhookAllowlistMiddleware(inner)
 }
 
 type checkoutRequest struct {

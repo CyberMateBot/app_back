@@ -115,9 +115,11 @@ func (uc *useCase) RegisterByTelegram(ctx context.Context, input ucModels.Regist
 		Location:         tg.LanguageCode,
 		Role:             "",
 		Description:      "",
-		TelegramInitData: input.InitDataRaw,
-		Username:         tg.Username,
-		Verified:         false,
+		TelegramInitData: "", // L-3: Do not persist raw init data — it contains a
+		// signed hash and sensitive user metadata. Storing it
+		// creates unnecessary exposure if the DB is exfiltrated.
+		Username: tg.Username,
+		Verified: false,
 	})
 	if createErr != nil {
 		err = createErr

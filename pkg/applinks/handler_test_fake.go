@@ -163,5 +163,8 @@ func (f *fakeReferralsUC) ListAdminUserFeedback(ctx context.Context, input ucMod
 func (f *fakeReferralsUC) DeleteAdminUserFeedback(ctx context.Context, id int64) error {
 	return errors.New("not impl")
 }
+func (f *fakeReferralsUC) VerifyAdminToken(ctx context.Context, adminID, tokenVersion int64) error {
+	return errors.New("not impl")
+}
 
 var _ internal.UseCase = (*fakeReferralsUC)(nil)

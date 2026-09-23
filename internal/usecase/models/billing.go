@@ -58,6 +58,9 @@ func NormalizeSubscriptionPlans(items []SubscriptionPlanItem) ([]SubscriptionPla
 		if item.Coins < 0 {
 			return nil, fmt.Errorf("%w: plan coins must be >= 0", ErrInvalidInput)
 		}
+		if item.Coins > maxCoinsPerItem {
+			return nil, fmt.Errorf("%w: plan coins must be <= %d", ErrInvalidInput, maxCoinsPerItem)
+		}
 		if item.SortOrder == 0 {
 			item.SortOrder = int32(i + 1)
 		}
@@ -75,6 +78,11 @@ func NormalizeSubscriptionPlans(items []SubscriptionPlanItem) ([]SubscriptionPla
 	}
 	return out, nil
 }
+
+// maxCoinsPerItem is an upper bound on coins that can be configured for a
+// single coin pack or subscription plan. Prevents accidental or malicious
+// admin-panel misconfiguration from producing orders that over-credit users.
+const maxCoinsPerItem int64 = 10_000_000
 
 func NormalizeCoinPacks(items []CoinPackItem) ([]CoinPackItem, error) {
 	if len(items) == 0 {
@@ -99,6 +107,9 @@ func NormalizeCoinPacks(items []CoinPackItem) ([]CoinPackItem, error) {
 		if item.Coins <= 0 {
 			return nil, fmt.Errorf("%w: coin pack coins must be > 0", ErrInvalidInput)
 		}
+		if item.Coins > maxCoinsPerItem {
+			return nil, fmt.Errorf("%w: coin pack coins must be <= %d", ErrInvalidInput, maxCoinsPerItem)
+		}
 		if item.PriceRub <= 0 {
 			return nil, fmt.Errorf("%w: coin pack price must be > 0", ErrInvalidInput)
 		}
@@ -117,9 +128,9 @@ func FilterEnabledPlans(items []SubscriptionPlanItem) []SubscriptionPlanItem {
 			out = append(out, item)
 		}
 	}
-	if len(out) == 0 && len(items) > 0 {
-		return items
-	}
+	// M-4: Do NOT fall back to showing disabled plans when all are off.
+	// If admin has disabled every plan the catalog intentionally shows nothing;
+	// the admin panel still surfaces the full list via ListAdminSubscriptionPlans.
 	return out
 }
 
@@ -129,9 +140,6 @@ func FilterEnabledCoinPacks(items []CoinPackItem) []CoinPackItem {
 		if item.Enabled {
 			out = append(out, item)
 		}
-	}
-	if len(out) == 0 && len(items) > 0 {
-		return items
 	}
 	return out
 }

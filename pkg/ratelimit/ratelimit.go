@@ -120,18 +120,21 @@ func Wrap(next http.Handler, rules []Rule) http.Handler {
 	})
 }
 
-// ClientIP best-effort resolves the caller's IP, preferring the first hop in
-// X-Forwarded-For (set by Railway's edge proxy in front of this service)
-// over RemoteAddr, which would otherwise always be the proxy's own address.
+// ClientIP best-effort resolves the caller's IP, preferring the rightmost
+// (last) hop in X-Forwarded-For — the one appended by Railway's edge proxy,
+// which the client cannot forge — over RemoteAddr, which would otherwise
+// always be the proxy's own address. The first XFF entry is client-controlled
+// and must NOT be trusted for security decisions such as rate limiting.
 func ClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.Split(xff, ",")
-		if first := strings.TrimSpace(parts[0]); first != "" {
-			return first
-		}
-	}
 	if xrip := strings.TrimSpace(r.Header.Get("X-Real-IP")); xrip != "" {
 		return xrip
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		// Use the last entry: it was appended by the trusted proxy.
+		if last := strings.TrimSpace(parts[len(parts)-1]); last != "" {
+			return last
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

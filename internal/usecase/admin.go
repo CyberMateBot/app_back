@@ -16,6 +16,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// dummyHash is a pre-computed bcrypt hash used to equalise response time when
+// an admin email is not found (timing-safe login — prevents user enumeration).
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("dummy-timing-equaliser"), bcrypt.DefaultCost)
+
 func (uc *useCase) BootstrapAdmin(ctx context.Context) error {
 	email := strings.TrimSpace(strings.ToLower(os.Getenv("ADMIN_EMAIL")))
 	password := os.Getenv("ADMIN_PASSWORD")
@@ -53,6 +57,9 @@ func (uc *useCase) AdminLogin(ctx context.Context, input ucModels.AdminLoginInpu
 	admin, err := uc.repo.GetAdminByEmail(ctx, nil, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			// Always run bcrypt so response time is the same whether the
+			// email exists or not — prevents timing-based email enumeration.
+			_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
 			return out, ucModels.ErrInvalidCredentials
 		}
 		return out, err
@@ -66,7 +73,7 @@ func (uc *useCase) AdminLogin(ctx context.Context, input ucModels.AdminLoginInpu
 	if ttl < 24*time.Hour {
 		ttl = 24 * time.Hour
 	}
-	token, signErr := jwtutil.SignAdminToken(uc.jwt.Secret, ttl, admin.ID, admin.Email)
+	token, signErr := jwtutil.SignAdminToken(uc.jwt.Secret, ttl, admin.ID, admin.Email, admin.TokenVersion)
 	if signErr != nil {
 		return out, signErr
 	}
@@ -89,6 +96,25 @@ func (uc *useCase) GetAdmin(ctx context.Context, adminID int64) (ucModels.AdminU
 		return ucModels.AdminUser{}, err
 	}
 	return ucModels.AdminUser{ID: admin.ID, Email: admin.Email}, nil
+}
+
+// VerifyAdminToken checks that tokenVersion (from the JWT) matches the admin's
+// current token_version in the DB. Returns ErrInvalidCredentials if revoked.
+func (uc *useCase) VerifyAdminToken(ctx context.Context, adminID, tokenVersion int64) error {
+	if adminID <= 0 {
+		return ucModels.ErrInvalidCredentials
+	}
+	admin, err := uc.repo.GetAdminByID(ctx, nil, adminID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ucModels.ErrInvalidCredentials
+		}
+		return err
+	}
+	if admin.TokenVersion != tokenVersion {
+		return ucModels.ErrInvalidCredentials
+	}
+	return nil
 }
 
 func (uc *useCase) GetAdminStats(ctx context.Context) (ucModels.AdminStatsOutput, error) {

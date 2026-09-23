@@ -98,6 +98,9 @@ type UseCase interface {
 	BootstrapAdmin(ctx context.Context) error
 	AdminLogin(ctx context.Context, input ucModels.AdminLoginInput) (ucModels.AdminLoginOutput, error)
 	GetAdmin(ctx context.Context, adminID int64) (ucModels.AdminUser, error)
+	// VerifyAdminToken checks that the token's embedded token_version matches
+	// the current value in the DB. Returns the admin ID on success.
+	VerifyAdminToken(ctx context.Context, adminID, tokenVersion int64) error
 	GetAdminStats(ctx context.Context) (ucModels.AdminStatsOutput, error)
 	ListAdminUsers(ctx context.Context, input ucModels.AdminListUsersInput) (ucModels.AdminListUsersOutput, error)
 	GetAdminUser(ctx context.Context, userID int64) (ucModels.AdminUserItem, error)

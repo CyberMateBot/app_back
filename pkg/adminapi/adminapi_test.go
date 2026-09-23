@@ -164,6 +164,10 @@ func (f *fakeAdminUC) ListAdminUserFeedback(ctx context.Context, input ucModels.
 func (f *fakeAdminUC) DeleteAdminUserFeedback(ctx context.Context, id int64) error {
 	return errors.New("not impl")
 }
+func (f *fakeAdminUC) VerifyAdminToken(ctx context.Context, adminID, tokenVersion int64) error {
+	// Return nil (success) so token_version checks pass in existing tests.
+	return nil
+}
 
 var _ internal.UseCase = (*fakeAdminUC)(nil)
 

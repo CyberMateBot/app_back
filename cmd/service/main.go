@@ -30,6 +30,7 @@ import (
 	"github.com/twelvepills-936/tgapp-/pkg/ratelimit"
 	"github.com/twelvepills-936/tgapp-/pkg/siteapi"
 	"github.com/twelvepills-936/tgapp-/pkg/swagger"
+	"github.com/twelvepills-936/tgapp-/pkg/telegramauth"
 	"github.com/twelvepills-936/tgapp-/pkg/tokenguard"
 	"github.com/twelvepills-936/tgapp-/pkg/walletapi"
 	"github.com/twelvepills-936/tgapp-/pkg/yookassa"
@@ -38,6 +39,15 @@ import (
 func main() {
 	ctx, c := context.WithCancel(context.Background())
 	defer c()
+
+	// H-2: Prevent accidental ENVIRONMENT=dev/local in production.
+	// When the dev flag is set, Telegram init-data signature verification is
+	// bypassed entirely, which is catastrophic in a live deployment.
+	if telegramauth.IsDevelopmentEnv() && config.IsDeployedProduction() {
+		slog.ErrorContext(ctx, "FATAL: ENVIRONMENT is set to a dev/local value but APP_ENVIRONMENT indicates production. "+
+			"This would disable Telegram signature checks. Set ENVIRONMENT= (empty) or fix APP_ENVIRONMENT.")
+		os.Exit(1)
+	}
 
 	cfg := app.LoadConfigFromEnv()
 

@@ -11,13 +11,13 @@ import (
 
 func (r *Repository) GetAdminByEmail(ctx context.Context, tx pgx.Tx, email string) (repoModels.Admin, error) {
 	const q = `
-SELECT id, email, password_hash, role, created_at
+SELECT id, email, password_hash, role, COALESCE(token_version, 1), created_at
 FROM admins WHERE email = $1 LIMIT 1`
 
 	var a repoModels.Admin
 	qry := r.getQueryable(tx)
 	err := qry.QueryRow(ctx, q, strings.ToLower(strings.TrimSpace(email))).Scan(
-		&a.ID, &a.Email, &a.PasswordHash, &a.Role, &a.CreatedAt,
+		&a.ID, &a.Email, &a.PasswordHash, &a.Role, &a.TokenVersion, &a.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -30,13 +30,13 @@ FROM admins WHERE email = $1 LIMIT 1`
 
 func (r *Repository) GetAdminByID(ctx context.Context, tx pgx.Tx, id int64) (repoModels.Admin, error) {
 	const q = `
-SELECT id, email, password_hash, role, created_at
+SELECT id, email, password_hash, role, COALESCE(token_version, 1), created_at
 FROM admins WHERE id = $1 LIMIT 1`
 
 	var a repoModels.Admin
 	qry := r.getQueryable(tx)
 	err := qry.QueryRow(ctx, q, id).Scan(
-		&a.ID, &a.Email, &a.PasswordHash, &a.Role, &a.CreatedAt,
+		&a.ID, &a.Email, &a.PasswordHash, &a.Role, &a.TokenVersion, &a.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -45,6 +45,21 @@ FROM admins WHERE id = $1 LIMIT 1`
 		return a, err
 	}
 	return a, nil
+}
+
+// IncrementAdminTokenVersion atomically bumps the token_version for an admin,
+// invalidating all JWT tokens issued before this call.
+func (r *Repository) IncrementAdminTokenVersion(ctx context.Context, tx pgx.Tx, adminID int64) error {
+	const q = `UPDATE admins SET token_version = COALESCE(token_version, 1) + 1 WHERE id = $1`
+	qry := r.getQueryable(tx)
+	tag, err := qry.Exec(ctx, q, adminID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func (r *Repository) CreateAdmin(ctx context.Context, tx pgx.Tx, email, passwordHash string) (int64, error) {

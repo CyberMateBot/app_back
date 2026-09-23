@@ -192,20 +192,43 @@ func (uc *useCase) HandleYooKassaWebhookNotification(ctx context.Context, provid
 
 		switch payment.Kind {
 		case ucModels.PaymentKindCoinPack:
-			if payment.Coins > 0 {
-				if _, err := uc.repo.CreditProfileTokens(ctx, tx, payment.ProfileID, 0, payment.Coins,
+			// C-3: Validate stored coins against the current catalog so a
+			// stale or tampered payment row cannot over-credit the user.
+			coinsToCredit, err := uc.verifiedCoinPackCoins(ctx, payment)
+			if err != nil {
+				slog.ErrorContext(ctx, "yookassa webhook: coin verification failed",
+					slog.Any("error", err),
+					slog.Int64("payment_id", payment.ID),
+					slog.String("item_id", payment.ItemID))
+				return err
+			}
+			if coinsToCredit > 0 {
+				if _, err := uc.repo.CreditProfileTokens(ctx, tx, payment.ProfileID, 0, coinsToCredit,
 					fmt.Sprintf("yookassa:pack:%s", payment.ItemID)); err != nil {
 					return err
 				}
 			}
 		case ucModels.PaymentKindSubscription:
 			now := time.Now().UTC()
-			expiresAt := now.AddDate(0, 0, subscriptionDurationDays)
+			// M-2: Extend an active subscription instead of resetting it.
+			// Without this, re-purchasing within the current period silently
+			// discards the remaining days, causing undisclosed value loss
+			// and potential chargebacks.
+			expiresAt := uc.extendedSubscriptionExpiry(ctx, payment.ProfileID, now)
 			if err := uc.repo.UpsertUserSubscription(ctx, tx, payment.ProfileID, payment.ItemID, now, &expiresAt, nil); err != nil {
 				return err
 			}
-			if payment.Coins > 0 {
-				if _, err := uc.repo.CreditProfileTokens(ctx, tx, payment.ProfileID, 0, payment.Coins,
+			// C-3: Validate stored coins for subscription as well.
+			coinsToCredit, err := uc.verifiedSubscriptionCoins(ctx, payment)
+			if err != nil {
+				slog.ErrorContext(ctx, "yookassa webhook: subscription coin verification failed",
+					slog.Any("error", err),
+					slog.Int64("payment_id", payment.ID),
+					slog.String("item_id", payment.ItemID))
+				return err
+			}
+			if coinsToCredit > 0 {
+				if _, err := uc.repo.CreditProfileTokens(ctx, tx, payment.ProfileID, 0, coinsToCredit,
 					fmt.Sprintf("yookassa:subscription:%s", payment.ItemID)); err != nil {
 					return err
 				}
@@ -254,4 +277,74 @@ func randomPaymentToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+// verifiedCoinPackCoins returns the number of coins to credit for a coin-pack
+// payment, capped to the value in the current catalog. This prevents a stale
+// or admin-tampered payment row from crediting more coins than the published
+// pack price warrants. If the pack is no longer in the catalog the stored
+// amount is trusted (pack may have been removed after purchase).
+func (uc *useCase) verifiedCoinPackCoins(ctx context.Context, payment repoModels.Payment) (int64, error) {
+	if payment.Coins <= 0 {
+		return 0, nil
+	}
+	packs, err := uc.loadCoinPacks(ctx)
+	if err != nil {
+		return 0, err
+	}
+	pack, ok := findCoinPack(packs, payment.ItemID)
+	if !ok {
+		// Pack removed after purchase — trust stored value.
+		return payment.Coins, nil
+	}
+	if payment.Coins > pack.Coins {
+		slog.WarnContext(ctx, "yookassa webhook: stored coins exceed catalog; capping",
+			slog.Int64("stored", payment.Coins),
+			slog.Int64("catalog", pack.Coins),
+			slog.Int64("payment_id", payment.ID))
+		return pack.Coins, nil
+	}
+	return payment.Coins, nil
+}
+
+// verifiedSubscriptionCoins returns the number of coins to credit for a
+// subscription payment, capped to the plan's catalog value.
+func (uc *useCase) verifiedSubscriptionCoins(ctx context.Context, payment repoModels.Payment) (int64, error) {
+	if payment.Coins <= 0 {
+		return 0, nil
+	}
+	plans, err := uc.loadSubscriptionPlans(ctx)
+	if err != nil {
+		return 0, err
+	}
+	plan, ok := findPlan(plans, payment.ItemID)
+	if !ok {
+		// Plan removed after purchase — trust stored value.
+		return payment.Coins, nil
+	}
+	if payment.Coins > plan.Coins {
+		slog.WarnContext(ctx, "yookassa webhook: stored subscription coins exceed catalog; capping",
+			slog.Int64("stored", payment.Coins),
+			slog.Int64("catalog", plan.Coins),
+			slog.Int64("payment_id", payment.ID))
+		return plan.Coins, nil
+	}
+	return payment.Coins, nil
+}
+
+// extendedSubscriptionExpiry computes the new subscription expiry when a user
+// re-purchases a plan. Instead of resetting to now+30d (which would silently
+// discard remaining days), we extend from the later of now and the current
+// expiry, so the user always gets the full 30 additional days.
+func (uc *useCase) extendedSubscriptionExpiry(ctx context.Context, profileID int64, now time.Time) time.Time {
+	existing, err := uc.repo.GetUserSubscription(ctx, nil, profileID)
+	if err != nil {
+		// No existing subscription or DB error — fall back to now+30d.
+		return now.AddDate(0, 0, subscriptionDurationDays)
+	}
+	base := now
+	if existing.ExpiresAt != nil && existing.ExpiresAt.After(now) {
+		base = *existing.ExpiresAt
+	}
+	return base.AddDate(0, 0, subscriptionDurationDays)
 }

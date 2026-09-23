@@ -341,7 +341,7 @@ func Wrap(next http.Handler, uc internal.UseCase, jwtCfg config.ConfigJWT, messe
 			return
 		}
 
-		adminID, ok := requireAdmin(w, r, jwtCfg)
+		adminID, ok := requireAdmin(w, r, jwtCfg, uc)
 		if !ok {
 			return
 		}
@@ -917,6 +917,9 @@ func validateTokenChangeReq(amount int64, reason string) string {
 	if amount > maxTokenAmount {
 		return "amount is too large"
 	}
+	if strings.TrimSpace(reason) == "" {
+		return "reason is required"
+	}
 	if len(strings.TrimSpace(reason)) > 255 {
 		return "reason is too long"
 	}
@@ -982,7 +985,7 @@ func mapTokenChange(o ucModels.AdminTokenChangeOutput) tokenChangeResp {
 	}
 }
 
-func requireAdmin(w http.ResponseWriter, r *http.Request, jwtCfg config.ConfigJWT) (int64, bool) {
+func requireAdmin(w http.ResponseWriter, r *http.Request, jwtCfg config.ConfigJWT, uc internal.UseCase) (int64, bool) {
 	h := strings.TrimSpace(r.Header.Get("Authorization"))
 	if h == "" {
 		writeErr(w, http.StatusUnauthorized, "missing authorization header")
@@ -1001,6 +1004,11 @@ func requireAdmin(w http.ResponseWriter, r *http.Request, jwtCfg config.ConfigJW
 	claims, err := jwtutil.ParseAdminToken(jwtCfg.Secret, token)
 	if err != nil {
 		writeErr(w, http.StatusUnauthorized, "invalid token")
+		return 0, false
+	}
+	// H-3: Verify token_version against DB to support instant revocation.
+	if verifyErr := uc.VerifyAdminToken(r.Context(), claims.AdminID, claims.TokenVersion); verifyErr != nil {
+		writeErr(w, http.StatusUnauthorized, "token revoked")
 		return 0, false
 	}
 	return claims.AdminID, true

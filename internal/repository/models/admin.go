@@ -11,6 +11,7 @@ type Admin struct {
 	Email        string
 	PasswordHash string
 	Role         string
+	TokenVersion int64 // incremented on password change / forced logout
 	CreatedAt    time.Time
 }
 

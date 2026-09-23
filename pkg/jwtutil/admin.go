@@ -8,16 +8,18 @@ import (
 )
 
 type AdminClaims struct {
-	AdminID int64  `json:"admin_id"`
-	Email   string `json:"email"`
+	AdminID      int64  `json:"admin_id"`
+	Email        string `json:"email"`
+	TokenVersion int64  `json:"token_version"` // H-3: bumped on forced logout/password change
 	jwt.RegisteredClaims
 }
 
-func SignAdminToken(secret string, ttl time.Duration, adminID int64, email string) (string, error) {
+func SignAdminToken(secret string, ttl time.Duration, adminID int64, email string, tokenVersion int64) (string, error) {
 	now := time.Now()
 	claims := AdminClaims{
-		AdminID: adminID,
-		Email:   email,
+		AdminID:      adminID,
+		Email:        email,
+		TokenVersion: tokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   fmt.Sprintf("admin:%d", adminID),
 			IssuedAt:  jwt.NewNumericDate(now),

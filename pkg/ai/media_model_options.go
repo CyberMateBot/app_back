@@ -146,17 +146,34 @@ func imageModelOptions(id string) []MediaOption {
 			{Key: "num_images", Type: "select", Values: []string{"1", "2", "3", "4"}, Default: "1"},
 			{Key: "output_format", Type: "select", Values: []string{"jpeg", "png", "webp"}, Default: "jpeg"},
 		})
+	case "kling-image-o3":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"}, Default: "1:1"},
+			{Key: "resolution", Type: "select", Values: []string{"1k", "2k", "4k"}, Default: "1k"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "output_format", Type: "select", Values: []string{"png", "jpeg"}, Default: "png"},
+		})
+	case "kling-image-v3":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"}, Default: "1:1"},
+			{Key: "resolution", Type: "select", Values: []string{"1k", "2k"}, Default: "1k"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "output_format", Type: "select", Values: []string{"png", "jpeg"}, Default: "png"},
+		})
 	default:
 		return nil
 	}
 }
 
 func videoModelOptions(id string) []MediaOption {
-	switch id {
-	case "kling-v3-std", "kling-v3-pro", "kling-v3-4k":
+	if isKlingVideoModel(id) {
+		durations := klingDurationOptionValues()
+		if id == "kling-v2.6-std" || id == "kling-v2.6-pro" || id == "kling-v2.1-master" || id == "kling-v2.0-master" || id == "kling-v1.6-std" || id == "kling-v1.6-pro" {
+			durations = []string{"5", "10"}
+		}
 		opts := []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
-			{Key: "duration", Type: "select", Values: klingDurationOptionValues(), Default: "5"},
+			{Key: "duration", Type: "select", Values: durations, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p", "4k"}, Default: klingResolutionDefault(id)},
 			{Key: "cfg_scale", Type: "range", Values: []string{"0.1", "1.0"}, Default: "0.5"},
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
@@ -176,6 +193,9 @@ func videoModelOptions(id string) []MediaOption {
 			})
 		}
 		return withOptionPrices(id, opts)
+	}
+
+	switch id {
 	case "seedance-v1-pro-i2v":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}, Default: "16:9"},
@@ -373,6 +393,11 @@ func audioModelOptions(id string) []MediaOption {
 		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"30", "60", "120", "180", "240"}, Default: "60"},
 		})
+	case "kling-v1-tts":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "speed", Type: "select", Values: []string{"0.8", "1.0", "1.2", "1.5"}, Default: "1.0"},
+			{Key: "text_length", Type: "select", Values: []string{"50", "100", "500", "1000", "2000"}, Default: "100"},
+		})
 	default:
 		return nil
 	}
@@ -442,7 +467,8 @@ func modelSupportsQuality(id string) bool {
 
 func modelSupportsResolution(id string) bool {
 	switch id {
-	case "nano-banana-pro", "nano-banana-2", "gpt-image-2", "gpt-image-1.5", "grok-imagine-edit":
+	case "nano-banana-pro", "nano-banana-2", "gpt-image-2", "gpt-image-1.5", "grok-imagine-edit",
+		"kling-image-o3", "kling-image-v3":
 		return true
 	default:
 		return false
@@ -472,10 +498,10 @@ func normalizeImageResolution(modelID, resolution string) string {
 }
 
 func klingResolutionDefault(modelID string) string {
-	switch modelID {
-	case "kling-v3-4k":
+	switch {
+	case strings.HasSuffix(modelID, "-4k"):
 		return "4k"
-	case "kling-v3-pro":
+	case strings.HasSuffix(modelID, "-pro"), strings.HasSuffix(modelID, "-master"), modelID == "kling-video-o1":
 		return "1080p"
 	default:
 		return "720p"

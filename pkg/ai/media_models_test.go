@@ -72,6 +72,21 @@ func TestResolveWavespeedVideoModel(t *testing.T) {
 	if !ok || !def.RequiresVideo {
 		t.Fatalf("seedance-v2-video-edit: %+v", def)
 	}
+
+	o3Def, ok := resolveWavespeedVideoModel("kling-video-o3-std")
+	if !ok || o3Def.TextSlug != "kwaivgi/kling-video-o3-std/text-to-video" {
+		t.Fatalf("kling-video-o3-std: %+v ok=%v", o3Def, ok)
+	}
+
+	o3Img, ok := resolveWavespeedImageModel("kling-image-o3")
+	if !ok || o3Img.TextSlug != "kwaivgi/kling-image-o3/text-to-image" || o3Img.EditSlug != "kwaivgi/kling-image-o3/edit" {
+		t.Fatalf("kling-image-o3: %+v ok=%v", o3Img, ok)
+	}
+
+	ttsDef, ok := resolveWavespeedAudioModel("kling-v1-tts")
+	if !ok || ttsDef.TextSlug != "kwaivgi/kling-v1-tts" {
+		t.Fatalf("kling-v1-tts: %+v ok=%v", ttsDef, ok)
+	}
 }
 
 func TestResolveWavespeedVideoSlug(t *testing.T) {

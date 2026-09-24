@@ -311,9 +311,11 @@ func optionalVideoStartImage(req VideoRequest) string {
 }
 
 func videoModelSupportsOptionalStartImage(modelID string) bool {
+	if isKlingVideoModel(modelID) {
+		return true
+	}
 	switch modelID {
-	case "kling-v3-std", "kling-v3-pro", "kling-v3-4k",
-		"seedance-v1.5-t2v-fast", "wan-2.5-t2v", "wan-2.7-t2v",
+	case "seedance-v1.5-t2v-fast", "wan-2.5-t2v", "wan-2.7-t2v",
 		"happyhorse-t2v", "sora-2-t2v", "sora-2-t2v-pro":
 		return true
 	default:

@@ -44,10 +44,17 @@ var defaultModelPrices = map[string]int{
 	"seedream-v4.5": 14, "seedream-v5.0-lite": 12,
 	"qwen-image": 7, "qwen-image-2512": 7, "qwen-image-2.0": 11, "qwen-image-2.0-pro": 25,
 	"z-image-base": 5, "z-image-turbo": 2, "grok-imagine-edit": 25,
+	"kling-image-o3": 14, "kling-image-v3": 14,
 
 	// Video models — base = 5-second default; longer durations / higher
 	// resolutions are surcharged proportionally in video_option_prices.go.
 	"kling": 125, "kling-v3-std": 125, "kling-v3-pro": 166, "kling-v3-4k": 250, "seedance": 149,
+	"kling-video-o3-std": 125, "kling-video-o3-pro": 166, "kling-video-o3-4k": 250,
+	"kling-v3-turbo-std": 56, "kling-v3-turbo-pro": 70,
+	"kling-v2.6-std": 63, "kling-v2.6-pro": 105,
+	"kling-v2.1-master": 135, "kling-v2.0-master": 135,
+	"kling-v1.6-std": 68, "kling-v1.6-pro": 135,
+	"kling-video-o1": 166,
 	"seedance-v1-pro-i2v": 149, "seedance-v1.5-i2v-fast": 149, "seedance-v1.5-t2v-fast": 149,
 	"seedance-v1.5-i2v-spicy": 223, "seedance-v2-video-edit": 223, "seedance-v2-video-extend": 223,
 	"wan-2.5-t2v": 149, "wan-2.6-i2v": 149, "wan-2.2-spicy-i2v": 149,
@@ -61,6 +68,7 @@ var defaultModelPrices = map[string]int{
 	// audio_option_prices.go scales for longer inputs.
 	"qwen3-tts": 4, "qwen3-tts-clone": 15, "omnivoice": 3, "elevenlabs-v3": 30,
 	"minimax-speech-2.6": 18, "mureka": 50, "mureka-v9": 50, "ace-step-1.5": 40,
+	"kling-v1-tts": 4,
 
 	// 3D models.
 	"hunyuan3d-v3.1-rapid": 25, "hunyuan3d-v3.1-rapid-i2d": 250, "hunyuan3d-v3-t2d": 30, "tripo3d-v2.5-i2d": 48,

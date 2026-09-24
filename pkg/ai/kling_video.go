@@ -54,7 +54,7 @@ func applyKlingVideoInput(input map[string]any, def mediaModelDef, req VideoRequ
 		input["sound"] = *req.Sound
 	case req.GenerateAudio != nil && klingModelSupportsSound(def.ID):
 		input["sound"] = *req.GenerateAudio
-	case def.ID == "kling-v3-pro", def.ID == "kling-v3-4k":
+	case klingModelSupportsSound(def.ID):
 		input["sound"] = false
 	}
 
@@ -144,11 +144,54 @@ func clampKlingAxis(v float64) float64 {
 }
 
 func klingModelSupportsSound(modelID string) bool {
-	return modelID == "kling-v3-pro" || modelID == "kling-v3-4k"
+	switch modelID {
+	case "kling-v3-pro", "kling-v3-4k",
+		"kling-video-o3-std", "kling-video-o3-pro", "kling-video-o3-4k",
+		"kling-v2.6-pro":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveKlingModelID(resolution, fallbackModel string) string {
-	switch strings.ToLower(strings.TrimSpace(resolution)) {
+	res := strings.ToLower(strings.TrimSpace(resolution))
+	if strings.HasPrefix(fallbackModel, "kling-video-o3") {
+		switch res {
+		case "4k":
+			return "kling-video-o3-4k"
+		case "1080p":
+			return "kling-video-o3-pro"
+		case "720p":
+			return "kling-video-o3-std"
+		default:
+			return fallbackModel
+		}
+	}
+	if strings.HasPrefix(fallbackModel, "kling-v3-turbo") {
+		switch res {
+		case "1080p":
+			return "kling-v3-turbo-pro"
+		case "720p":
+			return "kling-v3-turbo-std"
+		default:
+			return fallbackModel
+		}
+	}
+	if strings.HasPrefix(fallbackModel, "kling-v2.6") {
+		switch res {
+		case "1080p":
+			return "kling-v2.6-pro"
+		case "720p":
+			return "kling-v2.6-std"
+		default:
+			return fallbackModel
+		}
+	}
+	if fallbackModel != "kling-v3-std" && fallbackModel != "kling-v3-pro" && fallbackModel != "kling-v3-4k" && fallbackModel != "kling" && isKlingVideoModel(fallbackModel) {
+		return fallbackModel
+	}
+	switch res {
 	case "4k":
 		return "kling-v3-4k"
 	case "1080p":

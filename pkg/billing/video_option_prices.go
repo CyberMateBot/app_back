@@ -17,9 +17,21 @@ type VideoGenerationParams struct {
 }
 
 var klingPerSecondUSD = map[string]float64{
-	"kling-v3-std": 0.084,
-	"kling-v3-pro": 0.112,
-	"kling-v3-4k":  0.168,
+	"kling-v3-std":       0.084,
+	"kling-v3-pro":       0.112,
+	"kling-v3-4k":        0.168,
+	"kling-video-o3-std": 0.084,
+	"kling-video-o3-pro": 0.112,
+	"kling-video-o3-4k":  0.168,
+	"kling-v3-turbo-std": 0.037,
+	"kling-v3-turbo-pro": 0.046,
+	"kling-v2.6-std":     0.042,
+	"kling-v2.6-pro":     0.070,
+	"kling-v2.1-master":  0.090,
+	"kling-v2.0-master":  0.090,
+	"kling-v1.6-std":     0.045,
+	"kling-v1.6-pro":     0.090,
+	"kling-video-o1":     0.112,
 }
 
 const klingAudioPerSecondUSD = 0.02
@@ -423,6 +435,9 @@ func klingEffectiveModel(modelID, resolution string) string {
 	if !isKlingModel(modelID) {
 		return modelID
 	}
+	if modelID != "kling-v3-std" && modelID != "kling" {
+		return modelID
+	}
 	switch strings.ToLower(strings.TrimSpace(resolution)) {
 	case "4k":
 		return "kling-v3-4k"
@@ -436,7 +451,7 @@ func klingEffectiveModel(modelID, resolution string) string {
 }
 
 func isKlingModel(modelID string) bool {
-	return strings.HasPrefix(modelID, "kling-v3")
+	return strings.HasPrefix(modelID, "kling-") || modelID == "kling"
 }
 
 func isSeedance15Model(modelID string) bool {

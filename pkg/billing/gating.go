@@ -88,12 +88,19 @@ var modelMinPlanRank = map[string]int{
 	"qwen-image-2.0-pro": 2,
 	"z-image-base": 1, "z-image-turbo": 1,
 	"grok-imagine-edit": 2,
+	"kling-image-o3": 2, "kling-image-v3": 1,
 
 	// ---- Video (no free tier) ----
 	"kling-v3-std": 1,
 	"kling-v3-pro": 2, "seedance-v1-pro-i2v": 2, "seedance-v1.5-i2v-fast": 2,
 	"seedance-v1.5-t2v-fast": 2, "seedance-v1.5-i2v-spicy": 2,
 	"kling-v3-4k": 3, "seedance-v2-video-edit": 3, "seedance-v2-video-extend": 3,
+	"kling-video-o3-std": 2, "kling-video-o3-pro": 3, "kling-video-o3-4k": 4,
+	"kling-v3-turbo-std": 1, "kling-v3-turbo-pro": 2,
+	"kling-v2.6-std": 1, "kling-v2.6-pro": 2,
+	"kling-v2.1-master": 2, "kling-v2.0-master": 2,
+	"kling-v1.6-std": 1, "kling-v1.6-pro": 2,
+	"kling-video-o1": 2,
 	// Video (extended catalog)
 	"wan-2.5-t2v": 2, "wan-2.6-i2v": 2, "wan-2.7-t2v": 2, "wan-2.2-spicy-i2v": 2,
 	"wan-2.7-flf": 3, "wan-2.7-grid": 3, "wan-2.7-edit": 3,
@@ -105,7 +112,7 @@ var modelMinPlanRank = map[string]int{
 	"hailuo-2.3-t2v": 1, "hailuo-2.3-i2v-fast": 2, "hailuo-2.3-i2v-pro": 3,
 
 	// ---- Audio ----
-	"omnivoice": 0, "minimax-speech-2.6": 0, "qwen3-tts": 0,
+	"omnivoice": 0, "minimax-speech-2.6": 0, "qwen3-tts": 0, "kling-v1-tts": 0,
 	"elevenlabs-v3": 1,
 	"mureka-v9": 2, "mureka": 2, "ace-step-1.5": 2,
 

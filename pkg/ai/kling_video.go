@@ -58,6 +58,10 @@ func applyKlingVideoInput(input map[string]any, def mediaModelDef, req VideoRequ
 		input["sound"] = false
 	}
 
+	if req.CFGScale > 0 {
+		input["cfg_scale"] = req.CFGScale
+	}
+
 	if cc := buildKlingCameraControl(req.CameraControl); cc != nil {
 		input["camera_control"] = cc
 	}

@@ -129,6 +129,7 @@ type VideoRequest struct {
 	EnablePromptExpansion *bool        `json:"enable_prompt_expansion"`
 	GoFast            *bool          `json:"go_fast"`
 	EditInstruction   string         `json:"edit_instruction"`
+	CFGScale          float64        `json:"cfg_scale,omitempty"`
 	FirstFrameURL     string         `json:"first_frame_url"`
 	LastFrameURL      string         `json:"last_frame_url"`
 	FirstFrameBase64  string         `json:"firstFrameBase64"`

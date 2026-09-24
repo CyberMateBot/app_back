@@ -49,14 +49,38 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 		input["aspect_ratio"] = defaultVideoAspectRatio(def.ID)
 	}
 
-	if def.RequiresImage {
-		sourceImage := strings.TrimSpace(req.SourceImageURL)
-		if sourceImage == "" {
-			sourceImage = strings.TrimSpace(req.ImageURL)
+	startFrame := strings.TrimSpace(req.FirstFrameURL)
+	if startFrame == "" {
+		startFrame = strings.TrimSpace(req.SourceImageURL)
+	}
+	if startFrame == "" {
+		startFrame = strings.TrimSpace(req.ImageURL)
+	}
+
+	endFrame := strings.TrimSpace(req.LastFrameURL)
+	if endFrame == "" {
+		endFrame = strings.TrimSpace(req.LastImageURL)
+	}
+
+	if def.ID == "wan-2.7-flf" {
+		if startFrame != "" {
+			input["first_frame_url"] = startFrame
 		}
-		input["image"] = sourceImage
-	} else if sourceImage := optionalVideoStartImage(req); sourceImage != "" && videoModelSupportsOptionalStartImage(def.ID) {
-		input["image"] = sourceImage
+		if endFrame != "" {
+			input["last_frame_url"] = endFrame
+		}
+	} else {
+		if startFrame != "" {
+			input["image"] = startFrame
+		}
+		if endFrame != "" {
+			if isKlingVideoModel(def.ID) {
+				input["image_tail"] = endFrame
+				input["last_image"] = endFrame
+			} else {
+				input["last_image"] = endFrame
+			}
+		}
 	}
 
 	if def.RequiresVideo {
@@ -70,15 +94,6 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 	if def.ID == "happyhorse-video-extend" || def.ID == "veo-3.1-extend" {
 		if req.ExtendBy > 0 {
 			input["extend_by"] = req.ExtendBy
-		}
-	}
-
-	if def.ID == "wan-2.7-flf" {
-		if first := strings.TrimSpace(req.FirstFrameURL); first != "" {
-			input["first_frame_url"] = first
-		}
-		if last := strings.TrimSpace(req.LastFrameURL); last != "" {
-			input["last_frame_url"] = last
 		}
 	}
 
@@ -169,12 +184,12 @@ func buildWavespeedVideoInput(def mediaModelDef, prompt string, req VideoRequest
 
 	if req.Seed != 0 {
 		input["seed"] = req.Seed
-	} else if seedanceUsesSeed(def.ID) || def.ID == "veo-3.1-extend" {
+	} else if seedanceUsesSeed(def.ID) || def.ID == "veo-3.1-extend" || strings.HasPrefix(def.ID, "wan-") {
 		input["seed"] = -1
 	}
 
-	if lastImage := strings.TrimSpace(req.LastImageURL); lastImage != "" {
-		input["last_image"] = lastImage
+	if np := strings.TrimSpace(req.NegativePrompt); np != "" {
+		input["negative_prompt"] = np
 	}
 
 	if isUnifiedSeedanceVideoEdit(def) {

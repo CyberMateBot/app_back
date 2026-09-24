@@ -88,6 +88,7 @@ func imageModelOptions(id string) []MediaOption {
 			}, Default: "1:1"},
 			{Key: "width", Type: "number", Values: []string{"512", "8192"}, Default: "2048"},
 			{Key: "height", Type: "number", Values: []string{"512", "8192"}, Default: "2048"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 			{Key: "output_format", Type: "select", Values: []string{"jpeg", "png", "webp"}, Default: "jpeg"},
 		}
 	case "qwen-image-2512":
@@ -116,6 +117,7 @@ func imageModelOptions(id string) []MediaOption {
 			}, Default: "16:9"},
 			{Key: "width", Type: "number", Values: []string{"384", "2048"}, Default: "1280"},
 			{Key: "height", Type: "number", Values: []string{"384", "2048"}, Default: "720"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		}
 	case "qwen-image-2.0-pro":
@@ -156,6 +158,7 @@ func videoModelOptions(id string) []MediaOption {
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: klingDurationOptionValues(), Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p", "4k"}, Default: klingResolutionDefault(id)},
+			{Key: "cfg_scale", Type: "range", Values: []string{"0.1", "1.0"}, Default: "0.5"},
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "camera_movement", Type: "select", Values: []string{
 				"auto", "simple", "down_back", "forward_up", "right_turn_forward", "left_turn_forward",
@@ -177,15 +180,19 @@ func videoModelOptions(id string) []MediaOption {
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"2", "5", "8", "10", "12"}, Default: "5"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "camera_fixed", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "seedance-v1.5-i2v-fast", "seedance-v1.5-t2v-fast", "seedance-v1.5-i2v-spicy":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "4:3", "1:1", "3:4", "21:9"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"4", "5", "8", "10", "12"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "generate_audio", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 			{Key: "camera_fixed", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "seedance-v2-video-edit":
 		return withOptionPrices(id, []MediaOption{
@@ -193,33 +200,64 @@ func videoModelOptions(id string) []MediaOption {
 			{Key: "duration", Type: "select", Values: []string{"4", "5", "8", "10", "12", "15"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"480p", "720p", "1080p"}, Default: "720p"},
 			{Key: "turbo_mode", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "seedance-v2-video-extend":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "4:3", "3:4", "1:1", "21:9"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"4", "5", "8", "10", "12", "15"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "wan-2.5-t2v", "wan-2.7-t2v":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"2", "5", "10", "15"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"480P", "720P", "1080P"}, Default: "720P"},
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "wan-2.6-i2v", "wan-2.2-spicy-i2v":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"5", "8"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"480P", "720P", "1080p"}, Default: "720P"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
-	case "wan-2.7-flf", "wan-2.7-grid":
+	case "wan-2.7-flf":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720P", "1080P"}, Default: "720P"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		})
+	case "wan-2.7-grid":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720P", "1080P"}, Default: "720P"},
 		})
-	case "happyhorse-t2v", "happyhorse-i2v", "happyhorse-ref2v":
+	case "wan-2.7-edit":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720P", "1080P"}, Default: "720P"},
+		})
+	case "happyhorse-t2v":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1", "4:3", "3:4"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"3", "5", "10", "15"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		})
+	case "happyhorse-i2v", "happyhorse-ref2v":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1", "4:3", "3:4"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"3", "5", "10", "15"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "happyhorse-video-extend":
 		return withOptionPrices(id, []MediaOption{
@@ -228,12 +266,17 @@ func videoModelOptions(id string) []MediaOption {
 		})
 	case "sora-2-t2v":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 		})
 	case "sora-2-i2v", "sora-2-t2v-pro":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 		})
 	case "veo-3.1-extend":
 		return withOptionPrices(id, []MediaOption{
@@ -245,25 +288,34 @@ func videoModelOptions(id string) []MediaOption {
 		})
 	case "vidu-q3-i2v-spicy":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"1", "5", "10", "16"}, Default: "5"},
 			{Key: "resolution", Type: "select", Values: []string{"540p", "720p", "1080p"}, Default: "720p"},
 			{Key: "generate_audio", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 			{Key: "movement_amplitude", Type: "select", Values: []string{"auto", "small", "medium", "large"}, Default: "auto"},
+			{Key: "bgm", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 		})
 	case "hailuo-2.3-t2v":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
 			{Key: "duration", Type: "select", Values: []string{"6", "10"}, Default: "6"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 		})
 	case "hailuo-2.3-i2v-fast":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"6", "10"}, Default: "6"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 			{Key: "go_fast", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 		})
 	case "hailuo-2.3-i2v-pro":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"5"}, Default: "5"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 		})
 	default:
@@ -335,6 +387,7 @@ func threeDModelOptions(id string) []MediaOption {
 		})
 	case "tripo3d-h3.1-t2d", "tripo3d-h3.1-i2d":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "texture", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 			{Key: "texture_quality", Type: "select", Values: []string{"standard", "detailed"}, Default: "standard"},
 			{Key: "geometry_quality", Type: "select", Values: []string{"standard", "detailed"}, Default: "standard"},
@@ -342,6 +395,7 @@ func threeDModelOptions(id string) []MediaOption {
 		})
 	case "hunyuan3d-v3-t2d":
 		return withOptionPrices(id, []MediaOption{
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "generate_type", Type: "select", Values: []string{"Normal", "LowPoly", "Geometry"}, Default: "Normal"},
 			{Key: "face_limit", Type: "range", Values: []string{"40000", "1500000"}, Default: "500000"},
 			{Key: "enable_pbr", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},

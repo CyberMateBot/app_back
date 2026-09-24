@@ -20,7 +20,8 @@ type MediaModel struct {
 	RequiresImage  bool          `json:"requires_image,omitempty"`
 	RequiresVideo  bool          `json:"requires_video,omitempty"`
 	RequiresMultiImage bool      `json:"requires_multi_image,omitempty"`
-	Price              int           `json:"price,omitempty"` // base CyberCoins at default options
+	SupportsLastFrame  bool      `json:"supports_last_frame,omitempty"`
+	Price              int       `json:"price,omitempty"` // base CyberCoins at default options
 	Options            []MediaOption `json:"options,omitempty"`
 }
 
@@ -294,7 +295,8 @@ func toMediaModel(m mediaModelDef) MediaModel {
 		RequiresImage:      m.RequiresImage,
 		RequiresVideo:      m.RequiresVideo,
 		RequiresMultiImage: m.RequiresMultiImage,
-		Options: opts,
+		SupportsLastFrame:  m.ID == "wan-2.7-flf" || strings.HasPrefix(m.ID, "kling-"),
+		Options:            opts,
 	}
 }
 

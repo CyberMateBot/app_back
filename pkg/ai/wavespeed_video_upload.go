@@ -15,6 +15,18 @@ func prepareWavespeedVideoSource(ctx context.Context, cfg config.ConfigAI, req *
 	if err := prepareWavespeedVideoFrameSources(ctx, cfg, req); err != nil {
 		return err
 	}
+	// Synchronize start frame aliases
+	if strings.TrimSpace(req.FirstFrameURL) == "" && strings.TrimSpace(req.SourceImageURL) != "" {
+		req.FirstFrameURL = req.SourceImageURL
+	} else if strings.TrimSpace(req.SourceImageURL) == "" && strings.TrimSpace(req.FirstFrameURL) != "" {
+		req.SourceImageURL = req.FirstFrameURL
+	}
+	// Synchronize end frame aliases
+	if strings.TrimSpace(req.LastFrameURL) == "" && strings.TrimSpace(req.LastImageURL) != "" {
+		req.LastFrameURL = req.LastImageURL
+	} else if strings.TrimSpace(req.LastImageURL) == "" && strings.TrimSpace(req.LastFrameURL) != "" {
+		req.LastImageURL = req.LastFrameURL
+	}
 	return prepareWavespeedVideoFileSource(ctx, cfg, req)
 }
 

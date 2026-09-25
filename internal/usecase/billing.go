@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"sort"
-	"strings"
 
 	ucModels "github.com/twelvepills-936/tgapp-/internal/usecase/models"
 	"github.com/twelvepills-936/tgapp-/pkg/billing"
@@ -54,7 +53,7 @@ func (uc *useCase) UpdateAdminCoinPacks(ctx context.Context, input ucModels.Admi
 }
 
 func (uc *useCase) ResetAdminSubscriptionPlans(ctx context.Context) (ucModels.AdminListSubscriptionPlansOutput, error) {
-	items := normalizeLoadedPlans(billing.DefaultSubscriptionPlans())
+	items := billing.DefaultSubscriptionPlans()
 	if err := uc.saveSubscriptionPlans(ctx, items); err != nil {
 		return ucModels.AdminListSubscriptionPlansOutput{}, err
 	}
@@ -158,9 +157,8 @@ func sortCoinPacks(items []ucModels.CoinPackItem) {
 }
 
 // normalizeLoadedPlans fixes legacy admin_settings rows saved before the enabled
-// flag existed (json omitempty → false → all plans filtered from public catalog),
-// and ensures up-to-date plan features, locked models, and coin amounts from code
-// without requiring manual database migrations.
+// flag existed, and fills in missing defaults only when fields were left unpopulated,
+// preserving all admin customizations (prices, coins, features, and locked lists).
 func normalizeLoadedPlans(items []ucModels.SubscriptionPlanItem) []ucModels.SubscriptionPlanItem {
 	if len(items) == 0 {
 		return billing.DefaultSubscriptionPlans()
@@ -179,11 +177,24 @@ func normalizeLoadedPlans(items []ucModels.SubscriptionPlanItem) []ucModels.Subs
 			enabled++
 		}
 		if d, ok := defaultsByID[out[i].ID]; ok {
-			if out[i].Coins < d.Coins {
+			if out[i].Coins <= 0 {
 				out[i].Coins = d.Coins
 			}
-			out[i].Features = d.Features
-			out[i].Locked = d.Locked
+			if len(out[i].Features) == 0 {
+				out[i].Features = d.Features
+			}
+			if out[i].Locked == nil {
+				out[i].Locked = d.Locked
+			}
+			if out[i].Name == "" {
+				out[i].Name = d.Name
+			}
+			if out[i].BadgeClass == "" {
+				out[i].BadgeClass = d.BadgeClass
+			}
+			if out[i].PriceSub == "" {
+				out[i].PriceSub = d.PriceSub
+			}
 		}
 	}
 	if enabled == 0 {
@@ -194,8 +205,8 @@ func normalizeLoadedPlans(items []ucModels.SubscriptionPlanItem) []ucModels.Subs
 	return out
 }
 
-// normalizeLoadedCoinPacks ensures all standard coin packs are present and have
-// valid names, prices, and coins even if stale DB rows exist.
+// normalizeLoadedCoinPacks preserves admin customizations (prices, coins, names,
+// badges) while providing safe fallbacks for missing/zero fields.
 func normalizeLoadedCoinPacks(items []ucModels.CoinPackItem) []ucModels.CoinPackItem {
 	defaults := billing.DefaultCoinPacks()
 	if len(items) == 0 {
@@ -205,36 +216,21 @@ func normalizeLoadedCoinPacks(items []ucModels.CoinPackItem) []ucModels.CoinPack
 	for _, d := range defaults {
 		defaultsByID[d.ID] = d
 	}
-	existingIDs := make(map[string]bool, len(items))
-	for _, item := range items {
-		existingIDs[item.ID] = true
-	}
 
-	out := make([]ucModels.CoinPackItem, 0, len(items)+len(defaults))
+	out := make([]ucModels.CoinPackItem, 0, len(items))
 	for _, item := range items {
 		if d, ok := defaultsByID[item.ID]; ok {
-			if item.Coins < d.Coins {
+			if item.Coins <= 0 {
 				item.Coins = d.Coins
 			}
 			if item.PriceRub <= 0 {
 				item.PriceRub = d.PriceRub
 			}
-			// Use clean tier name if previous was 'X монет'
-			if item.Name == "" || item.Name == d.Name || strings.HasSuffix(item.Name, "монет") {
+			if item.Name == "" {
 				item.Name = d.Name
-			}
-			if item.Badge == "" && d.Badge != "" {
-				item.Badge = d.Badge
 			}
 		}
 		out = append(out, item)
-	}
-
-	// Add any missing default packs
-	for _, d := range defaults {
-		if !existingIDs[d.ID] {
-			out = append(out, d)
-		}
 	}
 	return out
 }

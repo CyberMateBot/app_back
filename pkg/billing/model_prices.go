@@ -1,9 +1,14 @@
 package billing
 
 // DefaultModelPrice returns the CyberCoin cost for a model operation.
-// 1 CyberCoin = 1 ₽. Prices calculated at ~3.5× provider cost.
+// 1 CyberCoin = 1 ₽. Prices calculated using category-specific multipliers to provider cost:
+//   - Text (LLM): 4.0×–6.0×
+//   - Image: 3.0×–4.0× (~3.5× baseline)
+//   - Audio/TTS: 3.0×–3.5×; Music: 2.5×–3.0×
+//   - 3D: 2.3×–2.7×
+//   - Video (5s base): 2.5×–3.0×; heavy/long video (>1.0$): 2.0×–2.2× regressive
 //
-// Reference exchange rate: ~85 ₽/$ (Sep 2026). Provider costs sourced from
+// Reference exchange rate: ~85–88 ₽/$ (Sep 2026). Provider costs sourced from
 // Wavespeed pricing (https://wavespeed.ai/pricing) + OpenAI/Anthropic list.
 // For text models the reference workload is ~5000 input + 2000 output tokens.
 // For video/audio the reference is the default duration (5 sec / 60 sec for
@@ -45,6 +50,9 @@ var defaultModelPrices = map[string]int{
 	"qwen-image": 7, "qwen-image-2512": 7, "qwen-image-2.0": 11, "qwen-image-2.0-pro": 25,
 	"z-image-base": 5, "z-image-turbo": 2, "grok-imagine-edit": 25,
 	"kling-image-o3": 14, "kling-image-v3": 14,
+	"gpt-image-2.5-flare": 3, "gpt-image-2.5-sunburst": 6,
+	"seedream-v5.0-pro": 14, "seedream-v5.0-flash": 8,
+	"face-enhancer-image": 6,
 
 	// Video models — base = 5-second default; longer durations / higher
 	// resolutions are surcharged proportionally in video_option_prices.go.
@@ -61,17 +69,24 @@ var defaultModelPrices = map[string]int{
 	"wan-2.7-t2v": 149, "wan-2.7-flf": 149, "wan-2.7-grid": 149, "wan-2.7-edit": 223,
 	"happyhorse-t2v": 223, "happyhorse-i2v": 223, "happyhorse-ref2v": 223, "happyhorse-video-edit": 223, "happyhorse-video-extend": 223,
 	"sora-2-t2v": 149, "sora-2-i2v": 149, "sora-2-t2v-pro": 250,
-	"veo-3.1-extend": 312, "vidu-q3-i2v-spicy": 238,
+	"veo-3.1-extend": 312, "vidu-q3-i2v-spicy": 185,
 	"hailuo-2.3-t2v": 44, "hailuo-2.3-i2v-fast": 36, "hailuo-2.3-i2v-pro": 93,
+	"wan-3.0-t2v": 65, "wan-3.0-i2v": 65, "wan-3.0-ref2v": 75,
+	"wan-3.0-prime-t2v": 105, "wan-3.0-prime-i2v": 105,
+	"seedance-2.5-t2v": 220, "seedance-2.5-i2v": 220, "seedance-2.5-talking-avatar": 150,
+	"seedance-2.5-video-edit": 220, "seedance-2.5-video-extend": 220,
+	"minimax-h3-t2v": 55, "minimax-h3-i2v": 55, "minimax-h3-singularity-i2v": 65,
+	"vidu-q3-pro-i2v": 185, "vidu-q3-turbo-i2v": 100,
+	"face-enhancer-video": 60,
 
 	// Audio / TTS — base = default text_length from media_model_options.go,
 	// audio_option_prices.go scales for longer inputs.
 	"qwen3-tts": 4, "qwen3-tts-clone": 15, "omnivoice": 3, "elevenlabs-v3": 30,
 	"minimax-speech-2.6": 18, "mureka": 50, "mureka-v9": 50, "ace-step-1.5": 40,
-	"kling-v1-tts": 4,
+	"kling-v1-tts": 4, "gemini-3.8-flash-tts": 3, "gemini-3.8-flash-lite-tts": 2,
 
 	// 3D models.
 	"hunyuan3d-v3.1-rapid": 25, "hunyuan3d-v3.1-rapid-i2d": 250, "hunyuan3d-v3-t2d": 30, "tripo3d-v2.5-i2d": 48,
 	"tripo3d-v2.5-multiview": 48, "tripo3d-h3.1-t2d": 55, "tripo3d-h3.1-i2d": 55,
-	"meshy6-t2d": 48, "rodin-v2-i2d": 55, "rodin-v2.5-i2d": 55,
+	"meshy6-t2d": 48, "meshy7.1-t2d": 50, "meshy7.1-i2d": 50, "rodin-v2-i2d": 55, "rodin-v2.5-i2d": 55,
 }

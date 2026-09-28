@@ -18,8 +18,8 @@ func TestVideoGenerationPrice_Kling(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "kling-v3-std", Duration: 5, Resolution: "720p", Sound: true,
-	}); got != 155 {
-		t.Fatalf("std 5s 720p + sound: got %d, want 155", got)
+	}); got != 143 {
+		t.Fatalf("std 5s 720p + sound: got %d, want 143", got)
 	}
 	base4k := DefaultModelPrice("kling-v3-4k", "video")
 	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
@@ -29,18 +29,18 @@ func TestVideoGenerationPrice_Kling(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
 		ModelID: "kling-v3-4k", Duration: 5, Resolution: "4k", Sound: true,
-	}); got != 280 {
-		t.Fatalf("4k 5s + sound: got %d, want 280", got)
+	}); got != 268 {
+		t.Fatalf("4k 5s + sound: got %d, want 268", got)
 	}
 	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
 		ModelID: "kling-v3-4k", Duration: 10, Resolution: "4k", Sound: false,
-	}); got != 500 {
-		t.Fatalf("4k 10s: got %d, want 500", got)
+	}); got != 405 {
+		t.Fatalf("4k 10s: got %d, want 405", got)
 	}
 	if got := VideoGenerationPrice(base4k, VideoGenerationParams{
 		ModelID: "kling-v3-4k", Duration: 10, Resolution: "4k", Sound: true,
-	}); got != 560 {
-		t.Fatalf("4k 10s + sound: got %d, want 560", got)
+	}); got != 442 {
+		t.Fatalf("4k 10s + sound: got %d, want 442", got)
 	}
 }
 
@@ -55,13 +55,13 @@ func TestVideoGenerationPrice_Sora2(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "sora-2-t2v", Duration: 10, Resolution: "720p",
-	}); got != 298 {
-		t.Fatalf("sora-2 10s 720p: got %d, want 298", got)
+	}); got != 242 {
+		t.Fatalf("sora-2 10s 720p: got %d, want 242", got)
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "sora-2-t2v", Duration: 5, Resolution: "1080p",
-	}); got != 250 {
-		t.Fatalf("sora-2 5s 1080p: got %d, want 250", got)
+	}); got != 212 {
+		t.Fatalf("sora-2 5s 1080p: got %d, want 212", got)
 	}
 	basePro := DefaultModelPrice("sora-2-t2v-pro", "video")
 	if got := VideoGenerationPrice(basePro, VideoGenerationParams{
@@ -82,8 +82,8 @@ func TestVideoGenerationPrice_Seedance15(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "seedance-v1.5-t2v-fast", Duration: 5, Resolution: "1080p", GenerateAudio: true,
-	}); got != 224 {
-		t.Fatalf("5s 1080p audio on: got %d, want 224", got)
+	}); got != 167 {
+		t.Fatalf("5s 1080p audio on: got %d, want 167", got)
 	}
 }
 
@@ -100,8 +100,8 @@ func TestVideoGenerationPrice_WAN(t *testing.T) {
 	base27 := DefaultModelPrice("wan-2.7-t2v", "video")
 	if got := VideoGenerationPrice(base27, VideoGenerationParams{
 		ModelID: "wan-2.7-t2v", Duration: 5, Resolution: "1080P",
-	}); got != 224 {
-		t.Fatalf("2.7 5s 1080P: got %d, want 224", got)
+	}); got != 195 {
+		t.Fatalf("2.7 5s 1080P: got %d, want 195", got)
 	}
 }
 
@@ -116,8 +116,8 @@ func TestVideoGenerationPrice_HappyHorse(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "happyhorse-t2v", Duration: 5, Resolution: "1080p",
-	}); got != 446 {
-		t.Fatalf("5s 1080p: got %d, want 446", got)
+	}); got != 353 {
+		t.Fatalf("5s 1080p: got %d, want 353", got)
 	}
 }
 
@@ -130,8 +130,8 @@ func TestVideoGenerationPrice_VeoExtend(t *testing.T) {
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "veo-3.1-extend", Duration: 7, Resolution: "1080p", GenerateAudio: true,
-	}); got != 546 {
-		t.Fatalf("7s 1080p audio: got %d, want 546", got)
+	}); got != 458 {
+		t.Fatalf("7s 1080p audio: got %d, want 458", got)
 	}
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "veo-3.1-extend", Duration: 4, Resolution: "720p", GenerateAudio: true,
@@ -151,8 +151,13 @@ func TestVideoGenerationPrice_Vidu(t *testing.T) {
 	base := DefaultModelPrice("vidu-q3-i2v-spicy", "video")
 	if got := VideoGenerationPrice(base, VideoGenerationParams{
 		ModelID: "vidu-q3-i2v-spicy", Duration: 5, Resolution: "720p",
-	}); got != 238 {
-		t.Fatalf("5s 720p: got %d, want 238", got)
+	}); got != 185 {
+		t.Fatalf("5s 720p: got %d, want 185", got)
+	}
+	if got := VideoGenerationPrice(base, VideoGenerationParams{
+		ModelID: "vidu-q3-i2v-spicy", Duration: 16, Resolution: "1080p",
+	}); got != 520 {
+		t.Fatalf("16s 1080p: got %d, want 520", got)
 	}
 }
 
@@ -162,14 +167,14 @@ func TestVideoGenerationPrice_Hailuo(t *testing.T) {
 	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-t2v", Duration: 6}); got != 44 {
 		t.Fatalf("t2v 6s: got %d, want 44", got)
 	}
-	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-t2v", Duration: 10}); got != 107 {
-		t.Fatalf("t2v 10s: got %d, want 107", got)
+	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-t2v", Duration: 10}); got != 105 {
+		t.Fatalf("t2v 10s: got %d, want 105", got)
 	}
 	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-fast", Duration: 6}); got != 36 {
 		t.Fatalf("fast i2v 6s: got %d, want 36", got)
 	}
-	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-fast", Duration: 10}); got != 61 {
-		t.Fatalf("fast i2v 10s: got %d, want 61", got)
+	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-fast", Duration: 10}); got != 60 {
+		t.Fatalf("fast i2v 10s: got %d, want 60", got)
 	}
 	if got := VideoGenerationPrice(0, VideoGenerationParams{ModelID: "hailuo-2.3-i2v-pro", Duration: 5}); got != 93 {
 		t.Fatalf("pro i2v 5s: got %d, want 93", got)

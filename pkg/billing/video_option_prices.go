@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"math"
 	"strconv"
 	"strings"
 )
@@ -117,7 +118,7 @@ func VideoGenerationPrice(basePrice int, p VideoGenerationParams) int {
 	}
 
 	baseUSD := defaultVideoUSD(effectiveID, p)
-	price := usdToCoinsFromBase(effectiveID, basePrice, baseUSD, usd)
+	price := videoUSDToCoins(effectiveID, basePrice, baseUSD, usd)
 	if price < 1 {
 		return 1
 	}
@@ -268,7 +269,7 @@ func videoDurationDeltas(modelID string, base int) map[string]int {
 			Resolution:    defaultVideoResolution(modelID),
 			GenerateAudio: defaultVideoGenerateAudio(modelID),
 		})
-		deltas[dStr] = usdToCoinsFromBase(modelID, base, refUSD, usd) - base
+		deltas[dStr] = videoUSDToCoins(modelID, base, refUSD, usd) - base
 	}
 	deltas[strconv.Itoa(defaultDur)] = 0
 	return deltas
@@ -292,7 +293,7 @@ func videoResolutionDeltas(modelID string, base int) map[string]int {
 			Resolution:    res,
 			GenerateAudio: defaultVideoGenerateAudio(modelID),
 		})
-		deltas[res] = usdToCoinsFromBase(modelID, base, refUSD, usd) - base
+		deltas[res] = videoUSDToCoins(modelID, base, refUSD, usd) - base
 	}
 	if defaultRes != "" {
 		deltas[defaultRes] = 0
@@ -306,7 +307,7 @@ func klingSoundDeltas(modelID string, base int) map[string]int {
 	ref := klingPerSecondUSD[effective] * float64(dur)
 	withSound := ref + klingAudioPerSecondUSD*float64(dur)
 	return map[string]int{
-		"true": usdToCoinsFromBase(effective, base, ref, withSound) - base,
+		"true": videoUSDToCoins(effective, base, ref, withSound) - base,
 	}
 }
 
@@ -317,7 +318,7 @@ func seedance15AudioDeltas(modelID string, base int) map[string]int {
 	without := seedance15PerSecond(res, false) * float64(dur)
 	return map[string]int{
 		"true":  0,
-		"false": usdToCoinsFromBase(modelID, base, ref, without) - base,
+		"false": videoUSDToCoins(modelID, base, ref, without) - base,
 	}
 }
 
@@ -328,7 +329,7 @@ func veoExtendAudioDeltas(modelID string, base int) map[string]int {
 	without := veoExtendUSD(dur, res, false)
 	return map[string]int{
 		"true":  0,
-		"false": usdToCoinsFromBase(modelID, base, ref, without) - base,
+		"false": videoUSDToCoins(modelID, base, ref, without) - base,
 	}
 }
 
@@ -337,8 +338,8 @@ func seedanceV2TurboDeltas(modelID string, base int) map[string]int {
 	ref := videoGenerationUSD(VideoGenerationParams{ModelID: modelID, Duration: dur, Resolution: "720p", TurboMode: true})
 	standard := videoGenerationUSD(VideoGenerationParams{ModelID: modelID, Duration: dur, Resolution: "480p", TurboMode: false})
 	return map[string]int{
-		"true":  usdToCoinsFromBase(modelID, base, ref, ref) - base,
-		"false": usdToCoinsFromBase(modelID, base, ref, standard) - base,
+		"true":  videoUSDToCoins(modelID, base, ref, ref) - base,
+		"false": videoUSDToCoins(modelID, base, ref, standard) - base,
 	}
 }
 
@@ -351,7 +352,7 @@ func videoExtendByDeltas(modelID string, base int) map[string]int {
 	for _, d := range []string{"3", "5", "10"} {
 		val, _ := strconv.Atoi(d)
 		usd := videoGenerationUSD(VideoGenerationParams{ModelID: modelID, Duration: 5, ExtendBy: val})
-		deltas[d] = usdToCoinsFromBase(modelID, base, ref, usd) - base
+		deltas[d] = videoUSDToCoins(modelID, base, ref, usd) - base
 	}
 	deltas["5"] = 0
 	return deltas
@@ -602,6 +603,10 @@ func videoDurationOptions(modelID string) []string {
 		return []string{"6", "10"}
 	case modelID == "hailuo-2.3-i2v-pro":
 		return []string{"5"}
+	case strings.HasPrefix(modelID, "wan-3.0"), strings.HasPrefix(modelID, "seedance-2.5"), strings.HasPrefix(modelID, "minimax-h3"):
+		return []string{"5", "10"}
+	case modelID == "vidu-q3-pro-i2v", modelID == "vidu-q3-turbo-i2v", modelID == "face-enhancer-video":
+		return []string{"5", "10"}
 	default:
 		return nil
 	}
@@ -621,11 +626,32 @@ func videoResolutionOptions(modelID string) []string {
 		return []string{"480P", "720P", "1080P"}
 	case modelID == "wan-2.6-i2v", modelID == "wan-2.2-spicy-i2v":
 		return []string{"480P", "720P", "1080p"}
-	case modelID == "vidu-q3-i2v-spicy":
+	case modelID == "vidu-q3-i2v-spicy", modelID == "vidu-q3-pro-i2v", modelID == "vidu-q3-turbo-i2v":
 		return []string{"540p", "720p", "1080p"}
+	case strings.HasPrefix(modelID, "wan-3.0"):
+		return []string{"720P", "1080P"}
+	case strings.HasPrefix(modelID, "seedance-2.5"), strings.HasPrefix(modelID, "minimax-h3"), modelID == "face-enhancer-video":
+		return []string{"720p", "1080p"}
 	case modelID == "veo-3.1-extend":
 		return []string{"720p", "1080p"}
 	default:
 		return nil
 	}
 }
+
+// videoUSDToCoins converts video USD cost to CyberCoins.
+// Standard/short generations (<= baseUSD) scale proportionally from the base price (~2.5–3.0× multiplier).
+// Longer durations and higher resolutions (> baseUSD) apply a regressive multiplier (~2.0–2.2×, ~185 coins/$)
+// to the incremental cost so that 10–16s 1080p generations stay competitive and affordable (450–550 coins instead of 800+).
+func videoUSDToCoins(modelID string, baseCoins int, baseUSD, usd float64) int {
+	if baseUSD <= 0 || usd <= 0 {
+		return int(math.Round(usd * 2.5 * 88))
+	}
+	if usd <= baseUSD {
+		scale := float64(baseCoins) / baseUSD
+		return int(math.Round(usd * scale))
+	}
+	extraUSD := usd - baseUSD
+	return baseCoins + int(math.Round(extraUSD*185.0))
+}
+

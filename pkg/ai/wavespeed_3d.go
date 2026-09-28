@@ -78,8 +78,10 @@ func buildWavespeedThreeDInput(def mediaModelDef, prompt string, req ThreeDReque
 		return buildHunyuanRapidT2DInput(prompt, req)
 	case "hunyuan3d-v3.1-rapid-i2d":
 		return buildHunyuanRapidI2DInput(req)
-	case "meshy6-t2d":
+	case "meshy6-t2d", "meshy7.1-t2d":
 		return buildMeshy6Input(prompt, req)
+	case "meshy7.1-i2d":
+		return buildMeshy71ImageInput(prompt, req)
 	case "rodin-v2-i2d":
 		return buildRodinV2Input(prompt, req)
 	case "rodin-v2.5-i2d":
@@ -211,6 +213,15 @@ func buildMeshy6Input(prompt string, req ThreeDRequest) map[string]any {
 		"ta_pose":                 req.TAPose != nil && *req.TAPose,
 		"symmetry_mode":           defaultString(req.SymmetryMode, "auto"),
 		"should_remesh":           req.ShouldRemesh == nil || *req.ShouldRemesh,
+	}
+	return input
+}
+
+func buildMeshy71ImageInput(prompt string, req ThreeDRequest) map[string]any {
+	input := buildMeshy6Input(prompt, req)
+	if img := threeDSourceImage(req); img != "" {
+		input["image"] = img
+		input["image_url"] = img
 	}
 	return input
 }

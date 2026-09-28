@@ -89,6 +89,9 @@ var modelMinPlanRank = map[string]int{
 	"z-image-base": 1, "z-image-turbo": 1,
 	"grok-imagine-edit": 2,
 	"kling-image-o3": 2, "kling-image-v3": 1,
+	"gpt-image-2.5-flare": 1, "gpt-image-2.5-sunburst": 2,
+	"seedream-v5.0-pro": 2, "seedream-v5.0-flash": 1,
+	"face-enhancer-image": 1,
 
 	// ---- Video (no free tier) ----
 	"kling-v3-std": 1,
@@ -110,15 +113,24 @@ var modelMinPlanRank = map[string]int{
 	"veo-3.1-extend": 3,
 	"vidu-q3-i2v-spicy": 2,
 	"hailuo-2.3-t2v": 1, "hailuo-2.3-i2v-fast": 2, "hailuo-2.3-i2v-pro": 3,
+	"wan-3.0-t2v": 1, "wan-3.0-i2v": 2, "wan-3.0-ref2v": 2,
+	"wan-3.0-prime-t2v": 2, "wan-3.0-prime-i2v": 2,
+	"seedance-2.5-t2v": 2, "seedance-2.5-i2v": 2, "seedance-2.5-talking-avatar": 2,
+	"seedance-2.5-video-edit": 3, "seedance-2.5-video-extend": 3,
+	"minimax-h3-t2v": 1, "minimax-h3-i2v": 1, "minimax-h3-singularity-i2v": 2,
+	"vidu-q3-pro-i2v": 2, "vidu-q3-turbo-i2v": 1,
+	"face-enhancer-video": 2,
 
 	// ---- Audio ----
 	"omnivoice": 0, "minimax-speech-2.6": 0, "qwen3-tts": 0, "kling-v1-tts": 0,
+	"gemini-3.8-flash-tts": 0, "gemini-3.8-flash-lite-tts": 0,
 	"elevenlabs-v3": 1,
 	"mureka-v9": 2, "mureka": 2, "ace-step-1.5": 2,
 
 	// ---- 3D (no free tier) ----
 	"hunyuan3d-v3.1-rapid": 1, "hunyuan3d-v3.1-rapid-i2d": 1, "hunyuan3d-v3-t2d": 1,
 	"tripo3d-v2.5-i2d": 2, "tripo3d-v2.5-multiview": 2, "meshy6-t2d": 2,
+	"meshy7.1-t2d": 2, "meshy7.1-i2d": 2,
 	"tripo3d-h3.1-t2d": 3, "tripo3d-h3.1-i2d": 3, "rodin-v2-i2d": 3, "rodin-v2.5-i2d": 3,
 }
 

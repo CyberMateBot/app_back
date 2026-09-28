@@ -182,6 +182,18 @@ var wavespeedAudioModelCatalog = []mediaModelDef{
 		TextSlug: "wavespeed-ai/ace-step-1.5",
 		Provider: "wavespeed", Kind: "audio",
 	},
+	{
+		ID: "gemini-3.8-flash-tts", Label: "Gemini 3.8 Flash TTS", Group: "Gemini TTS",
+		Description: "Синтез речи Google Gemini 3.8 Flash",
+		TextSlug: "google/gemini-3.8-flash/text-to-speech",
+		Provider: "wavespeed", Kind: "audio",
+	},
+	{
+		ID: "gemini-3.8-flash-lite-tts", Label: "Gemini 3.8 Flash Lite TTS", Group: "Gemini TTS",
+		Description: "Быстрый синтез речи Google Gemini 3.8 Flash Lite",
+		TextSlug: "google/gemini-3.8-flash-lite/text-to-speech",
+		Provider: "wavespeed", Kind: "audio",
+	},
 }
 
 var mediaModelAliases = map[string]string{
@@ -228,6 +240,8 @@ var mediaModelAliases = map[string]string{
 	"omnivoice": "omnivoice",
 	"wavespeed-ai/omnivoice/text-to-speech": "omnivoice",
 	"elevenlabs-v3": "elevenlabs-v3",
+	"google/gemini-3.8-flash/text-to-speech":      "gemini-3.8-flash-tts",
+	"google/gemini-3.8-flash-lite/text-to-speech": "gemini-3.8-flash-lite-tts",
 	"elevenlabs/eleven-v3": "elevenlabs-v3",
 	"minimax-speech-2.6": "minimax-speech-2.6",
 	"minimax/speech-2.6-turbo": "minimax-speech-2.6",

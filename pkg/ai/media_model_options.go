@@ -139,6 +139,24 @@ func imageModelOptions(id string) []MediaOption {
 			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
 			{Key: "output_format", Type: "select", Values: []string{"jpeg", "png", "webp"}, Default: "jpeg"},
 		}
+	case "gpt-image-2.5-flare", "gpt-image-2.5-sunburst":
+		return []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4"}, Default: "1:1"},
+			{Key: "resolution", Type: "select", Values: []string{"1k", "2k", "4k"}, Default: "1k"},
+			{Key: "quality", Type: "select", Values: []string{"standard", "hd"}, Default: "standard"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		}
+	case "seedream-v5.0-pro", "seedream-v5.0-flash":
+		return []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"}, Default: "1:1"},
+			{Key: "resolution", Type: "select", Values: []string{"1k", "2k", "4k"}, Default: "1k"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		}
+	case "face-enhancer-image":
+		return []MediaOption{
+			{Key: "fidelity", Type: "select", Values: []string{"0.5", "0.7", "0.9"}, Default: "0.7"},
+			{Key: "upscale", Type: "select", Values: []string{"1", "2", "4"}, Default: "2"},
+		}
 	case "grok-imagine-edit":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "aspect_ratio", Type: "select", Values: []string{"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"}, Default: "auto"},
@@ -338,6 +356,58 @@ func videoModelOptions(id string) []MediaOption {
 			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
 			{Key: "enable_prompt_expansion", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
 		})
+	case "wan-3.0-t2v", "wan-3.0-prime-t2v":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720P", "1080P"}, Default: "720P"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		})
+	case "wan-3.0-i2v", "wan-3.0-prime-i2v", "wan-3.0-ref2v":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720P", "1080P"}, Default: "720P"},
+			{Key: "negative_prompt", Type: "text", Values: nil, Default: ""},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		})
+	case "seedance-2.5-t2v", "seedance-2.5-i2v":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+			{Key: "generate_audio", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
+			{Key: "seed", Type: "number", Values: nil, Default: "-1"},
+		})
+	case "seedance-2.5-talking-avatar":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+		})
+	case "seedance-2.5-video-edit", "seedance-2.5-video-extend":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+		})
+	case "minimax-h3-t2v", "minimax-h3-i2v", "minimax-h3-singularity-i2v":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+		})
+	case "vidu-q3-pro-i2v", "vidu-q3-turbo-i2v":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "aspect_ratio", Type: "select", Values: []string{"16:9", "9:16", "1:1"}, Default: "16:9"},
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"540p", "720p", "1080p"}, Default: "720p"},
+			{Key: "generate_audio", Type: "boolean", Values: []string{"true", "false"}, Default: "true"},
+		})
+	case "face-enhancer-video":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "duration", Type: "select", Values: []string{"5", "10"}, Default: "5"},
+			{Key: "resolution", Type: "select", Values: []string{"720p", "1080p"}, Default: "720p"},
+		})
 	default:
 		return nil
 	}
@@ -389,6 +459,11 @@ func audioModelOptions(id string) []MediaOption {
 			{Key: "number_of_songs", Type: "select", Values: []string{"1", "2", "3"}, Default: "1"},
 			{Key: "output_format", Type: "select", Values: []string{"mp3", "wav", "flac"}, Default: "mp3"},
 		})
+	case "gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts":
+		return withOptionPrices(id, []MediaOption{
+			{Key: "voice", Type: "select", Values: []string{"Puck", "Charon", "Kore", "Fenrir", "Aoede"}, Default: "Puck"},
+			{Key: "text_length", Type: "select", Values: []string{"50", "100", "500", "1000", "2000"}, Default: "500"},
+		})
 	case "ace-step-1.5":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "duration", Type: "select", Values: []string{"30", "60", "120", "180", "240"}, Default: "60"},
@@ -436,7 +511,7 @@ func threeDModelOptions(id string) []MediaOption {
 			{Key: "enable_pbr", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
 			{Key: "enable_geometry", Type: "boolean", Values: []string{"false", "true"}, Default: "false"},
 		})
-	case "meshy6-t2d":
+	case "meshy6-t2d", "meshy7.1-t2d", "meshy7.1-i2d":
 		return withOptionPrices(id, []MediaOption{
 			{Key: "mode", Type: "select", Values: []string{"full", "preview"}, Default: "full"},
 			{Key: "art_style", Type: "select", Values: []string{"realistic", "sculpture"}, Default: "realistic"},
